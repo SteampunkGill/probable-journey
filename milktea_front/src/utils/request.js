@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-const BASE_URL = 'http://localhost:8080/api/v1/app'
-const COMMON_BASE_URL = 'http://localhost:8080/api/common'
+const BASE_URL = '/api/v1/app'
+const COMMON_BASE_URL = '/api/common'
 
 const service = axios.create({
   baseURL: BASE_URL,
