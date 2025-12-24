@@ -1,0 +1,346 @@
+<template>
+  <div class="address-page">
+    <!-- 地址列表 -->
+    <div class="address-list" v-if="addressList.length > 0">
+      <div class="address-item" 
+           :class="{ selectable: mode === 'select' }"
+           v-for="item in addressList" 
+           :key="item.id"
+           @click="selectAddress(item)">
+        
+        <!-- 默认标签 -->
+        <div class="default-badge" v-if="item.isDefault">默认</div>
+        
+        <!-- 地址信息 -->
+        <div class="address-info">
+          <div class="name-phone">
+            <span class="name">{{ item.name }}</span>
+            <span class="phone">{{ item.phone }}</span>
+          </div>
+          
+          <div class="address-detail">
+            <span class="tag" v-if="item.label">{{ item.label }}</span>
+            <span class="detail">{{ item.province }} {{ item.city }} {{ item.district }} {{ item.detail }}</span>
+          </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="address-actions" v-if="mode === 'list'">
+          <div class="action-left">
+            <input type="checkbox" 
+                   :checked="item.isDefault" 
+                   @change.stop="toggleDefault(item.id)" />
+            <span class="action-label">设为默认</span>
+          </div>
+          
+          <div class="action-right">
+            <button class="action-btn edit" @click.stop="editAddress(item.id)">
+              <span class="icon">✏️</span>
+              <span>编辑</span>
+            </button>
+            <button class="action-btn delete" @click.stop="deleteAddress(item)">
+              <span class="icon">🗑️</span>
+              <span>删除</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- 选中标记（选择模式） -->
+        <div class="selected-mark" v-if="mode === 'select' && selectedId === item.id">
+          <span class="icon">✓</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 空状态 -->
+    <div class="empty-state" v-else>
+      <img class="empty-icon" src="../../assets/images/icons/address.png" />
+      <span class="empty-text">暂无收货地址</span>
+    </div>
+
+    <!-- 底部添加按钮 -->
+    <div class="footer" v-if="mode === 'list'">
+      <button class="add-btn" @click="addAddress">
+        <span class="icon">➕</span>
+        <span>添加新地址</span>
+      </button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+
+const router = useRouter()
+const route = useRoute()
+
+const mode = ref(route.query.mode || 'list')
+const selectedId = ref(route.query.selectedId || '')
+const addressList = ref([])
+
+const loadAddressList = () => {
+  // 模拟加载地址列表
+  const savedAddresses = localStorage.getItem('addresses')
+  if (savedAddresses) {
+    addressList.value = JSON.parse(savedAddresses)
+  } else {
+    addressList.value = [
+      {
+        id: 'addr_001',
+        name: '张三',
+        phone: '13800138001',
+        province: '北京市',
+        city: '北京市',
+        district: '朝阳区',
+        detail: '建国路88号SOHO现代城C座1801',
+        isDefault: true,
+        label: '公司'
+      },
+      {
+        id: 'addr_002',
+        name: '李四',
+        phone: '13900139002',
+        province: '上海市',
+        city: '上海市',
+        district: '浦东新区',
+        detail: '世纪大道1号东方明珠',
+        isDefault: false,
+        label: '家'
+      }
+    ]
+    localStorage.setItem('addresses', JSON.stringify(addressList.value))
+  }
+}
+
+const selectAddress = (address) => {
+  if (mode.value === 'select') {
+    // 在实际应用中，这里可能需要通过 store 或事件总线传递数据
+    localStorage.setItem('selectedAddress', JSON.stringify(address))
+    router.back()
+  }
+}
+
+const addAddress = () => {
+  router.push('/address/edit')
+}
+
+const editAddress = (id) => {
+  router.push(`/address/edit?id=${id}`)
+}
+
+const deleteAddress = (address) => {
+  if (confirm(`确定要删除${address.name}的地址吗？`)) {
+    addressList.value = addressList.value.filter(item => item.id !== address.id)
+    if (address.isDefault && addressList.value.length > 0) {
+      addressList.value[0].isDefault = true
+    }
+    localStorage.setItem('addresses', JSON.stringify(addressList.value))
+  }
+}
+
+const toggleDefault = (id) => {
+  addressList.value = addressList.value.map(item => ({
+    ...item,
+    isDefault: item.id === id
+  }))
+  localStorage.setItem('addresses', JSON.stringify(addressList.value))
+}
+
+onMounted(() => {
+  loadAddressList()
+})
+</script>
+
+<style scoped>
+.address-page {
+  min-height: 100vh;
+  background: #F5F5F5;
+  padding-bottom: 80px;
+}
+
+.address-list {
+  padding: 10px;
+}
+
+.address-item {
+  position: relative;
+  background: white;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+}
+
+.address-item.selectable {
+  padding-right: 50px;
+  cursor: pointer;
+}
+
+.default-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: linear-gradient(135deg, #D4A574, #B08968);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 0 8px 0 10px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.address-info {
+  margin-bottom: 12px;
+}
+
+.name-phone {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-right: 10px;
+}
+
+.phone {
+  font-size: 14px;
+  color: #666;
+}
+
+.address-detail {
+  display: flex;
+  align-items: flex-start;
+}
+
+.tag {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  background: #FFF9E6;
+  color: #D4A574;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-right: 6px;
+  border: 1px solid #D4A574;
+}
+
+.detail {
+  flex: 1;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.address-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #F0F0F0;
+}
+
+.action-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.action-right {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 25px;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+}
+
+.action-btn.edit {
+  background: #FFF9E6;
+  color: #D4A574;
+}
+
+.action-btn.delete {
+  background: #FFF5F5;
+  color: #FF6B6B;
+}
+
+.selected-mark {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  background: #D4A574;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selected-mark .icon {
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100px 0;
+}
+
+.empty-icon {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 20px;
+  opacity: 0.3;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #999;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 10px 15px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.add-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #D4A574, #B08968);
+  color: white;
+  border-radius: 25px;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+</style>
