@@ -17,14 +17,18 @@ export const authApi = {
   // 更新用户信息
   updateUserProfile: (data) => put('/user/profile', data),
   
-  // 发送短信验证码
-  sendSms: (phone) => post('/auth/send-sms', { phone }),
   
-  // 短信验证码登录
-  smsLogin: (phone, code) => post('/auth/sms-login', { phone, code }),
+  // 用户注册
+  register: (data) => post('/auth/register', data),
   
   // 修改密码
-  changePassword: (oldPassword, newPassword) => post('/auth/change-password', { oldPassword, newPassword })
+  changePassword: (oldPassword, newPassword) => post('/auth/change-password', { oldPassword, newPassword }),
+  
+  // 注销账号验证
+  verifyDeactivation: () => post('/user/verify-deactivation'),
+  
+  // 注销账号
+  deactivate: () => post('/user/deactivate')
 }
 
 // 首页相关
@@ -67,6 +71,9 @@ export const productApi = {
   
   // 获取搜索热词（后端路径为 /search/hot）
   getHotKeywords: () => get('/search/hot'),
+  
+  // 获取搜索历史
+  getSearchHistory: () => get('/search/history'),
   
   // 清空搜索历史（后端路径为 /search/history）
   clearSearchHistory: () => del('/search/history')
@@ -193,16 +200,19 @@ export const pointsApi = {
   
   // 积分商城相关
   // 获取积分商品列表
-  getPointsProducts: (page = 1, size = 10, category) => get('/points/mall/products', { page, size, category }),
+  getPointsProducts: (page = 1, size = 10, category) => get('/points-mall/products', { page, size, category }),
   
   // 获取积分商品分类
-  getPointsCategories: () => get('/points/mall/categories'),
+  getPointsCategories: () => get('/points-mall/categories'),
   
   // 兑换积分商品
-  exchangeProduct: (productId) => post('/points/mall/exchange', { productId }),
+  exchangeProduct: (productId) => post('/points-mall/exchange', { productId }),
   
   // 获取兑换记录
-  getExchangeRecords: (page = 1, size = 10) => get('/points/mall/exchange-records', { page, size })
+  getExchangeRecords: (page = 1, size = 10) => get('/points-mall/exchange-records', { page, size }),
+  
+  // 积分兑换优惠券
+  exchangeCoupon: (couponId) => post('/points/exchange-coupon', { couponId })
 }
 
 // 系统相关（部分后端未实现）
@@ -226,7 +236,19 @@ export const memberApi = {
   getCardBalance: () => get('/user/card-balance'),
   
   // 绑定会员卡（后端路径为 /user/bind-card）
-  bindCard: (cardNumber) => post('/user/bind-card', { cardNumber })
+  bindCard: (cardNumber) => post('/user/bind-card', { cardNumber }),
+  
+  // 获取会员专享商品
+  getExclusiveProducts: () => get('/member/exclusive-products'),
+  
+  // 获取会员专享价
+  getExclusivePrices: () => get('/member/exclusive-prices'),
+  
+  // 获取生日特权信息
+  getBirthdayPrivilege: () => get('/member/birthday-privilege'),
+  
+  // 领取生日特权
+  receiveBirthdayPrivilege: () => post('/member/birthday-privilege/receive')
 }
 
 // 社交功能
@@ -274,14 +296,53 @@ export const paymentApi = {
 // 积分商城相关
 export const pointsMallApi = {
   // 获取积分商品列表
-  getProducts: (category) => get('/api/v1/app/points-mall/products', { category }),
+  getProducts: (category) => get('/points-mall/products', { category }),
   
   // 获取积分商品分类
-  getCategories: () => get('/api/v1/app/points-mall/categories'),
+  getCategories: () => get('/points-mall/categories'),
   
   // 兑换积分商品
-  exchangeProduct: (productId) => post('/api/v1/app/points/mall/exchange', { productId }),
+  exchangeProduct: (productId) => post('/points-mall/exchange', { productId }),
   
   // 获取兑换记录
-  getExchangeRecords: () => get('/api/v1/app/points/mall/exchange-records')
+  getExchangeRecords: () => get('/points-mall/exchange-records')
+}
+
+// 营销活动相关
+export const promotionApi = {
+  // 活动列表
+  getPromotionList: () => get('/promotions'),
+  
+  // 满减活动
+  getFullReduction: () => get('/promotions/full-reduction'),
+  
+  // 第二杯半价活动详情
+  getSecondHalf: (id) => get(`/promotions/second-half/${id}`),
+  
+  // 限时折扣商品
+  getFlashSale: () => get('/promotions/flash-sale')
+}
+
+// 售后相关
+export const afterSalesApi = {
+  // 提交投诉建议
+  submitComplaint: (data) => post('/complaints', data),
+  
+  // 售后记录查询
+  getAfterSalesRecords: () => get('/after-sales')
+}
+
+// 广告相关
+export const bannerApi = {
+  // 获取轮播图
+  getBanners: () => get('/banners')
+}
+
+// 门店相关
+export const storeApi = {
+  // 获取附近门店
+  getNearbyStores: (params) => get('/stores/nearby', params),
+  
+  // 获取门店详情
+  getStoreDetail: (id) => get(`/stores/${id}`)
 }

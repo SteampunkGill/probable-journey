@@ -198,6 +198,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
+import { productApi } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()

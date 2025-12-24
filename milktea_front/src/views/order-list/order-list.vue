@@ -145,15 +145,16 @@ const loadOrders = async () => {
     if (activeTab.value !== 'all') {
       // 映射前端状态到后端状态
       const statusMap = {
-        'pending': 'pending_payment',
-        'processing': 'processing',
-        'completed': 'completed'
+        'pending': 'PAID', // 待使用/待取餐
+        'processing': 'MAKING', // 制作中
+        'completed': 'FINISHED' // 已完成
       }
       params.status = statusMap[activeTab.value]
     }
     const res = await orderApi.getOrderList(params)
+    const orderData = res.data || res || []
     // 转换数据格式以匹配前端
-    orders.value = res.map(order => ({
+    orders.value = orderData.map(order => ({
       id: order.id,
       orderNo: order.orderNo,
       status: order.status,

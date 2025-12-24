@@ -203,7 +203,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
-import { productApi, commonApi, homeApi } from '../../utils/api'
+import { homeApi, storeApi, bannerApi, productApi } from '../../utils/api'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -215,7 +215,7 @@ const banners = ref([])
 const recommendProducts = ref([])
 const hotProducts = ref([])
 const nearbyStore = ref(null)
-const availableCouponCount = ref(3)
+const availableCouponCount = ref(0)
 const cartCount = ref(0)
 const cartAnimating = ref(false)
 
@@ -224,32 +224,44 @@ let bannerTimer = null
 const loadData = async () => {
   loading.value = true
   try {
-    // 并行获取首页数据和门店列表
-    const [homeRes, storesRes] = await Promise.all([
+    // 并行获取首页数据、轮播图、推荐商品和附近门店
+    const [homeRes, bannersRes, recommendRes, nearbyRes] = await Promise.all([
       homeApi.getHomeData(),
-      commonApi.getStores()
+      bannerApi.getBanners(),
+      homeApi.getRecommendations(),
+      storeApi.getNearbyStores({ latitude: null, longitude: null })
     ])
-    const homeData = homeRes.data
-    const stores = storesRes.data || []
     
-    // 映射后端数据结构
-    banners.value = homeData.banners || []
-    // 后端返回的是 recommendations，映射到 recommendProducts
-    recommendProducts.value = homeData.recommendations || []
+    // 首页数据
+    const homeData = homeRes.data || {}
+    
+    // 轮播图
+    banners.value = bannersRes.data || []
+    
+    // 推荐商品
+    recommendProducts.value = recommendRes.data || []
+    
+    // 热门商品
     hotProducts.value = homeData.hotProducts || []
-    // 如果有门店，取第一个作为附近门店
-    if (stores.length > 0) {
-      const store = stores[0]
+    
+    // 附近门店
+    if (nearbyRes.data && nearbyRes.data.length > 0) {
+      const store = nearbyRes.data[0]
       nearbyStore.value = {
         name: store.name,
         address: store.address,
-        distance: '500m', // 后端未提供距离，暂时写死
-        businessHours: '9:00-22:00', // 后端未提供营业时间，暂时写死
+        distance: store.distance || '500m',
+        businessHours: store.businessHours || '9:00-22:00',
         phone: store.phone || '13800138000'
       }
     } else {
       nearbyStore.value = null
     }
+    
+    // 获取可用优惠券数量
+    // 这里可以调用优惠券API获取数量，暂时设为0
+    availableCouponCount.value = 0
+    
   } catch (error) {
     console.error('加载首页数据失败:', error)
     // 可选的错误处理，例如显示错误消息
@@ -260,9 +272,11 @@ const loadData = async () => {
 }
 
 const startBannerTimer = () => {
-  bannerTimer = setInterval(() => {
-    currentBanner.value = (currentBanner.value + 1) % banners.value.length
-  }, 5000)
+  if (banners.value.length > 1) {
+    bannerTimer = setInterval(() => {
+      currentBanner.value = (currentBanner.value + 1) % banners.value.length
+    }, 5000)
+  }
 }
 
 const onScroll = (e) => {

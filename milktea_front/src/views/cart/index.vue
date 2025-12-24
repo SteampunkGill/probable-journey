@@ -103,7 +103,7 @@
         <div class="section-header" @click="router.push('/coupon')">
           <span class="section-title">优惠券</span>
           <div class="coupon-info">
-            <span class="available-coupons">3张可用</span>
+            <span class="available-coupons">{{ availableCouponCount }}张可用</span>
             <i class="iconfont icon-right"></i>
           </div>
         </div>
@@ -157,12 +157,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
+import { couponApi } from '../../utils/api'
 
 const router = useRouter()
 const cartStore = useCartStore()
 
 const isEditing = ref(false)
 const remark = ref('')
+const availableCouponCount = ref(0)
 
 const cartItems = computed(() => cartStore.items)
 
@@ -212,6 +214,7 @@ const goToCheckout = () => {
   localStorage.setItem('orderRemark', remark.value)
   router.push('/order/checkout')
 }
+
 const toggleSelect = (item) => {
   cartStore.toggleSelect(item.cartItemId || item.id)
 }
@@ -226,8 +229,24 @@ const increaseQuantity = (item) => {
   cartStore.updateQuantity(item.cartItemId || item.id, item.quantity + 1)
 }
 
+const loadAvailableCouponCount = async () => {
+  try {
+    const res = await couponApi.getMyCoupons()
+    if (res.data) {
+      // 统计可用优惠券数量
+      const availableCoupons = res.data.filter(coupon => 
+        coupon.status === 'AVAILABLE' || coupon.status === 'UNUSED'
+      )
+      availableCouponCount.value = availableCoupons.length
+    }
+  } catch (error) {
+    console.error('获取优惠券数量失败:', error)
+  }
+}
+
 onMounted(() => {
   cartStore.fetchCart()
+  loadAvailableCouponCount()
 })
 </script>
 

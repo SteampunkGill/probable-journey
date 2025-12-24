@@ -51,12 +51,22 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { userApi } from '../../utils/api'
 
-const balance = ref(86.50)
+const balance = ref(0)
 
 onMounted(() => {
-  // 加载数据
+  loadBalance()
 })
+
+const loadBalance = async () => {
+  try {
+    const res = await userApi.getCardBalance()
+    balance.value = res.data?.balance || res.balance || res || 0
+  } catch (error) {
+    console.error('加载余额失败:', error)
+  }
+}
 
 const recharge = () => {
   alert('充值功能开发中')

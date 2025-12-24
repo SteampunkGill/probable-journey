@@ -128,6 +128,11 @@ function handleHttpError(response) {
   }
   const message = errorMap[response.status] || `请求失败: ${response.status}`
   alert(message)
+  
+  if (response.status === 401 || response.status === 403) {
+    localStorage.removeItem('token')
+    window.location.href = '/login'
+  }
 }
 
 export const get = (url, params) => service.get(url, { params })

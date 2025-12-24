@@ -71,6 +71,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { addressApi } from '@/utils/api'
 
 const router = useRouter()
 const route = useRoute()

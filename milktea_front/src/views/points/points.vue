@@ -92,8 +92,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { pointsApi, userApi } from '../../utils/api'
 
-const userPoints = ref(1250)
+const userPoints = ref(0)
 const activeCategoryId = ref('all')
 const showRecords = ref(false)
 const loading = ref(false)

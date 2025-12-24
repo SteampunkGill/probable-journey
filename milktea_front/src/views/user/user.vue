@@ -75,16 +75,6 @@
       </div>
     </div>
 
-    <!-- 邀请好友 -->
-    <div class="invite-section" @click="goToInvite">
-      <div class="invite-content">
-        <span class="invite-title">👥 邀请好友喝奶茶</span>
-        <span class="invite-desc">邀请好友注册，各得20元优惠券</span>
-      </div>
-      <div class="invite-action">
-        立即邀请 >
-      </div>
-    </div>
 
     <!-- 客服中心 -->
     <div class="service-section">
@@ -110,6 +100,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../store/user'
+import { userApi, couponApi } from '../../utils/api'
 import defaultAvatar from '../../assets/images/icons/user.png'
 
 const router = useRouter()
@@ -173,9 +164,6 @@ const goToFunction = (url) => {
   if (url) router.push(url)
 }
 
-const goToInvite = () => {
-  router.push('/invite')
-}
 
 const contactService = () => {
   alert('正在连接在线客服...')
@@ -336,35 +324,6 @@ onMounted(() => {
   color: #333;
 }
 
-.invite-section {
-  background: #FFF9F0;
-  margin: 15px;
-  padding: 20px;
-  border-radius: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border: 1px solid #FFE8CC;
-  cursor: pointer;
-}
-
-.invite-title {
-  font-size: 15px;
-  font-weight: bold;
-  color: #D4A574;
-  display: block;
-  margin-bottom: 5px;
-}
-
-.invite-desc {
-  font-size: 12px;
-  color: #B38B5D;
-}
-
-.invite-action {
-  font-size: 13px;
-  color: #D4A574;
-}
 
 .service-section {
   display: flex;

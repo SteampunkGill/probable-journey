@@ -8,21 +8,21 @@ export default defineConfig({
     proxy: {
       // 代理 /api/v1/app 路径的请求到后端
       '/api/v1/app': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path
       },
       // 代理 /api/common 路径的请求到后端
       '/api/common': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path
       },
       // 代理 /api 路径的请求到后端（通用配置）
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path

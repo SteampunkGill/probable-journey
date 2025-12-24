@@ -23,7 +23,7 @@ const routes = [
     path: '/user',
     name: 'user',
     component: () => import('../views/user/user.vue'),
-    meta: { title: '我的' }
+    meta: { title: '我的', requiresAuth: true }
   },
   {
     path: '/pickup',
@@ -48,6 +48,12 @@ const routes = [
     name: 'login',
     component: () => import('../views/login/login.vue'),
     meta: { title: '登录' }
+  },
+  {
+    path: '/register',
+    name: 'register',
+    component: () => import('../views/login/register.vue'),
+    meta: { title: '注册' }
   },
   {
     path: '/product/:id',
@@ -171,7 +177,21 @@ router.beforeEach((to, from, next) => {
   if (to.meta.title) {
     document.title = to.meta.title
   }
-  next()
+
+  const token = localStorage.getItem('token')
+  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+
+  if (to.meta.requiresAuth && !token) {
+    next({
+      path: '/login',
+      query: { redirect: to.fullPath }
+    })
+  } else if (to.meta.requiresAdmin && userInfo.role !== 'admin') {
+    alert('权限不足，无法访问管理后台')
+    next({ path: '/' })
+  } else {
+    next()
+  }
 })
 
 export default router

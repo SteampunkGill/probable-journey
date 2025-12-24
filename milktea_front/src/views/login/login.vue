@@ -9,26 +9,8 @@
 
     <!-- 登录卡片 -->
     <div class="login-card">
-      <!-- 登录方式切换 -->
-      <div class="login-tabs">
-        <div 
-          class="tab-item" 
-          :class="{ active: loginType === 'password' }"
-          @click="loginType = 'password'"
-        >
-          账号密码
-        </div>
-        <div 
-          class="tab-item" 
-          :class="{ active: loginType === 'sms' }"
-          @click="loginType = 'sms'"
-        >
-          短信验证
-        </div>
-      </div>
-
       <!-- 密码登录表单 -->
-      <div v-if="loginType === 'password'">
+      <div>
         <div class="form-content">
           <!-- 用户名输入框 -->
           <div class="form-group">
@@ -86,64 +68,6 @@
         </div>
       </div>
 
-      <!-- 短信登录表单 -->
-      <div v-if="loginType === 'sms'">
-        <div class="form-content">
-          <!-- 手机号输入框 -->
-          <div class="form-group">
-            <div class="input-wrapper" :class="{ 'input-focus': isFocusPhone }">
-              <i class="iconfont icon-phone"></i>
-              <input 
-                type="tel" 
-                placeholder="请输入手机号" 
-                class="input-field"
-                v-model="phone"
-                @focus="isFocusPhone = true"
-                @blur="isFocusPhone = false"
-                maxlength="11"
-              />
-              <div v-if="phone" class="clear-btn" @click="phone = ''">
-                <i class="iconfont icon-close"></i>
-              </div>
-            </div>
-          </div>
-
-          <!-- 验证码输入框 -->
-          <div class="form-group">
-            <div class="input-wrapper" :class="{ 'input-focus': isFocusSmsCode }">
-              <i class="iconfont icon-verification"></i>
-              <input 
-                type="number" 
-                placeholder="请输入验证码" 
-                class="input-field sms-input"
-                v-model="smsCode"
-                @focus="isFocusSmsCode = true"
-                @blur="isFocusSmsCode = false"
-                maxlength="6"
-              />
-              <button 
-                class="sms-btn"
-                :class="{ disabled: countdown > 0 || !isValidPhone }"
-                @click="sendSmsCode"
-                :disabled="countdown > 0 || !isValidPhone"
-              >
-                {{ countdown > 0 ? countdown + '秒' : '获取验证码' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- 登录按钮 -->
-          <button 
-            class="login-btn" 
-            @click="handleLogin"
-            :disabled="loading || !agreed"
-          >
-            <i v-if="loading" class="loading-icon iconfont icon-loading"></i>
-            {{ loading ? '登录中...' : '立即登录' }}
-          </button>
-        </div>
-      </div>
-
       <!-- 底部操作 -->
       <div class="bottom-actions">
         <span class="action-text" @click="router.push('/forgot')">忘记密码</span>
@@ -180,46 +104,23 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../../store/user'
 import { authApi } from '../../utils/api'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
-const loginType = ref('password')
 const username = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const rememberMe = ref(true)
-const phone = ref('')
-const smsCode = ref('')
-const countdown = ref(0)
 const agreed = ref(false)
 const loading = ref(false)
 
 const isFocusUsername = ref(false)
 const isFocusPassword = ref(false)
-const isFocusPhone = ref(false)
-const isFocusSmsCode = ref(false)
-
-const isValidPhone = computed(() => /^1[3-9]\d{9}$/.test(phone.value))
-
-const sendSmsCode = async () => {
-  if (countdown.value > 0 || !isValidPhone.value) return
-  
-  try {
-    await authApi.sendSms(phone.value)
-    countdown.value = 60
-    const timer = setInterval(() => {
-      countdown.value--
-      if (countdown.value <= 0) clearInterval(timer)
-    }, 1000)
-    alert('验证码已发送')
-  } catch (error) {
-    alert('发送验证码失败：' + error.message)
-  }
-}
 
 const handleLogin = async () => {
   if (!agreed.value) {
@@ -229,41 +130,24 @@ const handleLogin = async () => {
 
   loading.value = true
   try {
-    if (loginType.value === 'password') {
-      // 调用真实API
-      const res = await authApi.login(username.value, password.value)
-      const user = res.data
-      // 存储用户信息
-      userStore.setUserInfo(user)
-      // 假设token在user.token中
-      if (user.token) {
-        userStore.setToken(user.token)
-      } else {
-        // 如果没有token，使用模拟token（临时方案）
-        userStore.setToken('token_' + user.id)
-      }
-      // 记住用户名
-      if (rememberMe.value) {
-        localStorage.setItem('remembered_username', username.value)
-      }
-      alert('登录成功')
-      router.push('/')
+    // 调用真实API
+    const res = await authApi.login(username.value, password.value)
+    const user = res.data
+    // 存储用户信息
+    userStore.setUserInfo(user)
+    // 假设token在user.token中
+    if (user.token) {
+      userStore.setToken(user.token)
     } else {
-      // 短信登录调用真实API
-      const res = await authApi.smsLogin(phone.value, smsCode.value)
-      const user = res.data
-      // 存储用户信息
-      userStore.setUserInfo(user)
-      // 假设token在user.token中
-      if (user.token) {
-        userStore.setToken(user.token)
-      } else {
-        // 如果没有token，使用模拟token（临时方案）
-        userStore.setToken('token_' + user.id)
-      }
-      alert('登录成功')
-      router.push('/')
+      // 如果没有token，使用模拟token（临时方案）
+      userStore.setToken('token_' + user.id)
     }
+    // 记住用户名
+    if (rememberMe.value) {
+      localStorage.setItem('remembered_username', username.value)
+    }
+    alert('登录成功')
+    router.push('/')
   } catch (error) {
     alert(error.message || '登录失败')
   } finally {
@@ -340,31 +224,6 @@ onMounted(() => {
   flex: 1;
 }
 
-.login-tabs {
-  display: flex;
-  margin-bottom: 25px;
-  background: #F8F8F8;
-  border-radius: 25px;
-  padding: 3px;
-}
-
-.tab-item {
-  flex: 1;
-  text-align: center;
-  padding: 11px 0;
-  font-size: 15px;
-  color: #666;
-  border-radius: 22px;
-  transition: all 0.3s;
-  cursor: pointer;
-}
-
-.tab-item.active {
-  background: #FFD166;
-  color: #8B7500;
-  font-weight: bold;
-}
-
 .form-group {
   margin-bottom: 17px;
 }
@@ -395,26 +254,6 @@ onMounted(() => {
   background: transparent;
   border: none;
   outline: none;
-}
-
-.sms-btn {
-  min-width: 90px;
-  height: 32px;
-  background: #FFD166;
-  color: #8B7500;
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: bold;
-  border: none;
-  margin-left: 7px;
-  padding: 0 10px;
-  cursor: pointer;
-}
-
-.sms-btn.disabled {
-  background: #EEE;
-  color: #999;
-  cursor: not-allowed;
 }
 
 .remember-section {

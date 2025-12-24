@@ -41,6 +41,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { couponApi } from '../../utils/api'
 
 const router = useRouter()
 
