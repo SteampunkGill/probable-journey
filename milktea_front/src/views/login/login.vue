@@ -138,14 +138,16 @@ const handleLogin = async () => {
     }
 
     // 存储用户信息
-    userStore.setUserInfo(user)
+    // 兼容后端返回的结构 { token, user: { ... } } 或直接是用户信息
+    const userInfo = user.user || user
+    userStore.setUserInfo(userInfo)
     
     // 处理 Token
-    if (user.token) {
-      userStore.setToken(user.token)
-    } else if (user.id) {
-      // 如果后端暂未实现 JWT Token，使用模拟 token 维持登录状态
-      userStore.setToken('mock_token_' + user.id)
+    const token = user.token
+    if (token) {
+      userStore.setToken(token)
+    } else {
+      throw new Error('登录返回数据异常：缺失Token')
     }
 
     // 记住用户名

@@ -194,58 +194,25 @@ const order = ref(null)
 const statusSteps = ref([])
 const currentStep = ref(0)
 
+import { orderApi } from '../../utils/api'
+
 onMounted(() => {
   loadOrderDetail()
 })
 
-const loadOrderDetail = () => {
+const loadOrderDetail = async () => {
   loading.value = true
-  // 模拟数据
-  setTimeout(() => {
-    const mockOrder = {
-      id: route.params.id,
-      orderNo: 'MT20231201001',
-      status: 'processing',
-      statusText: '制作中',
-      createTime: '2023-12-01 14:30:00',
-      payTime: '2023-12-01 14:31:00',
-      deliveryType: 'pickup',
-      pickupCode: 'A123',
-      totalAmount: 68.50,
-      subtotal: 58.00,
-      deliveryFee: 5.00,
-      packagingFee: 1.50,
-      couponDiscount: 5.00,
-      pointsDiscount: 1.00,
-      items: [
-        {
-          id: 'item_001',
-          name: '经典珍珠奶茶',
-          image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400',
-          price: 18.00,
-          quantity: 2,
-          customizations: {
-            sweetness: '五分糖',
-            temperature: '少冰',
-            toppings: ['珍珠', '椰果']
-          }
-        }
-      ],
-      store: {
-        name: '奶茶小屋·中山路店',
-        address: '中山路123号',
-        phone: '13800138000',
-        businessHours: '9:00-22:00'
-      },
-      paymentMethodText: '微信支付',
-      remark: '少冰,请尽快制作',
-      estimatedTime: '15:00'
+  try {
+    const res = await orderApi.getOrderDetail(route.params.id)
+    if (res.code === 200) {
+      order.value = res.data
+      generateStatusSteps(res.data)
     }
-    
-    order.value = mockOrder
-    generateStatusSteps(mockOrder)
+  } catch (error) {
+    console.error('加载订单详情失败:', error)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const generateStatusSteps = (order) => {

@@ -58,7 +58,13 @@ service.interceptors.response.use(
   response => {
     const res = response.data
     // 兼容处理：有些后端直接返回数据，有些包裹在 code/data 中
-    if (res.code === 200 || res.status === 'success' || !res.code) {
+    // 增加对业务错误码的判断，如果 code 为 200 但 message 不是 success，且 data 为空，可能是业务错误
+    if (res.code === 200 || res.status === 'success') {
+      return res.data
+    } else if (res.code >= 400 || res.code === 1001 || res.code === 1002) {
+      handleBusinessError(res)
+      return Promise.reject(new Error(res.message || '业务请求失败'))
+    } else if (!res.code) {
       return res.data || res
     } else {
       handleBusinessError(res)

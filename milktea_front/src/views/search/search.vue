@@ -150,7 +150,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import ProductCard from '@/components/ProductCard.vue'
-import { searchApi, productApi } from '@/utils/api'
+import { productApi, searchApi } from '@/utils/api.js'
 
 const router = useRouter()
 const route = useRoute()

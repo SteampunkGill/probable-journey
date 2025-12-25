@@ -3,10 +3,10 @@
     <!-- 顶部搜索栏 -->
     <div class="search-bar" :class="{ shadow: scrollTop > 50 }">
       <div class="search-box" @click="router.push('/search')">
-        <img class="search-icon" src="../../assets/images/icons/search.png" />
+        <img class="search-icon" src="@/assets/images/icons/search.png" />
         <span class="search-placeholder">搜索饮品、门店...</span>
       </div>
-      <img class="scan-btn" src="../../assets/images/icons/scan.png" @click="onScan" />
+      <img class="scan-btn" src="@/assets/images/icons/scan.png" @click="onScan" />
     </div>
 
     <!-- 骨架屏加载 -->
@@ -47,7 +47,7 @@
         <div class="mode-title">选择点餐方式</div>
         <div class="mode-buttons">
           <div class="mode-card delivery" @click="selectOrderMode('delivery')">
-            <img class="mode-icon" src="../../assets/images/icons/order.png" />
+            <img class="mode-icon" src="@/assets/images/icons/order.png" />
             <div class="mode-info">
               <span class="mode-name">外卖配送</span>
               <span class="mode-desc">30分钟送达</span>
@@ -55,7 +55,7 @@
           </div>
           
           <div class="mode-card pickup" @click="selectOrderMode('pickup')">
-            <img class="mode-icon" src="../../assets/images/icons/pick_up_food.png" />
+            <img class="mode-icon" src="@/assets/images/icons/pick_up_food.png" />
             <div class="mode-info">
               <span class="mode-name">到店自取</span>
               <span class="mode-desc">预计制作时间</span>
@@ -68,26 +68,26 @@
       <div class="quick-menu">
         <div class="menu-item" @click="router.push('/order')">
           <div class="menu-icon-wrapper">
-            <img class="menu-icon" src="../../assets/images/icons/order.png" />
+            <img class="menu-icon" src="@/assets/images/icons/order.png" />
           </div>
           <span class="menu-name">点单</span>
         </div>
         <div class="menu-item" @click="router.push('/pickup')">
           <div class="menu-icon-wrapper">
-            <img class="menu-icon" src="../../assets/images/icons/pick_up_food.png" />
+            <img class="menu-icon" src="@/assets/images/icons/pick_up_food.png" />
           </div>
           <span class="menu-name">取餐</span>
         </div>
         <div class="menu-item" @click="router.push('/coupon')">
           <div class="menu-icon-wrapper">
-            <img class="menu-icon" src="../../assets/images/icons/coupon.png" />
+            <img class="menu-icon" src="@/assets/images/icons/coupon.png" />
             <div class="coupon-badge" v-if="availableCouponCount > 0">{{ availableCouponCount }}</div>
           </div>
           <span class="menu-name">优惠券</span>
         </div>
         <div class="menu-item" @click="router.push('/wallet')">
           <div class="menu-icon-wrapper">
-            <img class="menu-icon" src="../../assets/images/icons/gift.png" />
+            <img class="menu-icon" src="@/assets/images/icons/gift.png" />
           </div>
           <span class="menu-name">钱包</span>
         </div>
@@ -99,7 +99,7 @@
           <span class="section-title">为你推荐</span>
           <div class="section-more" @click="router.push('/order')">
             <span>更多</span>
-            <img class="arrow-icon" src="../../assets/images/icons/right.png" />
+            <img class="arrow-icon" src="@/assets/images/icons/right.png" />
           </div>
         </div>
         
@@ -116,7 +116,7 @@
                 <span class="recommend-name">{{ item.name }}</span>
                 <div class="recommend-bottom">
                   <span class="recommend-price">¥{{ item.price }}</span>
-                  <img class="add-icon" src="../../assets/images/icons/add.png" @click.stop="quickAdd(item)" />
+                  <img class="add-icon" src="@/assets/images/icons/add.png" @click.stop="quickAdd(item)" />
                 </div>
               </div>
             </div>
@@ -130,7 +130,7 @@
           <span class="section-title">今日热门</span>
           <div class="section-more" @click="router.push('/order')">
             <span>更多</span>
-            <img class="arrow-icon" src="../../assets/images/icons/right.png" />
+            <img class="arrow-icon" src="@/assets/images/icons/right.png" />
           </div>
         </div>
         
@@ -150,7 +150,7 @@
                   <span class="hot-price">¥{{ item.price }}</span>
                   <span class="hot-sales">已售{{ item.sales }}</span>
                 </div>
-                <img class="add-icon" src="../../assets/images/icons/add.png" @click.stop="quickAdd(item)" />
+                <img class="add-icon" src="@/assets/images/icons/add.png" @click.stop="quickAdd(item)" />
               </div>
             </div>
           </div>
@@ -163,7 +163,7 @@
           <span class="section-title">附近门店</span>
           <div class="section-more" @click="router.push('/order')">
             <span>更多</span>
-            <img class="arrow-icon" src="../../assets/images/icons/right.png" />
+            <img class="arrow-icon" src="@/assets/images/icons/right.png" />
           </div>
         </div>
         
@@ -173,17 +173,17 @@
             <div class="store-status open">营业中</div>
           </div>
           <div class="store-info">
-            <img class="info-icon" src="../../assets/images/icons/address.png" />
+            <img class="info-icon" src="@/assets/images/icons/address.png" />
             <span class="store-address">{{ nearbyStore.address }}</span>
           </div>
           <div class="store-info">
-            <img class="info-icon" src="../../assets/images/icons/info.png" />
+            <img class="info-icon" src="@/assets/images/icons/info.png" />
             <span class="store-hours">{{ nearbyStore.businessHours }}</span>
           </div>
           <div class="store-footer">
             <span class="store-distance">距您 {{ nearbyStore.distance }}</span>
             <div class="store-call" @click="makePhoneCall(nearbyStore.phone)">
-              <img class="call-icon" src="../../assets/images/icons/phone.png" />
+              <img class="call-icon" src="@/assets/images/icons/phone.png" />
               <span>联系门店</span>
             </div>
           </div>
@@ -193,7 +193,7 @@
     
     <!-- 购物车浮动按钮 -->
     <div class="cart-float" :class="{ show: cartCount > 0 }" @click="router.push('/cart')">
-      <img class="cart-icon" src="../../assets/images/icons/cart.png" />
+      <img class="cart-icon" src="@/assets/images/icons/cart.png" />
       <div class="cart-badge" :class="{ bounce: cartAnimating }">{{ cartCount }}</div>
     </div>
   </div>
@@ -202,8 +202,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCartStore } from '../../store/cart'
-import { homeApi, storeApi, bannerApi, productApi } from '../../utils/api'
+import { useCartStore } from '@/store/cart'
+import { homeApi, storeApi, bannerApi, productApi, couponApi } from '@/utils/api'
 
 const router = useRouter()
 const cartStore = useCartStore()

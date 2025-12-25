@@ -76,6 +76,7 @@ WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW<template>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { addressApi } from '@/utils/api'
+import RegionPicker from '@/components/RegionPicker.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -93,7 +94,7 @@ const formData = ref({
   district: '',
   detail: '',
   isDefault: false,
-  label: ''
+  tag: ''
 })
 
 const loadAddressDetail = async () => {
@@ -149,6 +150,11 @@ const saveAddress = async () => {
   
   submitting.value = true
   try {
+    // 确保 tag 字段被正确填充
+    if (formData.value.label) {
+      formData.value.tag = formData.value.label
+    }
+
     let res
     if (isEditMode.value) {
       res = await addressApi.updateAddress(addressId.value, formData.value)
@@ -164,7 +170,8 @@ const saveAddress = async () => {
     }
   } catch (error) {
     console.error('保存失败:', error)
-    alert('保存失败，请稍后重试')
+    const errorMsg = error.response?.data?.message || error.message || '保存失败，请稍后重试'
+    alert(errorMsg)
   } finally {
     submitting.value = false
   }

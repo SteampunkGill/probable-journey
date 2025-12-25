@@ -92,6 +92,14 @@ export const productApi = {
   clearSearchHistory: () => del('/search/history')
 }
 
+// 搜索相关（独立导出以修复 SyntaxError）
+export const searchApi = {
+  searchProducts: productApi.searchProducts,
+  getHotKeywords: productApi.getHotKeywords,
+  getSearchHistory: productApi.getSearchHistory,
+  clearSearchHistory: productApi.clearSearchHistory
+}
+
 // 购物车相关
 export const cartApi = {
   // 获取购物车
