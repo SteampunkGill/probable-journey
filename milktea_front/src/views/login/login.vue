@@ -72,7 +72,7 @@
       <div class="bottom-actions">
         <span class="action-text" @click="router.push('/forgot')">忘记密码</span>
         <span class="separator">|</span>
-        <span class="action-text" @click="router.push('/register')">注册账号</span>
+        <span class="action-text" @click="router.push('/register')" style="font-weight: bold; color: #D4A574; font-size: 15px;">立即注册</span>
       </div>
     </div>
 

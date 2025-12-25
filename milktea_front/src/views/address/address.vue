@@ -1,102 +1,179 @@
 <template>
   <div class="address-page">
-    <!-- 地址列表 -->
-    <div class="address-list" v-if="addressList.length > 0">
-      <div class="address-item" 
-           :class="{ selectable: mode === 'select' }"
-           v-for="item in addressList" 
-           :key="item.id"
-           @click="selectAddress(item)">
-        
-        <!-- 默认标签 -->
-        <div class="default-badge" v-if="item.isDefault">默认</div>
-        
-        <!-- 地址信息 -->
-        <div class="address-info">
-          <div class="name-phone">
-            <span class="name">{{ item.name }}</span>
-            <span class="phone">{{ item.phone }}</span>
+    <!-- 门店选择模式 -->
+    <template v-if="isSelectStore">
+      <div class="address-list" v-if="storeList.length > 0">
+        <div class="address-item selectable"
+             v-for="item in storeList"
+             :key="item.id"
+             @click="selectStore(item)">
+          
+          <!-- 门店信息 -->
+          <div class="address-info">
+            <div class="name-phone">
+              <span class="name">{{ item.name }}</span>
+              <span class="status-tag" :class="{ open: item.status === 'OPEN' }">
+                {{ item.status === 'OPEN' ? '营业中' : '休息中' }}
+              </span>
+            </div>
+            
+            <div class="address-detail">
+              <span class="detail">{{ item.address }}</span>
+            </div>
+            
+            <div class="store-meta" v-if="item.distance">
+              <span class="distance">距离您 {{ item.distance.toFixed(2) }}km</span>
+              <span class="hours" v-if="item.businessHours">营业时间: {{ item.businessHours }}</span>
+            </div>
           </div>
           
-          <div class="address-detail">
-            <span class="tag" v-if="item.label">{{ item.label }}</span>
-            <span class="detail">{{ item.province }} {{ item.city }} {{ item.district }} {{ item.detail }}</span>
+          <!-- 选中标记 -->
+          <div class="selected-mark" v-if="userStore.selectedStore?.id === item.id">
+            <span class="icon">✓</span>
           </div>
-        </div>
-        
-        <!-- 操作按钮 -->
-        <div class="address-actions" v-if="mode === 'list'">
-          <div class="action-left">
-            <input type="checkbox" 
-                   :checked="item.isDefault" 
-                   @change.stop="toggleDefault(item.id)" />
-            <span class="action-label">设为默认</span>
-          </div>
-          
-          <div class="action-right">
-            <button class="action-btn edit" @click.stop="editAddress(item.id)">
-              <span class="icon">✏️</span>
-              <span>编辑</span>
-            </button>
-            <button class="action-btn delete" @click.stop="deleteAddress(item)">
-              <span class="icon">🗑️</span>
-              <span>删除</span>
-            </button>
-          </div>
-        </div>
-        
-        <!-- 选中标记（选择模式） -->
-        <div class="selected-mark" v-if="mode === 'select' && selectedId === item.id">
-          <span class="icon">✓</span>
         </div>
       </div>
-    </div>
 
-    <!-- 空状态 -->
-    <div class="empty-state" v-else>
-      <img class="empty-icon" src="../../assets/images/icons/address.png" />
-      <span class="empty-text">暂无收货地址</span>
-    </div>
+      <!-- 门店空状态 -->
+      <div class="empty-state" v-else>
+        <img class="empty-icon" src="../../assets/images/icons/address.png" />
+        <span class="empty-text">暂无门店</span>
+      </div>
+    </template>
 
-    <!-- 底部添加按钮 -->
-    <div class="footer" v-if="mode === 'list'">
-      <button class="add-btn" @click="addAddress">
-        <span class="icon">➕</span>
-        <span>添加新地址</span>
-      </button>
-    </div>
+    <!-- 地址管理模式 -->
+    <template v-else>
+      <div class="address-list" v-if="addressList.length > 0">
+        <div class="address-item"
+             :class="{ selectable: mode === 'select' }"
+             v-for="item in addressList"
+             :key="item.id"
+             @click="selectAddress(item)">
+          
+          <!-- 默认标签 -->
+          <div class="default-badge" v-if="item.isDefault">默认</div>
+          
+          <!-- 地址信息 -->
+          <div class="address-info">
+            <div class="name-phone">
+              <span class="name">{{ item.name }}</span>
+              <span class="phone">{{ item.phone }}</span>
+            </div>
+            
+            <div class="address-detail">
+              <span class="tag" v-if="item.tag || item.label">{{ item.tag || item.label }}</span>
+              <span class="detail">{{ item.province }} {{ item.city }} {{ item.district }} {{ item.detail }}</span>
+            </div>
+          </div>
+          
+          <!-- 操作按钮 -->
+          <div class="address-actions" v-if="mode === 'list'">
+            <div class="action-left">
+              <input type="checkbox"
+                     :checked="item.isDefault"
+                     @change.stop="toggleDefault(item.id)" />
+              <span class="action-label">设为默认</span>
+            </div>
+            
+            <div class="action-right">
+              <button class="action-btn edit" @click.stop="editAddress(item.id)">
+                <span class="icon">✏️</span>
+                <span>编辑</span>
+              </button>
+              <button class="action-btn delete" @click.stop="deleteAddress(item)">
+                <span class="icon">🗑️</span>
+                <span>删除</span>
+              </button>
+            </div>
+          </div>
+          
+          <!-- 选中标记（选择模式） -->
+          <div class="selected-mark" v-if="mode === 'select' && selectedId === item.id">
+            <span class="icon">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 地址空状态 -->
+      <div class="empty-state" v-else>
+        <img class="empty-icon" src="../../assets/images/icons/address.png" />
+        <span class="empty-text">暂无收货地址</span>
+      </div>
+
+      <!-- 底部添加按钮 -->
+      <div class="footer" v-if="mode === 'list'">
+        <button class="add-btn" @click="addAddress">
+          <span class="icon">➕</span>
+          <span>添加新地址</span>
+        </button>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { addressApi } from '@/utils/api'
+import { addressApi, storeApi } from '@/utils/api'
+import { useUserStore } from '@/store/user'
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 const mode = ref(route.query.mode || 'list')
+const type = ref(route.query.type || '')
 const selectedId = ref(route.query.selectedId || '')
 const addressList = ref([])
+const storeList = ref([])
+
+const isSelectStore = computed(() => type.value === 'select_store')
 
 const loadAddressList = async () => {
   try {
     const res = await addressApi.getAddressList()
-    if (res.code === 200) {
-      addressList.value = res.data || []
-    }
+    // 拦截器已返回 res.data
+    addressList.value = res || []
   } catch (error) {
     console.error('加载地址列表失败:', error)
   }
 }
 
+const loadStoreList = async () => {
+  try {
+    // 获取定位
+    let location = null
+    if (navigator.geolocation) {
+      location = await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+          () => resolve(null),
+          { timeout: 5000 }
+        )
+      })
+    }
+
+    const res = await storeApi.getNearbyStores({
+      latitude: location?.latitude || null,
+      longitude: location?.longitude || null
+    })
+    // 拦截器已返回 res.data
+    storeList.value = res || []
+  } catch (error) {
+    console.error('加载门店列表失败:', error)
+  }
+}
+
 const selectAddress = (address) => {
   if (mode.value === 'select') {
-    // 在实际应用中，这里可能需要通过 store 或事件总线传递数据
     localStorage.setItem('selectedAddress', JSON.stringify(address))
     router.back()
   }
+}
+
+const selectStore = (store) => {
+  userStore.setSelectedStore(store)
+  router.back()
 }
 
 const addAddress = () => {
@@ -110,14 +187,12 @@ const editAddress = (id) => {
 const deleteAddress = async (address) => {
   if (confirm(`确定要删除${address.name}的地址吗？`)) {
     try {
-      const res = await addressApi.deleteAddress(address.id)
-      if (res.code === 200) {
-        loadAddressList()
-      } else {
-        alert(res.message || '删除失败')
-      }
+      await addressApi.deleteAddress(address.id)
+      // 拦截器在非 200 时会抛出异常，能执行到这里说明成功
+      loadAddressList()
     } catch (error) {
       console.error('删除地址失败:', error)
+      alert(error.message || '删除失败')
     }
   }
 }
@@ -127,19 +202,20 @@ const toggleDefault = async (id) => {
     const address = addressList.value.find(a => a.id === id)
     if (!address) return
     
-    const res = await addressApi.updateAddress(id, { ...address, isDefault: true })
-    if (res.code === 200) {
-      loadAddressList()
-    } else {
-      alert(res.message || '设置默认失败')
-    }
+    await addressApi.updateAddress(id, { ...address, isDefault: true })
+    // 拦截器在非 200 时会抛出异常，能执行到这里说明成功
+    loadAddressList()
   } catch (error) {
     console.error('设置默认地址失败:', error)
   }
 }
 
 onMounted(() => {
-  loadAddressList()
+  if (isSelectStore.value) {
+    loadStoreList()
+  } else {
+    loadAddressList()
+  }
 })
 </script>
 
@@ -180,6 +256,31 @@ onMounted(() => {
   font-weight: bold;
 }
 
+.status-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #F5F5F5;
+  color: #999;
+}
+
+.status-tag.open {
+  background: #E6F7ED;
+  color: #27AE60;
+}
+
+.store-meta {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.distance, .hours {
+  font-size: 12px;
+  color: #999;
+}
+
 .address-info {
   margin-bottom: 12px;
 }
@@ -187,6 +288,7 @@ onMounted(() => {
 .name-phone {
   display: flex;
   align-items: center;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
@@ -194,7 +296,6 @@ onMounted(() => {
   font-size: 16px;
   font-weight: bold;
   color: #333;
-  margin-right: 10px;
 }
 
 .phone {

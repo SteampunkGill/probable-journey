@@ -72,6 +72,10 @@ service.interceptors.response.use(
     }
   },
   error => {
+    if (axios.isCancel(error)) {
+      console.log('Request canceled', error.message)
+      return new Promise(() => {}) // 返回一个永远不会 resolve/reject 的 promise
+    }
     handleHttpError(error.response)
     return Promise.reject(error)
   }
@@ -89,6 +93,10 @@ commonService.interceptors.response.use(
     }
   },
   error => {
+    if (axios.isCancel(error)) {
+      console.log('Request canceled', error.message)
+      return new Promise(() => {})
+    }
     handleHttpError(error.response)
     return Promise.reject(error)
   }

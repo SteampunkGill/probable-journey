@@ -259,6 +259,12 @@ export const memberApi = {
   // 绑定会员卡（后端路径为 /user/bind-card）
   bindCard: (cardNumber) => post('/user/bind-card', { cardNumber }),
   
+  // 解绑会员卡
+  unbindCard: () => post('/user/unbind-card'),
+  
+  // 注册/申请电子会员卡
+  applyCard: (data) => post('/user/apply-card', data),
+  
   // 获取会员专享商品
   getExclusiveProducts: () => get('/member/exclusive-products'),
   
@@ -351,6 +357,24 @@ export const afterSalesApi = {
   
   // 售后记录查询
   getAfterSalesRecords: () => get('/after-sales')
+}
+
+// 收藏相关
+export const favoriteApi = {
+  // 获取收藏列表
+  getFavorites: (params) => get('/favorites', params),
+  
+  // 添加收藏
+  addFavorite: (productId) => post('/favorites/add', { productId }),
+  
+  // 取消收藏
+  removeFavorite: (productId) => del(`/favorites/remove/${productId}`),
+  
+  // 清空收藏
+  clearFavorites: () => del('/favorites/clear'),
+  
+  // 检查是否已收藏
+  checkFavorite: (productId) => get(`/favorites/check/${productId}`)
 }
 
 // 广告相关

@@ -1,4 +1,4 @@
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW<template>
+<template>
   <div class="edit-page">
     <div class="form">
       <!-- 收货人信息 -->
@@ -94,16 +94,22 @@ const formData = ref({
   district: '',
   detail: '',
   isDefault: false,
-  tag: ''
+  tag: '',
+  label: ''
 })
 
 const loadAddressDetail = async () => {
   try {
     const res = await addressApi.getAddressList()
-    if (res.code === 200) {
-      const address = res.data.find(addr => addr.id === addressId.value)
+    // 拦截器已处理 code，res 直接就是数据列表
+    if (res && Array.isArray(res)) {
+      // 使用 == 兼容字符串和数字的比较
+      const address = res.find(addr => addr.id == addressId.value)
       if (address) {
-        formData.value = { ...address }
+        formData.value = {
+          ...address,
+          label: address.tag || address.label || ''
+        }
       }
     }
   } catch (error) {
@@ -162,12 +168,9 @@ const saveAddress = async () => {
       res = await addressApi.addAddress(formData.value)
     }
     
-    if (res.code === 200) {
-      alert('保存成功')
-      router.back()
-    } else {
-      alert(res.message || '保存失败')
-    }
+    // 拦截器在 code 不为 200 时会抛出异常，能执行到这里说明成功
+    alert('保存成功')
+    router.back()
   } catch (error) {
     console.error('保存失败:', error)
     const errorMsg = error.response?.data?.message || error.message || '保存失败，请稍后重试'
@@ -180,15 +183,12 @@ const saveAddress = async () => {
 const deleteAddress = async () => {
   if (confirm('确定要删除该地址吗？')) {
     try {
-      const res = await addressApi.deleteAddress(addressId.value)
-      if (res.code === 200) {
-        alert('删除成功')
-        router.back()
-      } else {
-        alert(res.message || '删除失败')
-      }
+      await addressApi.deleteAddress(addressId.value)
+      alert('删除成功')
+      router.back()
     } catch (error) {
       console.error('删除失败:', error)
+      alert(error.message || '删除失败')
     }
   }
 }

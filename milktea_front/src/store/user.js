@@ -15,7 +15,8 @@ export const useUserStore = defineStore('user', {
     return {
       userInfo,
       token: localStorage.getItem('token') || '',
-      orderType: 'pickup' // 'pickup' or 'delivery'
+      orderType: 'pickup', // 'pickup' or 'delivery'
+      selectedStore: null
     }
   },
   actions: {
@@ -29,6 +30,10 @@ export const useUserStore = defineStore('user', {
     },
     setOrderType(type) {
       this.orderType = type
+    },
+    setSelectedStore(store) {
+      this.selectedStore = store
+      localStorage.setItem('selectedStore', JSON.stringify(store))
     },
     logout() {
       this.userInfo = null

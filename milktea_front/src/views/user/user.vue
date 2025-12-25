@@ -60,10 +60,11 @@
         <span class="section-title">📋 常用功能</span>
       </div>
       <div class="function-list">
-        <div 
-          class="function-item" 
-          v-for="item in functions" 
+        <div
+          class="function-item"
+          v-for="item in functions"
           :key="item.id"
+          v-show="!item.requiresAdmin || userInfo?.role === 'admin'"
           @click="goToFunction(item.url)"
         >
           <div class="function-left">
@@ -106,7 +107,7 @@ import defaultAvatar from '../../assets/images/icons/user.png'
 const router = useRouter()
 const userStore = useUserStore()
 
-const userInfo = ref(null)
+const userInfo = ref(userStore.userInfo) // 初始使用 Store 中的缓存数据
 
 const assets = ref([
   { id: 1, type: 'balance', name: '余额', icon: 'icon-wallet', value: '0.00', bgColor: '#36CFC9' },
@@ -120,9 +121,11 @@ const functions = ref([
   { id: 2, name: '我的收藏', icon: 'icon-heart', color: '#FF6B6B', url: '/favorite' },
   { id: 3, name: '购买记录', icon: 'icon-history', color: '#FFA940', url: '/order-list' },
   { id: 4, name: '积分商城', icon: 'icon-gift', color: '#FF6B6B', url: '/points/mall' },
+  { id: 9, name: '绑定会员卡', icon: 'icon-wallet', color: '#D4A574', url: '/user/bind-card' },
   { id: 5, name: '客服中心', icon: 'icon-service', color: '#73D13D', url: '' },
   { id: 6, name: '关于我们', icon: 'icon-info', color: '#597EF7', url: '/about' },
-  { id: 7, name: '设置', icon: 'icon-settings', color: '#9254DE', url: '/settings' }
+  { id: 7, name: '设置', icon: 'icon-settings', color: '#9254DE', url: '/settings' },
+  { id: 8, name: '管理后台', icon: 'icon-lock', color: '#FF4D4F', url: '/admin', requiresAdmin: true }
 ])
 
 const loadUserData = async () => {

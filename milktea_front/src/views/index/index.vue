@@ -23,7 +23,7 @@
 
     <div class="main-content" v-else @scroll="onScroll">
       <!-- 轮播图 -->
-      <div class="banner-container">
+      <div class="banner-container" v-if="banners.length > 0">
         <div class="banner-wrapper" :style="{ transform: `translateX(-${currentBanner * 100}%)` }">
           <div class="banner-item" v-for="item in banners" :key="item.id">
             <img :src="item.image" class="banner-image" />
@@ -33,12 +33,34 @@
           </div>
         </div>
         <div class="banner-dots">
-          <div 
-            v-for="(item, index) in banners" 
-            :key="item.id" 
-            class="dot" 
+          <div
+            v-for="(item, index) in banners"
+            :key="item.id"
+            class="dot"
             :class="{ active: currentBanner === index }"
           ></div>
+        </div>
+      </div>
+      <div class="banner-placeholder" v-else></div>
+
+      <!-- 门店选择组件 -->
+      <div class="store-selector-section">
+        <div class="current-store" @click="router.push('/address?type=select_store')">
+          <div class="store-main">
+            <img class="location-icon" src="@/assets/images/icons/address.png" />
+            <div class="store-info-content">
+              <div class="store-name-wrapper">
+                <span class="store-name">{{ userStore.selectedStore?.name || '正在定位...' }}</span>
+                <span class="store-distance" v-if="userStore.selectedStore?.distance">距您 {{ userStore.selectedStore.distance.toFixed(2) }}km</span>
+              </div>
+              <div class="store-address-text">{{ userStore.selectedStore?.address || '请选择门店' }}</div>
+            </div>
+            <img class="arrow-icon" src="@/assets/images/icons/right.png" />
+          </div>
+        </div>
+        <div class="location-action" @click="reLocation">
+          <img class="re-location-icon" :class="{ rotating: isLocating }" src="@/assets/images/icons/history.png" />
+          <span>重新定位</span>
         </div>
       </div>
 
@@ -66,13 +88,13 @@
 
       <!-- 快捷入口 -->
       <div class="quick-menu">
-        <div class="menu-item" @click="router.push('/order')">
+        <div class="menu-item" @click="router.push('/address?type=select_store')">
           <div class="menu-icon-wrapper">
             <img class="menu-icon" src="@/assets/images/icons/order.png" />
           </div>
           <span class="menu-name">点单</span>
         </div>
-        <div class="menu-item" @click="router.push('/pickup')">
+        <div class="menu-item" @click="router.push('/address?type=select_store')">
           <div class="menu-icon-wrapper">
             <img class="menu-icon" src="@/assets/images/icons/pick_up_food.png" />
           </div>
@@ -90,6 +112,12 @@
             <img class="menu-icon" src="@/assets/images/icons/gift.png" />
           </div>
           <span class="menu-name">钱包</span>
+        </div>
+        <div class="menu-item" @click="router.push('/user/bind-card')">
+          <div class="menu-icon-wrapper">
+            <img class="menu-icon" src="@/assets/images/icons/scan.png" />
+          </div>
+          <span class="menu-name">绑卡</span>
         </div>
       </div>
 
@@ -203,12 +231,15 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
+import { useUserStore } from '@/store/user'
 import { homeApi, storeApi, bannerApi, productApi, couponApi } from '@/utils/api'
 
 const router = useRouter()
 const cartStore = useCartStore()
+const userStore = useUserStore()
 
 const loading = ref(true)
+const isLocating = ref(false)
 const scrollTop = ref(0)
 const currentBanner = ref(0)
 const banners = ref([])
@@ -221,15 +252,43 @@ const cartAnimating = ref(false)
 
 let bannerTimer = null
 
+const getLocation = () => {
+  return new Promise((resolve) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          })
+        },
+        (error) => {
+          console.error('获取定位失败:', error)
+          resolve(null)
+        },
+        { timeout: 5000 }
+      )
+    } else {
+      resolve(null)
+    }
+  })
+}
+
 const loadData = async () => {
   loading.value = true
   try {
+    // 先获取定位
+    const location = await getLocation()
+    
     // 并行获取首页数据、轮播图、推荐商品和附近门店
     const [homeRes, bannersRes, recommendRes, nearbyRes] = await Promise.all([
       homeApi.getHomeData(),
       bannerApi.getBanners(),
       homeApi.getRecommendations(),
-      storeApi.getNearbyStores({ latitude: null, longitude: null })
+      storeApi.getNearbyStores({
+        latitude: location?.latitude || null,
+        longitude: location?.longitude || null
+      })
     ])
     
     // 首页数据
@@ -248,6 +307,8 @@ const loadData = async () => {
     if (nearbyRes.data && nearbyRes.data.length > 0) {
       const store = nearbyRes.data[0]
       nearbyStore.value = store
+      // 自动选择最近门店
+      userStore.setSelectedStore(store)
     } else {
       nearbyStore.value = null
     }
@@ -286,7 +347,7 @@ const onScroll = (e) => {
 
 const selectOrderMode = (mode) => {
   localStorage.setItem('orderMode', mode)
-  router.push('/order')
+  router.push('/address?type=select_store')
 }
 
 const quickAdd = (product) => {
@@ -301,6 +362,12 @@ const quickAdd = (product) => {
 
 const onScan = () => {
   alert('扫码功能仅在移动端可用')
+}
+
+const reLocation = async () => {
+  isLocating.value = true
+  await loadData()
+  isLocating.value = false
 }
 
 const makePhoneCall = (phone) => {
@@ -408,6 +475,107 @@ onUnmounted(() => {
 
 .banner-title { font-size: 18px; font-weight: bold; }
 
+.store-selector-section {
+  margin: 15px;
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.current-store {
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.store-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.location-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.store-info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.store-name-wrapper {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.store-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.store-distance {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.store-address-text {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arrow-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.location-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-left: 15px;
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.re-location-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.location-action span {
+  font-size: 10px;
+  color: #999;
+}
+
+.rotating {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .banner-dots {
   position: absolute;
   bottom: 15px;
@@ -432,9 +600,7 @@ onUnmounted(() => {
 }
 
 .order-mode-section {
-  margin: -20px 15px 15px;
-  position: relative;
-  z-index: 10;
+  margin: 0 15px 15px;
   background: white;
   padding: 20px;
   border-radius: 12px;

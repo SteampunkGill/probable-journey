@@ -26,6 +26,12 @@ const routes = [
     meta: { title: '我的', requiresAuth: true }
   },
   {
+    path: '/user/bind-card',
+    name: 'bind-card',
+    component: () => import('../views/user/bind-card.vue'),
+    meta: { title: '绑定会员卡', requiresAuth: true }
+  },
+  {
     path: '/pickup',
     name: 'pickup',
     component: () => import('../views/pickup/pickup.vue'),
@@ -120,8 +126,19 @@ const routes = [
     name: 'favorite',
     component: () => import('../views/favorite/favorite.vue'),
     meta: { title: '收藏' }
-  }
-  ,
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('../views/settings/settings.vue'),
+    meta: { title: '设置', requiresAuth: true }
+  },
+  {
+    path: '/settings/security',
+    name: 'security',
+    component: () => import('../views/settings/security.vue'),
+    meta: { title: '账号安全', requiresAuth: true }
+  },
   {
     path: '/admin',
     name: 'admin-layout',

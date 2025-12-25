@@ -1,8 +1,8 @@
 <template>
   <div class="favorite-page">
     <!-- 顶部操作栏 -->
-    <div class="top-bar" v-if="favoriteList.length > 0">
-      <span class="count-text">共{{ favoriteList.length }}件收藏</span>
+    <div class="top-bar" v-if="favoriteList.length > 0 || loading">
+      <span class="count-text">共{{ total }}件收藏</span>
       <div class="actions">
         <span class="action-btn" @click="toggleEditMode">
           {{ isEditMode ? '完成' : '编辑' }}
@@ -17,18 +17,18 @@
         class="favorite-item"
         v-for="item in favoriteList"
         :key="item.id"
-        @click="onProductTap(item.id)"
+        @click="onProductTap(item.product.id)"
       >
         <!-- 左侧图片 -->
-        <img class="product-image" :src="item.image" />
+        <img class="product-image" :src="item.product.image || defaultImage" />
         
         <!-- 中间信息 -->
         <div class="product-info">
-          <h3 class="product-name">{{ item.name }}</h3>
-          <p class="product-desc" v-if="item.description">{{ item.description }}</p>
+          <h3 class="product-name">{{ item.product.name }}</h3>
+          <p class="product-desc" v-if="item.product.description">{{ item.product.description }}</p>
           <div class="product-footer">
-            <span class="product-price">¥{{ item.price }}</span>
-            <span class="product-sales" v-if="item.sales">已售{{ item.sales }}</span>
+            <span class="product-price">¥{{ item.product.price }}</span>
+            <span class="product-sales" v-if="item.product.sales">已售{{ item.product.sales }}</span>
           </div>
         </div>
         
@@ -37,14 +37,22 @@
           <div 
             class="remove-icon" 
             v-if="isEditMode"
-            @click.stop="removeFavorite(item.id)"
+            @click.stop="removeFavorite(item.product.id)"
           >🗑️</div>
           <div 
             class="add-icon" 
             v-if="!isEditMode"
-            @click.stop="addToCart(item.id)"
+            @click.stop="addToCart(item.product.id)"
           >➕</div>
         </div>
+      </div>
+
+      <!-- 加载更多 -->
+      <div class="load-more" v-if="hasMore" @click="loadMore">
+        {{ loading ? '加载中...' : '点击加载更多' }}
+      </div>
+      <div class="no-more" v-else-if="favoriteList.length > 0">
+        没有更多了
       </div>
     </div>
 
@@ -56,7 +64,7 @@
     </div>
 
     <!-- 加载状态 -->
-    <div class="loading-state" v-if="loading">
+    <div class="loading-state" v-if="loading && favoriteList.length === 0">
       <div class="loading-spinner"></div>
       <p>加载中...</p>
     </div>
@@ -66,58 +74,72 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { favoriteApi } from '@/utils/api'
 
 const router = useRouter()
 
 const favoriteList = ref([])
 const loading = ref(false)
 const isEditMode = ref(false)
+const page = ref(1)
+const size = ref(10)
+const total = ref(0)
+const hasMore = ref(false)
+const defaultImage = 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400'
 
 onMounted(() => {
   loadFavorites()
 })
 
-const loadFavorites = () => {
+const loadFavorites = async (isLoadMore = false) => {
+  if (loading.value) return
+  
   loading.value = true
-  // 模拟从 localStorage 获取
-  const favorites = JSON.parse(localStorage.getItem('favorites') || '[]')
-  
-  // 如果为空，添加一些模拟数据
-  if (favorites.length === 0) {
-    favoriteList.value = [
-      {
-        id: 'p001',
-        name: '经典珍珠奶茶',
-        description: 'Q弹珍珠，浓郁奶香',
-        price: 18.00,
-        sales: 1200,
-        image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400'
-      },
-      {
-        id: 'p002',
-        name: '芝士奶盖红茶',
-        description: '咸甜奶盖，清爽红茶',
-        price: 22.00,
-        sales: 850,
-        image: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400'
+  try {
+    const params = {
+      page: page.value,
+      size: size.value
+    }
+    const res = await favoriteApi.getFavorites(params)
+    if (res && res.content) {
+      if (isLoadMore) {
+        favoriteList.value = [...favoriteList.value, ...res.content]
+      } else {
+        favoriteList.value = res.content
       }
-    ]
-  } else {
-    favoriteList.value = favorites
+      total.value = res.totalElements
+      hasMore.value = !res.last
+    }
+  } catch (error) {
+    console.error('加载收藏失败:', error)
+    alert('加载收藏失败，请稍后重试')
+  } finally {
+    loading.value = false
   }
-  
-  loading.value = false
+}
+
+const loadMore = () => {
+  if (hasMore.value && !loading.value) {
+    page.value++
+    loadFavorites(true)
+  }
 }
 
 const toggleEditMode = () => {
   isEditMode.value = !isEditMode.value
 }
 
-const removeFavorite = (id) => {
+const removeFavorite = async (productId) => {
   if (confirm('确定要取消收藏吗？')) {
-    favoriteList.value = favoriteList.value.filter(item => item.id !== id)
-    localStorage.setItem('favorites', JSON.stringify(favoriteList.value))
-    alert('已取消收藏')
+    try {
+      await favoriteApi.removeFavorite(productId)
+      favoriteList.value = favoriteList.value.filter(item => item.product.id !== productId)
+      total.value--
+      alert('已取消收藏')
+    } catch (error) {
+      console.error('取消收藏失败:', error)
+      alert('操作失败，请稍后重试')
+    }
   }
 }
 
@@ -130,12 +152,18 @@ const addToCart = (id) => {
   router.push(`/product/${id}`)
 }
 
-const clearAll = () => {
+const clearAll = async () => {
   if (confirm('确定要清空所有收藏吗？')) {
-    favoriteList.value = []
-    localStorage.setItem('favorites', '[]')
-    isEditMode.value = false
-    alert('已清空')
+    try {
+      await favoriteApi.clearFavorites()
+      favoriteList.value = []
+      total.value = 0
+      isEditMode.value = false
+      alert('已清空')
+    } catch (error) {
+      console.error('清空收藏失败:', error)
+      alert('操作失败，请稍后重试')
+    }
   }
 }
 
@@ -252,6 +280,13 @@ const goToOrder = () => {
 .add-icon {
   font-size: 20px;
   color: #D4A574;
+}
+
+.load-more, .no-more {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-size: 14px;
 }
 
 .empty-state {
