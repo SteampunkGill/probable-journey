@@ -117,48 +117,31 @@ const switchTab = (key) => {
   loadOrders()
 }
 
+import { orderApi } from '@/utils/api'
+
 const loadOrders = async () => {
   loading.value = true
-  // 模拟数据
-  setTimeout(() => {
-    const allOrders = [
-      {
-        id: 'order_001',
-        orderNo: 'MT20231201001',
-        status: 'pending_payment',
-        statusText: '待支付',
-        createTime: '2023-12-01 14:30',
-        totalAmount: 68.50,
-        items: [
-          { id: 'p001', name: '经典珍珠奶茶', image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400', price: 18.00, quantity: 2 }
-        ]
-      },
-      {
-        id: 'order_002',
-        orderNo: 'MT20231130089',
-        status: 'processing',
-        statusText: '制作中',
-        createTime: '2023-11-30 16:20',
-        totalAmount: 42.00,
-        pickupCode: 'A123',
-        items: [
-          { id: 'p003', name: '满杯水果茶', image: 'https://images.unsplash.com/photo-1570598912132-0ba1dc952b7d?w=400', price: 20.00, quantity: 2 }
-        ]
-      }
-    ]
-    
-    if (activeTab.value === 'all') {
-      orders.value = allOrders
-    } else {
-      const statusMap = {
-        'pending': 'pending_payment',
-        'processing': 'processing',
-        'completed': 'completed'
-      }
-      orders.value = allOrders.filter(o => o.status === statusMap[activeTab.value])
+  try {
+    const statusMap = {
+      'all': '',
+      'pending': 'PAID', // 根据文档映射
+      'processing': 'MAKING',
+      'completed': 'FINISHED'
     }
+    
+    const params = {
+      status: statusMap[activeTab.value]
+    }
+    
+    const res = await orderApi.getOrderList(params)
+    if (res.code === 200) {
+      orders.value = res.data.list || res.data || []
+    }
+  } catch (error) {
+    console.error('加载订单列表失败:', error)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const goToOrderDetail = (id) => {
@@ -169,15 +152,33 @@ const payOrder = (id) => {
   router.push({ path: '/payment', query: { orderId: id } })
 }
 
-const cancelOrder = (id) => {
+const cancelOrder = async (id) => {
   if (confirm('确定要取消该订单吗？')) {
-    alert('订单已取消')
-    loadOrders()
+    try {
+      const res = await orderApi.cancelOrder(id)
+      if (res.code === 200) {
+        alert('订单已取消')
+        loadOrders()
+      } else {
+        alert(res.message || '取消失败')
+      }
+    } catch (error) {
+      console.error('取消订单失败:', error)
+    }
   }
 }
 
-const remindOrder = (id) => {
-  alert('已提醒商家尽快制作')
+const remindOrder = async (id) => {
+  try {
+    const res = await orderApi.remindOrder(id)
+    if (res.code === 200) {
+      alert(res.data?.message || '已提醒商家尽快制作')
+    } else {
+      alert(res.message || '催单失败')
+    }
+  } catch (error) {
+    console.error('催单失败:', error)
+  }
 }
 
 const reviewOrder = (id) => {

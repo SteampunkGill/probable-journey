@@ -179,7 +179,15 @@ router.beforeEach((to, from, next) => {
   }
 
   const token = localStorage.getItem('token')
-  const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+  let userInfo = {}
+  try {
+    const storedUserInfo = localStorage.getItem('userInfo')
+    if (storedUserInfo && storedUserInfo !== 'undefined' && storedUserInfo !== 'null') {
+      userInfo = JSON.parse(storedUserInfo)
+    }
+  } catch (e) {
+    console.error('解析用户信息失败:', e)
+  }
 
   if (to.meta.requiresAuth && !token) {
     next({

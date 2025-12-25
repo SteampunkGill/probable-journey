@@ -234,12 +234,7 @@ const temperatureOptions = [
   { value: 'normal', label: '正常冰' }
 ]
 
-const toppingOptions = [
-  { id: 'pearl', name: '珍珠', price: 2.00 },
-  { id: 'coconut', name: '椰果', price: 2.00 },
-  { id: 'pudding', name: '布丁', price: 3.00 },
-  { id: 'cheese', name: '芝士奶盖', price: 4.00 }
-]
+const toppingOptions = ref([])
 
 const maxToppings = 5
 const comments = ref([])
@@ -263,43 +258,24 @@ onMounted(() => {
 
 const loadProductDetail = async () => {
   loading.value = true
-  // 模拟数据
-  setTimeout(() => {
-    product.value = {
-      id: productId.value,
-      name: '经典珍珠奶茶',
-      images: [
-        'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=800',
-        'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=800'
-      ],
-      price: 18.00,
-      originalPrice: 20.00,
-      description: '经典人气款，选用优质红茶与鲜奶，搭配Q弹珍珠，口感顺滑，甜度适中。',
-      rating: 4.8,
-      sales: 2456,
-      stock: 100,
-      isHot: true,
-      isRecommend: true,
-      detailHtml: '<p>选用锡兰红茶与新鲜牛奶精心调配，茶香浓郁，奶香醇厚。</p>',
-      nutrition: [
-        { name: '热量', value: '250', unit: '千卡' },
-        { name: '蛋白质', value: '4', unit: '克' }
-      ]
+  try {
+    const [detailRes, reviewsRes] = await Promise.all([
+      productApi.getProductDetail(productId.value),
+      productApi.getProductReviews(productId.value)
+    ])
+    
+    if (detailRes.code === 200) {
+      product.value = detailRes.data
     }
     
-    comments.value = [
-      {
-        id: 'c1',
-        userName: '奶茶爱好者',
-        userAvatar: 'https://images.unsplash.com/photo-1494790108755-2616c113a1c4?w=100',
-        rating: 5,
-        content: '超好喝！珍珠Q弹，奶茶香浓。',
-        createTime: '2023-12-01'
-      }
-    ]
-    
+    if (reviewsRes.code === 200) {
+      comments.value = reviewsRes.data.list || []
+    }
+  } catch (error) {
+    console.error('加载商品详情失败:', error)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const toggleFavorite = () => {

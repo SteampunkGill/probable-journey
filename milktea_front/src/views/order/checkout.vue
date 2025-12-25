@@ -197,9 +197,9 @@ const selectedCoupon = ref(null)
 const availableCoupons = ref([])
 const usePoints = ref(false)
 const pointsToUse = ref(0)
-const availablePoints = ref(1250)
+const availablePoints = ref(0)
 const remark = ref('')
-const estimatedDeliveryTime = ref('18:30')
+const estimatedDeliveryTime = ref('预计30分钟送达')
 
 const subtotal = computed(() => {
   return orderItems.value.reduce((total, item) => total + item.price * item.quantity, 0).toFixed(2)
@@ -233,27 +233,46 @@ const totalAmount = computed(() => {
   return Math.max(0, total).toFixed(2)
 })
 
-const loadOrderData = () => {
-  const items = localStorage.getItem('checkoutItems')
-  if (items) {
-    orderItems.value = JSON.parse(items)
+const loadOrderData = async () => {
+  loading.value = true
+  try {
+    const items = localStorage.getItem('checkoutItems')
+    if (items) {
+      orderItems.value = JSON.parse(items)
+    }
+    const savedRemark = localStorage.getItem('orderRemark')
+    if (savedRemark) {
+      remark.value = savedRemark
+    }
+    
+    // 并行获取地址、优惠券和用户信息（积分）
+    const [addressRes, couponRes, profileRes] = await Promise.all([
+      addressApi.getAddressList(),
+      couponApi.getMyCoupons(),
+      authApi.getUserProfile()
+    ])
+    
+    if (addressRes.code === 200 && addressRes.data.length > 0) {
+      selectedAddress.value = addressRes.data.find(a => a.isDefault) || addressRes.data[0]
+    }
+    
+    if (couponRes.code === 200) {
+      availableCoupons.value = couponRes.data.filter(c => c.status === 'UNUSED')
+    }
+    
+    if (profileRes.code === 200) {
+      availablePoints.value = profileRes.data.points || 0
+    }
+    
+    // 获取预计时间
+    // 如果有订单号可以调用 orderApi.getEstimatedTime，这里是下单前，可以根据门店获取
+    estimatedDeliveryTime.value = '预计30分钟送达'
+    
+  } catch (error) {
+    console.error('加载结算数据失败:', error)
+  } finally {
+    loading.value = false
   }
-  const savedRemark = localStorage.getItem('orderRemark')
-  if (savedRemark) {
-    remark.value = savedRemark
-  }
-  
-  // 模拟地址
-  selectedAddress.value = {
-    name: '张三',
-    phone: '13800138000',
-    province: '广东省',
-    city: '深圳市',
-    district: '南山区',
-    detail: '腾讯大厦'
-  }
-  
-  loading.value = false
 }
 
 const submitOrder = async () => {
@@ -264,14 +283,47 @@ const submitOrder = async () => {
     return
   }
   
-  submitting.value = true
-  // 模拟提交
-  await new Promise(resolve => setTimeout(resolve, 1500))
+  if (deliveryType.value === 'pickup' && !selectedStore.value) {
+    alert('请选择自提门店')
+    return
+  }
   
-  const orderId = 'ORD' + Date.now()
-  alert('订单提交成功！')
-  router.push(`/payment?orderId=${orderId}&amount=${totalAmount.value}`)
-  submitting.value = false
+  submitting.value = true
+  try {
+    const orderData = {
+      items: orderItems.value.map(item => ({
+        productId: item.id,
+        quantity: item.quantity,
+        specId: item.specId,
+        customizations: item.customizations
+      })),
+      deliveryType: deliveryType.value,
+      addressId: selectedAddress.value?.id,
+      storeId: selectedStore.value?.id,
+      couponId: selectedCoupon.value?.id,
+      usePoints: usePoints.value,
+      pointsToUse: pointsToUse.value,
+      remark: remark.value,
+      totalAmount: parseFloat(totalAmount.value)
+    }
+    
+    const res = await orderApi.createOrder(orderData)
+    if (res.code === 200) {
+      const orderNo = res.data.orderNo
+      alert('订单提交成功！')
+      // 清除结算缓存
+      localStorage.removeItem('checkoutItems')
+      cartStore.clearCart()
+      router.push(`/payment?orderNo=${orderNo}&amount=${totalAmount.value}`)
+    } else {
+      alert(res.message || '提交订单失败')
+    }
+  } catch (error) {
+    console.error('提交订单失败:', error)
+    alert('提交订单失败，请稍后重试')
+  } finally {
+    submitting.value = false
+  }
 }
 
 onMounted(() => {

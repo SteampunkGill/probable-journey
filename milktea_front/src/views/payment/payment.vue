@@ -72,18 +72,22 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { orderApi, authApi } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
 
+const orderNo = ref(route.query.orderNo)
 const order = ref(null)
-const paymentMethod = ref('wechat')
+const paymentMethod = ref('alipay') // 接口文档提到支付宝沙箱
 const paying = ref(false)
 const countdown = ref(15 * 60)
+const userBalance = ref(0)
 let timer = null
 
 onMounted(() => {
   loadOrderDetail()
+  loadUserBalance()
   startCountdown()
 })
 
@@ -91,13 +95,25 @@ onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
 
-const loadOrderDetail = () => {
-  // 模拟数据
-  order.value = {
-    id: route.query.orderId,
-    orderNo: 'MT' + Date.now(),
-    totalAmount: 68.50,
-    createTime: new Date().toLocaleString()
+const loadOrderDetail = async () => {
+  try {
+    const res = await orderApi.getOrderDetail(orderNo.value)
+    if (res.code === 200) {
+      order.value = res.data
+    }
+  } catch (error) {
+    console.error('加载订单详情失败:', error)
+  }
+}
+
+const loadUserBalance = async () => {
+  try {
+    const res = await authApi.getUserProfile()
+    if (res.code === 200) {
+      userBalance.value = res.data.balance || 0
+    }
+  } catch (error) {
+    console.error('加载余额失败:', error)
   }
 }
 

@@ -100,7 +100,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../store/user'
-import { userApi, couponApi } from '../../utils/api'
+import { authApi, couponApi } from '../../utils/api'
 import defaultAvatar from '../../assets/images/icons/user.png'
 
 const router = useRouter()
@@ -126,20 +126,19 @@ const functions = ref([
 ])
 
 const loadUserData = async () => {
-  // 模拟加载数据
-  userInfo.value = {
-    nickname: '奶茶爱好者',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616c113a1c4',
-    levelName: '黄金会员',
-    points: 1250,
-    balance: 86.50,
-    couponCount: 3
+  try {
+    const res = await authApi.getUserProfile()
+    if (res.code === 200) {
+      userInfo.value = res.data
+      
+      // 更新资产显示
+      assets.value[0].value = (userInfo.value.balance || 0).toFixed(2)
+      assets.value[1].value = (userInfo.value.couponCount || 0).toString()
+      assets.value[2].value = (userInfo.value.points || 0).toString()
+    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error)
   }
-  
-  // 更新资产显示
-  assets.value[0].value = userInfo.value.balance.toFixed(2)
-  assets.value[1].value = userInfo.value.couponCount.toString()
-  assets.value[2].value = userInfo.value.points.toString()
 }
 
 const goToUserProfile = () => {

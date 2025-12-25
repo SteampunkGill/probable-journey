@@ -92,12 +92,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { pointsApi, userApi } from '../../utils/api'
+import { pointsApi, userApi, authApi } from '../../utils/api'
 
 const userPoints = ref(0)
 const activeCategoryId = ref('all')
 const showRecords = ref(false)
 const loading = ref(false)
+const exchangeRecords = ref([])
 
 const categories = [
   { id: 'all', name: '全部' },
@@ -106,88 +107,88 @@ const categories = [
   { id: 'gift', name: '周边' }
 ]
 
-const productList = ref([
-  {
-    id: 'p001',
-    name: '珍珠奶茶兑换券',
-    image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400',
-    points: 200,
-    stock: 50,
-    category: 'drink',
-    description: '可兑换任意口味珍珠奶茶一杯'
-  },
-  {
-    id: 'p002',
-    name: '满30减5优惠券',
-    image: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400',
-    points: 100,
-    stock: 100,
-    category: 'coupon',
-    description: '全场通用，满30元减5元'
-  },
-  {
-    id: 'p003',
-    name: '品牌帆布袋',
-    image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400',
-    points: 500,
-    stock: 20,
-    category: 'gift',
-    description: '环保帆布袋，时尚又实用'
-  },
-  {
-    id: 'p004',
-    name: '芝士奶盖兑换券',
-    image: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400',
-    points: 250,
-    stock: 30,
-    category: 'drink',
-    description: '可兑换芝士奶盖系列饮品'
-  },
-  {
-    id: 'p005',
-    name: '8折优惠券',
-    image: 'https://images.unsplash.com/photo-1578775887804-699de7086ff9?w=400',
-    points: 150,
-    stock: 80,
-    category: 'coupon',
-    description: '全场8折，最高优惠15元'
-  },
-  {
-    id: 'p006',
-    name: '品牌保温杯',
-    image: 'https://images.unsplash.com/photo-1558857563-b322d0427955?w=400',
-    points: 800,
-    stock: 15,
-    category: 'gift',
-    description: '304不锈钢保温杯'
-  }
-])
+const productList = ref([])
 
 const filteredProducts = computed(() => {
   if (activeCategoryId.value === 'all') return productList.value
   return productList.value.filter(p => p.category === activeCategoryId.value)
 })
 
-const toggleRecords = () => {
+const loadData = async () => {
+  loading.value = true
+  try {
+    const [profileRes, productsRes] = await Promise.all([
+      authApi.getUserProfile(),
+      pointsApi.getPointsTransactions() // 获取积分明细，其中包含当前积分
+    ])
+    
+    if (profileRes.code === 200) {
+      userPoints.value = profileRes.data.points || 0
+    }
+    
+    // 获取积分商城商品
+    const mallRes = await pointsApi.getPointsProducts()
+    if (mallRes.code === 200) {
+      productList.value = mallRes.data.list || mallRes.data || []
+    }
+  } catch (error) {
+    console.error('加载积分商城数据失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const toggleRecords = async () => {
   showRecords.value = !showRecords.value
+  if (showRecords.value) {
+    try {
+      const res = await pointsApi.getExchangeRecords()
+      if (res.code === 200) {
+        exchangeRecords.value = res.data || []
+      }
+    } catch (error) {
+      console.error('加载兑换记录失败:', error)
+    }
+  }
 }
 
-const goToRules = () => {
-  alert('积分规则：\n1. 每消费1元获得1积分\n2. 每日签到可获得10积分\n3. 完成订单评价可获得20积分\n4. 积分可用于兑换商品')
+const goToRules = async () => {
+  try {
+    const res = await userApi.getPointsRules()
+    if (res.code === 200) {
+      alert(`积分规则：\n${res.data.rules}`)
+    }
+  } catch (error) {
+    console.error('获取积分规则失败:', error)
+  }
 }
 
-const exchangeProduct = (product) => {
+const exchangeProduct = async (product) => {
   if (userPoints.value < product.points) {
     alert('积分不足')
     return
   }
   
   if (confirm(`确定花费${product.points}积分兑换${product.name}吗？`)) {
-    userPoints.value -= product.points
-    product.stock -= 1
-    alert('兑换成功！')
+    try {
+      const res = await pointsApi.exchangeProduct({ productId: product.id })
+      if (res.code === 200) {
+        userPoints.value -= product.points
+        product.stock -= 1
+        alert('兑换成功！')
+      } else {
+        alert(res.message || '兑换失败')
+      }
+    } catch (error) {
+      console.error('兑换失败:', error)
+      alert('兑换失败，请稍后重试')
+    }
   }
 }
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>

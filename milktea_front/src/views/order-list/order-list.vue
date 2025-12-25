@@ -129,11 +129,14 @@ const switchTab = (key) => {
 // 状态文本映射
 const getStatusText = (status) => {
   const map = {
-    'pending_payment': '待支付',
-    'processing': '制作中',
-    'completed': '已完成',
-    'cancelled': '已取消',
-    'refunded': '已退款'
+    'PAID': '待使用',
+    'ACCEPTED': '待制作',
+    'MAKING': '制作中',
+    'READY': '待取餐',
+    'DELIVERED': '已送达',
+    'FINISHED': '已完成',
+    'CANCELLED': '已取消',
+    'REFUNDED': '已退款'
   }
   return map[status] || status
 }

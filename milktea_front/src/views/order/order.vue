@@ -273,31 +273,16 @@ const totalPrice = computed(() => {
 
 const loadProducts = async () => {
   loading.value = true
-  // 模拟加载
-  await new Promise(resolve => setTimeout(resolve, 300))
-  productList.value = [
-    {
-      id: `${activeCategoryId.value}_001`,
-      name: '珍珠奶茶',
-      image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400',
-      price: 18,
-      description: '经典人气款，Q弹珍珠配香浓奶茶',
-      hot: true,
-      sales: 2345,
-      isFavorite: false
-    },
-    {
-      id: `${activeCategoryId.value}_002`,
-      name: '芝士奶盖茶',
-      image: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400',
-      price: 22,
-      description: '浓郁芝士奶盖，清新茶底',
-      hot: false,
-      sales: 1876,
-      isFavorite: false
+  try {
+    const res = await productApi.getProducts(activeCategoryId.value)
+    if (res.code === 200) {
+      productList.value = res.data.list || res.data || []
     }
-  ]
-  loading.value = false
+  } catch (error) {
+    console.error('加载商品失败:', error)
+  } finally {
+    loading.value = false
+  }
 }
 
 const selectCategory = (id) => {

@@ -6,6 +6,7 @@ const COMMON_BASE_URL = '/api/common'
 const service = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -14,6 +15,7 @@ const service = axios.create({
 const commonService = axios.create({
   baseURL: COMMON_BASE_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -22,12 +24,13 @@ const commonService = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   config => {
+    console.log(`请求地址: ${config.baseURL}${config.url}`)
     const token = localStorage.getItem('token')
-    if (token) {
+    if (token && token !== 'undefined' && token !== 'null') {
+      // 尝试多种常见的 Token 传递方式
       config.headers['Authorization'] = `Bearer ${token}`
+      config.headers['token'] = token
     }
-    config.headers['X-Timestamp'] = Date.now().toString()
-    config.headers['X-Client-Version'] = '1.0.0'
     return config
   },
   error => {
@@ -39,11 +42,10 @@ service.interceptors.request.use(
 commonService.interceptors.request.use(
   config => {
     const token = localStorage.getItem('token')
-    if (token) {
+    if (token && token !== 'undefined' && token !== 'null') {
       config.headers['Authorization'] = `Bearer ${token}`
+      config.headers['token'] = token
     }
-    config.headers['X-Timestamp'] = Date.now().toString()
-    config.headers['X-Client-Version'] = '1.0.0'
     return config
   },
   error => {
@@ -55,8 +57,9 @@ commonService.interceptors.request.use(
 service.interceptors.response.use(
   response => {
     const res = response.data
-    if (res.code === 200) {
-      return res.data
+    // 兼容处理：有些后端直接返回数据，有些包裹在 code/data 中
+    if (res.code === 200 || res.status === 'success' || !res.code) {
+      return res.data || res
     } else {
       handleBusinessError(res)
       return Promise.reject(new Error(res.message || 'Error'))
@@ -72,8 +75,8 @@ service.interceptors.response.use(
 commonService.interceptors.response.use(
   response => {
     const res = response.data
-    if (res.code === 200) {
-      return res.data
+    if (res.code === 200 || res.status === 'success' || !res.code) {
+      return res.data || res
     } else {
       handleBusinessError(res)
       return Promise.reject(new Error(res.message || 'Error'))
@@ -90,20 +93,14 @@ function handleBusinessError(data) {
     1001: '参数错误',
     1002: '认证失败，请重新登录',
     1003: '权限不足',
-    1004: '资源不存在',
-    2001: '商品库存不足',
-    2002: '优惠券已过期',
-    2003: '订单状态不允许此操作',
-    2004: '支付失败，请重试',
-    2005: '地址超出配送范围',
-    2006: '门店已打烊',
-    2007: '积分不足',
-    2008: '余额不足',
-    2009: '手机号已注册',
-    2010: '验证码错误'
+    1004: '资源不存在'
   }
   const message = errorMap[data.code] || data.message || '请求失败'
-  alert(message)
+  console.error('业务错误:', message)
+  // 避免在登录页频繁弹窗
+  if (window.location.pathname !== '/login') {
+    alert(message)
+  }
   if (data.code === 1002) {
     localStorage.removeItem('token')
     window.location.href = '/login'
@@ -112,7 +109,7 @@ function handleBusinessError(data) {
 
 function handleHttpError(response) {
   if (!response) {
-    alert('网络连接失败，请检查网络')
+    console.error('网络连接失败')
     return
   }
   const errorMap = {
@@ -120,18 +117,17 @@ function handleHttpError(response) {
     401: '未授权，请登录',
     403: '拒绝访问',
     404: '请求地址不存在',
-    405: '请求方法不允许',
-    500: '服务器内部错误',
-    502: '网关错误',
-    503: '服务不可用',
-    504: '网关超时'
+    500: '服务器内部错误'
   }
   const message = errorMap[response.status] || `请求失败: ${response.status}`
-  alert(message)
+  console.error('HTTP错误:', message, response.config.url)
   
   if (response.status === 401 || response.status === 403) {
-    localStorage.removeItem('token')
-    window.location.href = '/login'
+    // 如果是登录接口本身报 403，不要跳转，否则会死循环
+    if (!response.config.url.includes('/auth/login')) {
+      localStorage.removeItem('token')
+      window.location.href = '/login'
+    }
   }
 }
 

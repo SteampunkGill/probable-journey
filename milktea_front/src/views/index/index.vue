@@ -247,20 +247,21 @@ const loadData = async () => {
     // 附近门店
     if (nearbyRes.data && nearbyRes.data.length > 0) {
       const store = nearbyRes.data[0]
-      nearbyStore.value = {
-        name: store.name,
-        address: store.address,
-        distance: store.distance || '500m',
-        businessHours: store.businessHours || '9:00-22:00',
-        phone: store.phone || '13800138000'
-      }
+      nearbyStore.value = store
     } else {
       nearbyStore.value = null
     }
     
     // 获取可用优惠券数量
-    // 这里可以调用优惠券API获取数量，暂时设为0
-    availableCouponCount.value = 0
+    try {
+      const couponRes = await couponApi.getMyCoupons()
+      if (couponRes.code === 200) {
+        const coupons = couponRes.data.list || couponRes.data || []
+        availableCouponCount.value = coupons.filter(c => c.status === 'UNUSED').length
+      }
+    } catch (e) {
+      console.error('获取优惠券数量失败:', e)
+    }
     
   } catch (error) {
     console.error('加载首页数据失败:', error)

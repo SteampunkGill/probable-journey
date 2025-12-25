@@ -149,98 +149,19 @@ const loading = ref(true)
 const loadOrders = async () => {
   loading.value = true
   try {
-    // 模拟获取取餐订单
-    await new Promise(resolve => setTimeout(resolve, 800))
-    const orders = [
-      {
-        id: 'order_101',
-        orderNo: 'MT20231201101',
-        pickupCode: 'A123',
-        status: 'ready',
-        statusText: '已备餐',
-        createTime: '2023-12-01 14:30',
-        readyTime: '2023-12-01 14:45',
-        totalAmount: 42.00,
-        itemCount: 2,
-        items: [
-          {
-            id: 'p001',
-            name: '经典珍珠奶茶',
-            image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43',
-            quantity: 1,
-            customizations: '五分糖/少冰'
-          },
-          {
-            id: 'p002',
-            name: '芝士奶盖红茶',
-            image: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e',
-            quantity: 1,
-            customizations: '七分糖/去冰'
-          }
-        ],
-        store: {
-          id: 'store_001',
-          name: '奶茶小屋·中山路店',
-          address: '中山路123号',
-          phone: '13800138000'
-        }
-      },
-      {
-        id: 'order_102',
-        orderNo: 'MT20231201098',
-        pickupCode: 'B456',
-        status: 'processing',
-        statusText: '制作中',
-        createTime: '2023-12-01 14:20',
-        estimatedTime: '5-10分钟',
-        totalAmount: 25.00,
-        itemCount: 1,
-        items: [
-          {
-            id: 'p003',
-            name: '满杯水果茶',
-            image: 'https://images.unsplash.com/photo-1570598912132-0ba1dc952b7d',
-            quantity: 1,
-            customizations: '正常糖/正常冰'
-          }
-        ],
-        store: {
-          id: 'store_001',
-          name: '奶茶小屋·中山路店',
-          address: '中山路123号',
-          phone: '13800138000'
-        }
-      },
-      {
-        id: 'order_103',
-        orderNo: 'MT20231130089',
-        pickupCode: 'C789',
-        status: 'picked_up',
-        statusText: '已取餐',
-        createTime: '2023-11-30 16:20',
-        pickedTime: '2023-11-30 16:35',
-        totalAmount: 68.50,
-        itemCount: 3,
-        items: [
-          {
-            id: 'p004',
-            name: '香草拿铁',
-            image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699',
-            quantity: 2
-          }
-        ],
-        store: {
-          id: 'store_001',
-          name: '奶茶小屋·中山路店'
-        }
+    const res = await orderApi.getOrderList()
+    if (res.code === 200) {
+      const orders = res.data.list || res.data || []
+      // 待取餐状态：PAID(已支付), ACCEPTED(已接单), MAKING(制作中), READY(待取餐)
+      const pendingStatuses = ['PAID', 'ACCEPTED', 'MAKING', 'READY']
+      pendingOrders.value = orders.filter(o => pendingStatuses.includes(o.status))
+      // 已取餐状态：DELIVERED, FINISHED
+      const historyStatuses = ['DELIVERED', 'FINISHED']
+      historyOrders.value = orders.filter(o => historyStatuses.includes(o.status))
+      
+      if (pendingOrders.value.length > 0) {
+        activeOrder.value = pendingOrders.value[0]
       }
-    ]
-
-    pendingOrders.value = orders.filter(o => o.status === 'ready' || o.status === 'processing')
-    historyOrders.value = orders.filter(o => o.status === 'picked_up')
-    
-    if (pendingOrders.value.length > 0) {
-      activeOrder.value = pendingOrders.value[0]
     }
   } catch (error) {
     console.error('加载订单失败:', error)
@@ -269,8 +190,17 @@ const callStore = (phone) => {
   window.location.href = `tel:${phone}`
 }
 
-const remindOrder = (id) => {
-  alert('已提醒商家尽快制作')
+const remindOrder = async (id) => {
+  try {
+    const res = await orderApi.remindOrder(id)
+    if (res.code === 200) {
+      alert(res.data?.message || '已提醒商家尽快制作')
+    } else {
+      alert(res.message || '催单失败')
+    }
+  } catch (error) {
+    console.error('催单失败:', error)
+  }
 }
 
 const goToOrder = () => {

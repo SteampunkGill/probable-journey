@@ -96,14 +96,17 @@ const formData = ref({
   label: ''
 })
 
-const loadAddressDetail = () => {
-  const savedAddresses = localStorage.getItem('addresses')
-  if (savedAddresses) {
-    const addresses = JSON.parse(savedAddresses)
-    const address = addresses.find(addr => addr.id === addressId.value)
-    if (address) {
-      formData.value = { ...address }
+const loadAddressDetail = async () => {
+  try {
+    const res = await addressApi.getAddressList()
+    if (res.code === 200) {
+      const address = res.data.find(addr => addr.id === addressId.value)
+      if (address) {
+        formData.value = { ...address }
+      }
     }
+  } catch (error) {
+    console.error('加载地址详情失败:', error)
   }
 }
 
@@ -146,48 +149,40 @@ const saveAddress = async () => {
   
   submitting.value = true
   try {
-    let addresses = JSON.parse(localStorage.getItem('addresses') || '[]')
-    
+    let res
     if (isEditMode.value) {
-      const index = addresses.findIndex(addr => addr.id === addressId.value)
-      if (index >= 0) {
-        addresses[index] = { ...formData.value, id: addressId.value }
-      }
+      res = await addressApi.updateAddress(addressId.value, formData.value)
     } else {
-      const newAddress = {
-        ...formData.value,
-        id: 'addr_' + Date.now()
-      }
-      addresses.push(newAddress)
+      res = await addressApi.addAddress(formData.value)
     }
     
-    if (formData.value.isDefault) {
-      addresses = addresses.map(addr => ({
-        ...addr,
-        isDefault: addr.id === (isEditMode.value ? addressId.value : addresses[addresses.length-1].id)
-      }))
+    if (res.code === 200) {
+      alert('保存成功')
+      router.back()
+    } else {
+      alert(res.message || '保存失败')
     }
-    
-    localStorage.setItem('addresses', JSON.stringify(addresses))
-    alert('保存成功')
-    router.back()
   } catch (error) {
     console.error('保存失败:', error)
+    alert('保存失败，请稍后重试')
   } finally {
     submitting.value = false
   }
 }
 
-const deleteAddress = () => {
+const deleteAddress = async () => {
   if (confirm('确定要删除该地址吗？')) {
-    let addresses = JSON.parse(localStorage.getItem('addresses') || '[]')
-    addresses = addresses.filter(addr => addr.id !== addressId.value)
-    if (formData.value.isDefault && addresses.length > 0) {
-      addresses[0].isDefault = true
+    try {
+      const res = await addressApi.deleteAddress(addressId.value)
+      if (res.code === 200) {
+        alert('删除成功')
+        router.back()
+      } else {
+        alert(res.message || '删除失败')
+      }
+    } catch (error) {
+      console.error('删除失败:', error)
     }
-    localStorage.setItem('addresses', JSON.stringify(addresses))
-    alert('删除成功')
-    router.back()
   }
 }
 

@@ -131,23 +131,30 @@ const handleLogin = async () => {
   loading.value = true
   try {
     // 调用真实API
-    const res = await authApi.login(username.value, password.value)
-    const user = res.data
+    const user = await authApi.login(username.value, password.value)
+    
+    if (!user) {
+      throw new Error('登录返回数据异常')
+    }
+
     // 存储用户信息
     userStore.setUserInfo(user)
-    // 假设token在user.token中
+    
+    // 处理 Token
     if (user.token) {
       userStore.setToken(user.token)
-    } else {
-      // 如果没有token，使用模拟token（临时方案）
-      userStore.setToken('token_' + user.id)
+    } else if (user.id) {
+      // 如果后端暂未实现 JWT Token，使用模拟 token 维持登录状态
+      userStore.setToken('mock_token_' + user.id)
     }
+
     // 记住用户名
     if (rememberMe.value) {
       localStorage.setItem('remembered_username', username.value)
     }
-    alert('登录成功')
-    router.push('/')
+    
+    // 使用更平滑的跳转方式
+    router.push(route.query.redirect || '/')
   } catch (error) {
     alert(error.message || '登录失败')
   } finally {

@@ -63,36 +63,24 @@ const switchTab = (key) => {
   loadCoupons()
 }
 
-const loadCoupons = () => {
+const loadCoupons = async () => {
   loading.value = true
-  // 模拟数据
-  const mockCoupons = {
-    available: [
-      {
-        id: 'coupon_001',
-        name: '满30减5',
-        type: 'full_reduce',
-        value: 5,
-        minAmount: 30,
-        expireTime: '2024-12-31 23:59:59',
-        description: '全场通用'
-      },
-      {
-        id: 'coupon_002',
-        name: '满50减10',
-        type: 'full_reduce',
-        value: 10,
-        minAmount: 50,
-        expireTime: '2024-12-25 23:59:59',
-        description: '仅限茶饮类'
+  try {
+    const res = await couponApi.getMyCoupons()
+    if (res.code === 200) {
+      const allCoupons = res.data || []
+      const statusMap = {
+        'available': 'UNUSED',
+        'used': 'USED',
+        'expired': 'EXPIRED'
       }
-    ],
-    used: [],
-    expired: []
+      coupons.value = allCoupons.filter(c => c.status === statusMap[activeTab.value])
+    }
+  } catch (error) {
+    console.error('加载优惠券失败:', error)
+  } finally {
+    loading.value = false
   }
-  
-  coupons.value = mockCoupons[activeTab.value] || []
-  loading.value = false
 }
 
 const useCoupon = (id) => {

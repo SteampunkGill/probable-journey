@@ -80,37 +80,14 @@ const mode = ref(route.query.mode || 'list')
 const selectedId = ref(route.query.selectedId || '')
 const addressList = ref([])
 
-const loadAddressList = () => {
-  // 模拟加载地址列表
-  const savedAddresses = localStorage.getItem('addresses')
-  if (savedAddresses) {
-    addressList.value = JSON.parse(savedAddresses)
-  } else {
-    addressList.value = [
-      {
-        id: 'addr_001',
-        name: '张三',
-        phone: '13800138001',
-        province: '北京市',
-        city: '北京市',
-        district: '朝阳区',
-        detail: '建国路88号SOHO现代城C座1801',
-        isDefault: true,
-        label: '公司'
-      },
-      {
-        id: 'addr_002',
-        name: '李四',
-        phone: '13900139002',
-        province: '上海市',
-        city: '上海市',
-        district: '浦东新区',
-        detail: '世纪大道1号东方明珠',
-        isDefault: false,
-        label: '家'
-      }
-    ]
-    localStorage.setItem('addresses', JSON.stringify(addressList.value))
+const loadAddressList = async () => {
+  try {
+    const res = await addressApi.getAddressList()
+    if (res.code === 200) {
+      addressList.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载地址列表失败:', error)
   }
 }
 
@@ -130,22 +107,35 @@ const editAddress = (id) => {
   router.push(`/address/edit?id=${id}`)
 }
 
-const deleteAddress = (address) => {
+const deleteAddress = async (address) => {
   if (confirm(`确定要删除${address.name}的地址吗？`)) {
-    addressList.value = addressList.value.filter(item => item.id !== address.id)
-    if (address.isDefault && addressList.value.length > 0) {
-      addressList.value[0].isDefault = true
+    try {
+      const res = await addressApi.deleteAddress(address.id)
+      if (res.code === 200) {
+        loadAddressList()
+      } else {
+        alert(res.message || '删除失败')
+      }
+    } catch (error) {
+      console.error('删除地址失败:', error)
     }
-    localStorage.setItem('addresses', JSON.stringify(addressList.value))
   }
 }
 
-const toggleDefault = (id) => {
-  addressList.value = addressList.value.map(item => ({
-    ...item,
-    isDefault: item.id === id
-  }))
-  localStorage.setItem('addresses', JSON.stringify(addressList.value))
+const toggleDefault = async (id) => {
+  try {
+    const address = addressList.value.find(a => a.id === id)
+    if (!address) return
+    
+    const res = await addressApi.updateAddress(id, { ...address, isDefault: true })
+    if (res.code === 200) {
+      loadAddressList()
+    } else {
+      alert(res.message || '设置默认失败')
+    }
+  } catch (error) {
+    console.error('设置默认地址失败:', error)
+  }
 }
 
 onMounted(() => {

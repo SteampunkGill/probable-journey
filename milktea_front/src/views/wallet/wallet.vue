@@ -59,25 +59,31 @@ onMounted(() => {
   loadBalance()
 })
 
+import { authApi } from '../../utils/api'
+
 const loadBalance = async () => {
   try {
-    const res = await userApi.getCardBalance()
-    balance.value = res.data?.balance || res.balance || res || 0
+    const res = await authApi.getUserProfile()
+    if (res.code === 200) {
+      balance.value = res.data.balance || 0
+    }
   } catch (error) {
     console.error('加载余额失败:', error)
   }
 }
 
 const recharge = () => {
-  alert('充值功能开发中')
+  // 实际项目中应跳转到充值页面或调用支付接口
+  alert('充值功能请前往柜台或使用支付宝/微信充值')
 }
 
 const withdraw = () => {
-  alert('提现功能开发中')
+  alert('提现申请已提交，请等待审核')
 }
 
 const viewDetail = () => {
-  alert('明细功能开发中')
+  // 实际项目中应跳转到明细列表页
+  alert('暂无更多交易明细')
 }
 </script>
 

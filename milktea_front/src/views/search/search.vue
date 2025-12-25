@@ -159,26 +159,35 @@ const searchKeyword = ref('')
 const showResults = ref(false)
 const showSuggest = ref(false)
 const searchHistory = ref([])
-const hotKeywords = ref([
-  { word: '珍珠奶茶' },
-  { word: '芝士奶盖' },
-  { word: '水果茶' },
-  { word: '拿铁咖啡' },
-  { word: '芋泥波波' }
-])
+const hotKeywords = ref([])
 const searchSuggest = ref([])
 const searchResults = ref([])
 const sortBy = ref('default')
 const activeCategory = ref('')
-const categories = ref([
-  { id: 'c001', name: '奶茶系列' },
-  { id: 'c002', name: '鲜果茶' },
-  { id: 'c003', name: '咖啡系列' }
-])
+const categories = ref([])
 
-onMounted(() => {
-  const history = JSON.parse(localStorage.getItem('searchHistory') || '[]')
-  searchHistory.value = history
+onMounted(async () => {
+  try {
+    const [historyRes, hotRes, categoriesRes] = await Promise.all([
+      productApi.getSearchHistory(),
+      productApi.getHotKeywords(),
+      productApi.getCategories()
+    ])
+    
+    if (historyRes.code === 200) {
+      searchHistory.value = historyRes.data || []
+    }
+    
+    if (hotRes.code === 200) {
+      hotKeywords.value = hotRes.data || []
+    }
+    
+    if (categoriesRes.code === 200) {
+      categories.value = categoriesRes.data || []
+    }
+  } catch (error) {
+    console.error('加载搜索初始化数据失败:', error)
+  }
   
   if (route.query.keyword) {
     searchKeyword.value = route.query.keyword
@@ -222,39 +231,26 @@ const filteredResults = computed(() => {
   return results
 })
 
-const onSearch = () => {
+const onSearch = async () => {
   const keyword = searchKeyword.value.trim()
   if (!keyword) return
   
-  // 保存历史
-  if (!searchHistory.value.includes(keyword)) {
-    searchHistory.value.unshift(keyword)
-    if (searchHistory.value.length > 10) searchHistory.value.pop()
-    localStorage.setItem('searchHistory', JSON.stringify(searchHistory.value))
-  }
-  
-  // 模拟搜索结果
-  searchResults.value = [
-    {
-      id: 'p001',
-      name: '经典珍珠奶茶',
-      image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400',
-      price: 18.00,
-      sales: 2456,
-      category: 'c001'
-    },
-    {
-      id: 'p002',
-      name: '芝士奶盖红茶',
-      image: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400',
-      price: 22.00,
-      sales: 1890,
-      category: 'c001'
+  try {
+    const res = await productApi.searchProducts(keyword)
+    if (res.code === 200) {
+      searchResults.value = res.data.list || res.data || []
+      showResults.value = true
+      showSuggest.value = false
+      
+      // 重新加载历史记录（后端已保存）
+      const historyRes = await productApi.getSearchHistory()
+      if (historyRes.code === 200) {
+        searchHistory.value = historyRes.data || []
+      }
     }
-  ].filter(p => p.name.includes(keyword))
-  
-  showResults.value = true
-  showSuggest.value = false
+  } catch (error) {
+    console.error('搜索失败:', error)
+  }
 }
 
 const searchByKeyword = (keyword) => {
@@ -267,10 +263,16 @@ const clearKeyword = () => {
   showResults.value = false
 }
 
-const clearHistory = () => {
+const clearHistory = async () => {
   if (confirm('确定要清除搜索历史吗？')) {
-    searchHistory.value = []
-    localStorage.removeItem('searchHistory')
+    try {
+      const res = await productApi.clearSearchHistory()
+      if (res.code === 200) {
+        searchHistory.value = []
+      }
+    } catch (error) {
+      console.error('清空历史失败:', error)
+    }
   }
 }
 

@@ -192,12 +192,13 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
+import { orderApi } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
 const cartStore = useCartStore()
 
-const orderId = ref(route.params.id)
+const orderNo = ref(route.params.id) // 接口文档中使用 orderNo
 const order = ref({})
 const loading = ref(true)
 const statusSteps = ref([])
@@ -209,58 +210,17 @@ onMounted(() => {
 
 const loadOrderDetail = async () => {
   loading.value = true
-  // 模拟获取订单详情
-  setTimeout(() => {
-    const mockOrder = {
-      id: orderId.value,
-      orderNo: 'MT20231201001',
-      status: 'processing',
-      statusText: '制作中',
-      createTime: '2023-12-01 14:30:00',
-      payTime: '2023-12-01 14:31:00',
-      deliveryType: 'pickup',
-      pickupCode: 'A123',
-      totalAmount: 68.50,
-      subtotal: 58.00,
-      deliveryFee: 5.00,
-      packagingFee: 1.50,
-      couponDiscount: 5.00,
-      pointsDiscount: 1.00,
-      items: [
-        {
-          id: 'item_001',
-          productId: 'p001',
-          name: '经典珍珠奶茶',
-          image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400',
-          price: 18.00,
-          quantity: 2,
-          customizations: {
-            sweetness: '五分糖',
-            temperature: '少冰',
-            toppings: ['珍珠', '椰果']
-          }
-        }
-      ],
-      store: {
-        id: 'store_001',
-        name: '奶茶小屋·中山路店',
-        address: '中山路123号',
-        phone: '13800138000',
-        businessHours: '9:00-22:00'
-      },
-      paymentMethodText: '微信支付',
-      remark: '少冰,请尽快制作',
-      estimatedTime: '15:00',
-      canPay: false,
-      canRemind: true,
-      canConfirm: false,
-      canReview: false
+  try {
+    const res = await orderApi.getOrderDetail(orderNo.value)
+    if (res.code === 200) {
+      order.value = res.data
+      generateStatusSteps(res.data)
     }
-    
-    order.value = mockOrder
-    generateStatusSteps(mockOrder)
+  } catch (error) {
+    console.error('加载订单详情失败:', error)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const generateStatusSteps = (orderData) => {
@@ -307,25 +267,52 @@ const callStore = () => {
   alert('正在拨打：' + order.value.store.phone)
 }
 
-const cancelOrder = () => {
+const cancelOrder = async () => {
   if (confirm('确定要取消订单吗？')) {
-    alert('订单已取消')
-    router.back()
+    try {
+      const res = await orderApi.cancelOrder(orderNo.value)
+      if (res.code === 200) {
+        alert('订单已取消')
+        router.back()
+      } else {
+        alert(res.message || '取消失败')
+      }
+    } catch (error) {
+      console.error('取消订单失败:', error)
+    }
   }
 }
 
 const payOrder = () => {
-  router.push({ path: '/payment', query: { orderId: orderId.value } })
+  router.push({ path: '/payment', query: { orderNo: orderNo.value } })
 }
 
-const remindOrder = () => {
-  alert('已提醒商家尽快制作')
+const remindOrder = async () => {
+  try {
+    const res = await orderApi.remindOrder(orderNo.value)
+    if (res.code === 200) {
+      alert(res.data?.message || '已提醒商家尽快制作')
+    } else {
+      alert(res.message || '催单失败')
+    }
+  } catch (error) {
+    console.error('催单失败:', error)
+  }
 }
 
-const confirmOrder = () => {
+const confirmOrder = async () => {
   if (confirm('确认已收到商品吗？')) {
-    alert('已确认收货')
-    loadOrderDetail()
+    try {
+      const res = await orderApi.confirmOrder(orderNo.value)
+      if (res.code === 200) {
+        alert('已确认收货')
+        loadOrderDetail()
+      } else {
+        alert(res.message || '确认收货失败')
+      }
+    } catch (error) {
+      console.error('确认收货失败:', error)
+    }
   }
 }
 

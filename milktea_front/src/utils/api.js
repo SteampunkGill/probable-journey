@@ -28,7 +28,20 @@ export const authApi = {
   verifyDeactivation: () => post('/user/verify-deactivation'),
   
   // 注销账号
-  deactivate: () => post('/user/deactivate')
+  deactivate: () => post('/user/deactivate'),
+  
+  // 获取会员卡余额
+  getCardBalance: () => get('/user/card-balance'),
+  
+  // 绑定会员卡
+  bindCard: (cardNumber) => post('/user/bind-card', { cardNumber })
+}
+
+// 兼容性导出，防止旧代码报错
+export const userApi = {
+  ...authApi,
+  getCardBalance: authApi.getCardBalance,
+  bindCard: authApi.bindCard
 }
 
 // 首页相关
