@@ -134,12 +134,12 @@ const loadOrders = async () => {
   if (activeTab.value === 'refund') query.value.status = 'REFUNDING'
   
   const res = await get(url, query.value)
-  orders.value = res.data
+  orders.value = res.data || []
 }
 
 const loadComplaints = async () => {
   const res = await get('/api/admin/complaints')
-  complaints.value = res.data
+  complaints.value = res.data || []
 }
 
 watch(activeTab, (val) => {

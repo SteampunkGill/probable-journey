@@ -129,6 +129,27 @@ const banners = ref([])
 
 const activityModal = ref({ show: false, isEdit: false, form: {} })
 
+const showActivityModal = (a = null) => {
+  if (a) {
+    activityModal.value.isEdit = true
+    activityModal.value.form = { ...a }
+  } else {
+    activityModal.value.isEdit = false
+    activityModal.value.form = { name: '', type: 'FULL_REDUCE' }
+  }
+  activityModal.value.show = true
+}
+
+const saveActivity = async () => {
+  if (activityModal.value.isEdit) {
+    await put(`/api/admin/activities/${activityModal.value.form.id}`, activityModal.value.form)
+  } else {
+    await post('/api/admin/activities', activityModal.value.form)
+  }
+  activityModal.value.show = false
+  loadActivities()
+}
+
 const loadActivities = async () => {
   const res = await get('/api/admin/activities')
   activities.value = res.data

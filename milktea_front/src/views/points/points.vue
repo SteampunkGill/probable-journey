@@ -91,7 +91,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { pointsApi, userApi, authApi } from '../../utils/api'
 
 const userPoints = ref(0)
@@ -100,37 +100,59 @@ const showRecords = ref(false)
 const loading = ref(false)
 const exchangeRecords = ref([])
 
-const categories = [
-  { id: 'all', name: '全部' },
-  { id: 'drink', name: '饮品' },
-  { id: 'coupon', name: '优惠券' },
-  { id: 'gift', name: '周边' }
-]
+const categories = ref([
+  { id: 'all', name: '全部' }
+])
 
 const productList = ref([])
 
-const filteredProducts = computed(() => {
-  if (activeCategoryId.value === 'all') return productList.value
-  return productList.value.filter(p => p.category === activeCategoryId.value)
+const filteredProducts = computed(() => productList.value)
+
+const fetchProducts = async () => {
+  loading.value = true
+  try {
+    // 转换 ID 为后端需要的 type
+    const category = activeCategoryId.value === 'all' ? null : activeCategoryId.value.toUpperCase()
+    const res = await pointsApi.getPointsProducts(1, 50, category)
+    if (res.code === 200) {
+      productList.value = res.data.list || res.data || []
+    }
+  } catch (error) {
+    console.error('获取商品列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(activeCategoryId, () => {
+  fetchProducts()
 })
 
 const loadData = async () => {
   loading.value = true
   try {
-    const [profileRes, productsRes] = await Promise.all([
+    const [profileRes, categoriesRes] = await Promise.all([
       authApi.getUserProfile(),
-      pointsApi.getPointsTransactions() // 获取积分明细，其中包含当前积分
+      pointsApi.getPointsCategories()
     ])
     
     if (profileRes.code === 200) {
       userPoints.value = profileRes.data.points || 0
     }
-    
-    // 获取积分商城商品
-    const mallRes = await pointsApi.getPointsProducts()
-    if (mallRes.code === 200) {
-      productList.value = mallRes.data.list || mallRes.data || []
+
+    if (categoriesRes.code === 200) {
+      // 保留“全部”选项，合并后端分类
+      const backendCategories = categoriesRes.data || []
+      categories.value = [
+        { id: 'all', name: '全部' },
+        ...backendCategories.map(c => ({
+          id: c.type.toLowerCase(), // 使用 type 作为 ID 匹配前端逻辑
+          name: c.name
+        }))
+      ]
     }
+    
+    await fetchProducts()
   } catch (error) {
     console.error('加载积分商城数据失败:', error)
   } finally {

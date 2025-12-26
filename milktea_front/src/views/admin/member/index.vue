@@ -146,7 +146,7 @@ const pointsModal = ref({ show: false, member: null, points: 0, remark: '' })
 
 const loadMembers = async () => {
   const res = await get('/api/admin/members', query.value)
-  members.value = res.data.content
+  members.value = res.data?.content || []
 }
 
 const loadLevels = async () => {

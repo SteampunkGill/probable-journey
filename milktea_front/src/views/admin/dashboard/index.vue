@@ -127,12 +127,12 @@ const loadData = async () => {
       get('/api/admin/dashboard/order-alerts')
     ])
 
-    metrics.value = metricsRes.data
-    realtimeSales.value = realtimeRes.data
-    salesTrend.value = trendRes.data
-    productRanking.value = rankingRes.data
-    inventoryAlerts.value = invAlertRes.data
-    orderAlerts.value = orderAlertRes.data
+    metrics.value = metricsRes.data || {}
+    realtimeSales.value = realtimeRes.data || { timeLabels: [], salesData: [], orderData: [] }
+    salesTrend.value = trendRes.data || { dates: [], sales: [], orders: [] }
+    productRanking.value = rankingRes.data || []
+    inventoryAlerts.value = invAlertRes.data || []
+    orderAlerts.value = orderAlertRes.data || []
   } catch (error) {
     console.error('加载仪表盘数据失败:', error)
   }

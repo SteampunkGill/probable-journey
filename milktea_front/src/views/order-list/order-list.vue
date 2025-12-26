@@ -155,14 +155,26 @@ const loadOrders = async () => {
       params.status = statusMap[activeTab.value]
     }
     const res = await orderApi.getOrderList(params)
-    const orderData = res.data || res || []
+    let orderData = res.data || res || []
+    
+    // 纯前端筛选逻辑
+    if (activeTab.value !== 'all') {
+      const statusMap = {
+        'pending': ['PAID', 'ACCEPTED', 'READY'],
+        'processing': ['MAKING'],
+        'completed': ['FINISHED', 'DELIVERED']
+      }
+      const targetStatuses = statusMap[activeTab.value] || []
+      orderData = orderData.filter(order => targetStatuses.includes(order.status))
+    }
+
     // 转换数据格式以匹配前端
     orders.value = orderData.map(order => ({
       id: order.id,
       orderNo: order.orderNo,
       status: order.status,
       statusText: getStatusText(order.status),
-      createTime: order.createTime,
+      createTime: order.createTime || order.orderTime || order.createdAt,
       totalAmount: order.totalAmount,
       items: order.items || [],
       pickupCode: order.pickupCode,

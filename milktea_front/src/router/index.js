@@ -26,6 +26,12 @@ const routes = [
     meta: { title: '我的', requiresAuth: true }
   },
   {
+    path: '/profile',
+    name: 'profile',
+    component: () => import('../views/profile/profile.vue'),
+    meta: { title: '个人资料', requiresAuth: true }
+  },
+  {
     path: '/user/bind-card',
     name: 'bind-card',
     component: () => import('../views/user/bind-card.vue'),
@@ -110,6 +116,12 @@ const routes = [
     meta: { title: '钱包' }
   },
   {
+    path: '/wallet/gift-card',
+    name: 'gift-card',
+    component: () => import('../views/wallet/gift-card.vue'),
+    meta: { title: '礼品卡', requiresAuth: true }
+  },
+  {
     path: '/points',
     name: 'points',
     component: () => import('../views/points/points.vue'),
@@ -140,46 +152,59 @@ const routes = [
     meta: { title: '账号安全', requiresAuth: true }
   },
   {
+    path: '/about',
+    name: 'about-root',
+    component: () => import('../views/settings/about.vue'),
+    meta: { title: '关于我们' }
+  },
+  {
     path: '/admin',
     name: 'admin-layout',
     component: () => import('../views/admin/layout.vue'),
     redirect: '/admin/dashboard',
+    meta: { requiresAdmin: true },
     children: [
       {
         path: 'dashboard',
         name: 'admin-dashboard',
         component: () => import('../views/admin/dashboard/index.vue'),
-        meta: { title: '仪表盘' }
+        meta: { title: '仪表盘', requiresAdmin: true }
       },
       {
         path: 'product',
         name: 'admin-product',
         component: () => import('../views/admin/product/index.vue'),
-        meta: { title: '商品管理' }
+        meta: { title: '商品管理', requiresAdmin: true }
+      },
+      {
+        path: 'store',
+        name: 'admin-store',
+        component: () => import('../views/admin/store/index.vue'),
+        meta: { title: '门店管理', requiresAdmin: true }
       },
       {
         path: 'order',
         name: 'admin-order',
         component: () => import('../views/admin/order/index.vue'),
-        meta: { title: '订单管理' }
+        meta: { title: '订单管理', requiresAdmin: true }
       },
       {
         path: 'member',
         name: 'admin-member',
         component: () => import('../views/admin/member/index.vue'),
-        meta: { title: '会员管理' }
+        meta: { title: '会员管理', requiresAdmin: true }
       },
       {
         path: 'marketing',
         name: 'admin-marketing',
         component: () => import('../views/admin/marketing/index.vue'),
-        meta: { title: '营销管理' }
+        meta: { title: '营销管理', requiresAdmin: true }
       },
       {
         path: 'system',
         name: 'admin-system',
         component: () => import('../views/admin/system/index.vue'),
-        meta: { title: '系统管理' }
+        meta: { title: '系统管理', requiresAdmin: true }
       }
     ]
   }
@@ -206,17 +231,31 @@ router.beforeEach((to, from, next) => {
     console.error('解析用户信息失败:', e)
   }
 
+  // 检查是否需要登录
   if (to.meta.requiresAuth && !token) {
-    next({
+    return next({
       path: '/login',
       query: { redirect: to.fullPath }
     })
-  } else if (to.meta.requiresAdmin && userInfo.role !== 'admin') {
-    alert('权限不足，无法访问管理后台')
-    next({ path: '/' })
-  } else {
-    next()
   }
+
+  // 检查是否需要管理员权限
+  // 只要路由链条中任何一个 meta 包含 requiresAdmin，就需要检查
+  const needsAdmin = to.matched.some(record => record.meta.requiresAdmin)
+  if (needsAdmin) {
+    if (!token) {
+      return next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      })
+    }
+    if (userInfo.role !== 'admin') {
+      alert('权限不足，无法访问管理后台')
+      return next({ path: '/' })
+    }
+  }
+
+  next()
 })
 
 export default router

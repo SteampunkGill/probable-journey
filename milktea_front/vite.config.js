@@ -16,13 +16,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8081',
         changeOrigin: true,
-        secure: false,
+        secure: false
         // 不再剥离 /api 前缀，因为后端控制器路径包含 /api
-        configure: (proxy, options) => {
-          proxy.on('proxyReq', (proxyReq, req, res) => {
-            proxyReq.setHeader('Origin', 'http://localhost:8081');
-          });
-        }
       }
     }
   }

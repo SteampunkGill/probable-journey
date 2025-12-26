@@ -277,18 +277,12 @@ const getLocation = () => {
 const loadData = async () => {
   loading.value = true
   try {
-    // 先获取定位
-    const location = await getLocation()
-    
-    // 并行获取首页数据、轮播图、推荐商品和附近门店
-    const [homeRes, bannersRes, recommendRes, nearbyRes] = await Promise.all([
+    // 并行获取首页数据、轮播图、推荐商品
+    // 定位改为异步，不阻塞核心数据加载
+    const [homeRes, bannersRes, recommendRes] = await Promise.all([
       homeApi.getHomeData(),
       bannerApi.getBanners(),
-      homeApi.getRecommendations(),
-      storeApi.getNearbyStores({
-        latitude: location?.latitude || null,
-        longitude: location?.longitude || null
-      })
+      homeApi.getRecommendations()
     ])
     
     // 首页数据
@@ -303,15 +297,26 @@ const loadData = async () => {
     // 热门商品
     hotProducts.value = homeData.hotProducts || []
     
-    // 附近门店
-    if (nearbyRes.data && nearbyRes.data.length > 0) {
-      const store = nearbyRes.data[0]
-      nearbyStore.value = store
-      // 自动选择最近门店
-      userStore.setSelectedStore(store)
-    } else {
-      nearbyStore.value = null
-    }
+    // 异步获取定位和附近门店，不阻塞页面显示
+    getLocation().then(async (location) => {
+      try {
+        const nearbyRes = await storeApi.getNearbyStores({
+          latitude: location?.latitude || null,
+          longitude: location?.longitude || null
+        })
+        
+        if (nearbyRes.data && nearbyRes.data.length > 0) {
+          const store = nearbyRes.data[0]
+          nearbyStore.value = store
+          // 自动选择最近门店
+          userStore.setSelectedStore(store)
+        } else {
+          nearbyStore.value = null
+        }
+      } catch (e) {
+        console.error('获取附近门店失败:', e)
+      }
+    })
     
     // 获取可用优惠券数量
     try {

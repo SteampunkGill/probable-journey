@@ -4,11 +4,11 @@
     <div class="user-header">
       <div class="user-info" @click="goToUserProfile">
         <img 
-          :src="userInfo?.avatar || defaultAvatar" 
+          :src="userInfo?.avatarUrl || userInfo?.avatar || defaultAvatar" 
           class="user-avatar"
         />
         <div class="user-details">
-          <span class="user-name">{{ userInfo?.nickname || '点击登录' }}</span>
+          <span class="user-name">{{ userInfo?.nickname || userInfo?.username || '点击登录' }}</span>
           <div class="user-meta" v-if="userInfo">
             <span class="user-level">⭐ {{ userInfo.levelName || '普通会员' }}</span>
             <span class="user-points">积分: {{ userInfo.points || 0 }}</span>
@@ -19,7 +19,7 @@
       
       <div class="user-assets" v-if="userInfo">
         <div class="asset-item" @click="router.push('/wallet')">
-          <span class="asset-value">¥{{ userInfo.balance?.toFixed(2) || '0.00' }}</span>
+          <span class="asset-value">¥{{ userInfo.balance !== undefined ? userInfo.balance.toFixed(2) : '0.00' }}</span>
           <span class="asset-label">余额</span>
         </div>
         <div class="asset-item" @click="router.push('/coupon')">
@@ -98,16 +98,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../store/user'
-import { authApi, couponApi } from '../../utils/api'
+import { authApi } from '../../utils/api'
 import defaultAvatar from '../../assets/images/icons/user.png'
 
 const router = useRouter()
 const userStore = useUserStore()
-
-const userInfo = ref(userStore.userInfo) // 初始使用 Store 中的缓存数据
+const userInfo = computed(() => userStore.userInfo)
 
 const assets = ref([
   { id: 1, type: 'balance', name: '余额', icon: 'icon-wallet', value: '0.00', bgColor: '#36CFC9' },
@@ -131,13 +130,14 @@ const functions = ref([
 const loadUserData = async () => {
   try {
     const res = await authApi.getUserProfile()
-    if (res.code === 200) {
-      userInfo.value = res.data
+    if (res) {
+      // 更新 Store
+      userStore.setUserInfo(res)
       
       // 更新资产显示
-      assets.value[0].value = (userInfo.value.balance || 0).toFixed(2)
-      assets.value[1].value = (userInfo.value.couponCount || 0).toString()
-      assets.value[2].value = (userInfo.value.points || 0).toString()
+      assets.value[0].value = (res.balance || 0).toFixed(2)
+      assets.value[1].value = (res.couponCount || 0).toString()
+      assets.value[2].value = (res.points || 0).toString()
     }
   } catch (error) {
     console.error('加载用户信息失败:', error)
@@ -157,7 +157,7 @@ const goToAsset = (type) => {
     balance: '/wallet',
     coupon: '/coupon',
     points: '/points',
-    gift: '/gift'
+    gift: '/wallet/gift-card'
   }
   router.push(routes[type])
 }
@@ -165,7 +165,6 @@ const goToAsset = (type) => {
 const goToFunction = (url) => {
   if (url) router.push(url)
 }
-
 
 const contactService = () => {
   alert('正在连接在线客服...')
@@ -208,6 +207,7 @@ onMounted(() => {
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.5);
   background: white;
+  object-fit: cover;
 }
 
 .user-details {

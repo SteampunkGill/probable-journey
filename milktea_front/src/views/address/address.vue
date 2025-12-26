@@ -141,24 +141,31 @@ const loadAddressList = async () => {
 
 const loadStoreList = async () => {
   try {
-    // 获取定位
-    let location = null
+    // 先尝试不带定位加载门店列表，保证页面有内容
+    const initialRes = await storeApi.getNearbyStores({
+      latitude: null,
+      longitude: null
+    })
+    storeList.value = initialRes || []
+
+    // 异步获取定位并更新列表，不阻塞页面显示
     if (navigator.geolocation) {
-      location = await new Promise((resolve) => {
+      new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
           (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
           () => resolve(null),
           { timeout: 5000 }
         )
+      }).then(async (location) => {
+        if (location) {
+          const res = await storeApi.getNearbyStores({
+            latitude: location.latitude,
+            longitude: location.longitude
+          })
+          storeList.value = res || []
+        }
       })
     }
-
-    const res = await storeApi.getNearbyStores({
-      latitude: location?.latitude || null,
-      longitude: location?.longitude || null
-    })
-    // 拦截器已返回 res.data
-    storeList.value = res || []
   } catch (error) {
     console.error('加载门店列表失败:', error)
   }

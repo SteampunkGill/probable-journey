@@ -164,24 +164,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { pointsMallApi } from '@/utils/api.js'
+import { pointsApi, authApi } from '@/utils/api.js'
 
 const router = useRouter()
 
 // 数据
-const points = ref(1250)
+const points = ref(0)
 const searchKeyword = ref('')
 const loading = ref(false)
 
 const categories = ref([
-  { id: 1, name: '全部', active: true },
-  { id: 2, name: '优惠券', active: false },
-  { id: 3, name: '实物商品', active: false },
-  { id: 4, name: '饮品券', active: false },
-  { id: 5, name: '周边礼品', active: false },
-  { id: 6, name: '限时抢购', active: false }
+  { id: 'all', name: '全部', active: true }
 ])
 
 const sortOptions = ref([
@@ -199,20 +194,9 @@ const filteredProducts = computed(() => {
   
   // 搜索过滤
   if (searchKeyword.value) {
-    filtered = filtered.filter(product => 
-      product.name.includes(searchKeyword.value) || 
+    filtered = filtered.filter(product =>
+      product.name.includes(searchKeyword.value) ||
       (product.description || product.desc || '').includes(searchKeyword.value)
-    )
-  }
-  
-  // 分类过滤
-  const activeCategory = categories.value.find(c => c.active)
-  if (activeCategory && activeCategory.name !== '全部') {
-    // 这里可以根据实际分类逻辑进行过滤
-    // 简化处理：根据名称包含分类关键词
-    filtered = filtered.filter(product => 
-      product.name.includes(activeCategory.name) ||
-      (product.description || product.desc || '').includes(activeCategory.name)
     )
   }
   
@@ -227,7 +211,6 @@ const filteredProducts = computed(() => {
         filtered.sort((a, b) => (b.points || b.pointCost || 0) - (a.points || a.pointCost || 0))
         break
       case '最新上架':
-        // 假设id越大越新
         filtered.sort((a, b) => b.id - a.id)
         break
       case '热门推荐':
@@ -245,16 +228,30 @@ const goBack = () => {
 }
 
 const viewExchangeRecords = () => {
-  alert('查看兑换记录')
+  router.push('/points/mall/exchange-records')
 }
 
 const howToGetPoints = () => {
   alert('如何获取积分：\n1. 每日签到\n2. 消费获得\n3. 完成任务\n4. 邀请好友')
 }
 
-const signIn = () => {
-  alert('签到成功！获得10积分')
-  points.value += 10
+const signIn = async () => {
+  try {
+    const res = await pointsApi.signIn()
+    // request.js 拦截器已经处理了 code 校验并返回了 res.data
+    // 如果能走到这里，说明请求成功且 code 为 200
+    if (res !== undefined) {
+      points.value = res
+      // 更新本地存储的用户信息中的积分
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      userInfo.points = res
+      localStorage.setItem('userInfo', JSON.stringify(userInfo))
+      alert('签到成功！获得10积分')
+    }
+  } catch (error) {
+    console.error('签到失败:', error)
+    alert('签到失败，请稍后重试')
+  }
 }
 
 const viewTasks = () => {
@@ -269,7 +266,6 @@ const selectCategory = (index) => {
   categories.value.forEach((category, i) => {
     category.active = i === index
   })
-  // 重新加载商品
   loadProducts()
 }
 
@@ -281,7 +277,6 @@ const selectSort = (index) => {
 
 const viewProductDetail = (productId) => {
   alert(`查看商品详情：${productId}`)
-  // router.push(`/points/mall/detail/${productId}`)
 }
 
 const exchangeProduct = async (product) => {
@@ -294,13 +289,18 @@ const exchangeProduct = async (product) => {
   if (confirm(`确定要兑换【${product.name}】吗？\n需要${productPoints}积分`)) {
     try {
       loading.value = true
-      await pointsMallApi.exchangeProduct(product.id)
+      await pointsApi.exchangeProduct(product.id)
+      // 如果没有抛出异常，说明兑换成功
       points.value -= productPoints
+      // 更新本地存储的用户信息中的积分
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      userInfo.points = points.value
+      localStorage.setItem('userInfo', JSON.stringify(userInfo))
       alert('兑换成功！请到兑换记录中查看')
-      // 重新加载商品列表
       loadProducts()
     } catch (error) {
-      alert('兑换失败：' + (error.message || '网络错误'))
+      console.error('兑换失败:', error)
+      // 错误信息已由 request.js 拦截器弹出
     } finally {
       loading.value = false
     }
@@ -311,89 +311,60 @@ const loadProducts = async () => {
   try {
     loading.value = true
     const activeCategory = categories.value.find(c => c.active)
-    const category = activeCategory && activeCategory.name !== '全部' ? activeCategory.name : ''
-    const response = await pointsMallApi.getProducts(category)
-    if (response && response.data) {
-      products.value = response.data
+    const category = activeCategory && activeCategory.id !== 'all' ? activeCategory.id.toUpperCase() : null
+    const data = await pointsApi.getPointsProducts(1, 50, category)
+    if (data) {
+      products.value = data.list || data || []
     }
   } catch (error) {
     console.error('加载积分商品失败:', error)
-    // 使用默认数据作为后备
-    products.value = [
-      {
-        id: 1,
-        name: '5元优惠券',
-        description: '全场通用，满20元可用',
-        points: 500,
-        originalPoints: 600,
-        stock: 100,
-        limitInfo: '每人限兑5张',
-        hot: true,
-        image: 'https://images.unsplash.com/photo-1579113800032-c38bd7635818'
-      },
-      {
-        id: 2,
-        name: '奶茶保温杯',
-        description: '可爱奶茶主题保温杯',
-        points: 2000,
-        originalPoints: 2500,
-        stock: 30,
-        limitInfo: '每人限兑1个',
-        hot: true,
-        image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcf93a'
-      },
-      {
-        id: 3,
-        name: '买一送一券',
-        description: '指定饮品买一送一',
-        points: 800,
-        originalPoints: 1000,
-        stock: 50,
-        limitInfo: '每人限兑2张',
-        hot: false,
-        image: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af'
-      },
-      {
-        id: 4,
-        name: '免配送费券',
-        description: '免去配送费，轻松下单',
-        points: 300,
-        originalPoints: 400,
-        stock: 200,
-        limitInfo: '每人限兑3张',
-        hot: false,
-        image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd'
-      },
-      {
-        id: 5,
-        name: '奶茶店帆布袋',
-        description: '环保帆布袋，时尚实用',
-        points: 1500,
-        originalPoints: 1800,
-        stock: 20,
-        limitInfo: '每人限兑1个',
-        hot: true,
-        image: 'https://images.unsplash.com/photo-1594736797933-d0c6e4d6d6c4'
-      },
-      {
-        id: 6,
-        name: '8折优惠券',
-        description: '全场8折优惠',
-        points: 1000,
-        originalPoints: 1200,
-        stock: 80,
-        limitInfo: '每人限兑2张',
-        hot: false,
-        image: 'https://images.unsplash.com/photo-1579113800032-c38bd7635818'
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadInitialData = async () => {
+  try {
+    loading.value = true
+    // 获取积分
+    try {
+      const userProfile = await authApi.getUserProfile()
+      if (userProfile) {
+        points.value = userProfile.points || 0
+        // 同步更新本地存储
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+        userInfo.points = points.value
+        localStorage.setItem('userInfo', JSON.stringify(userInfo))
       }
-    ]
+    } catch (e) {
+      console.error('获取用户信息失败，使用本地缓存:', e)
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      points.value = userInfo.points || 0
+    }
+
+    const data = await pointsApi.getPointsCategories()
+    if (data) {
+      const backendCategories = data || []
+      categories.value = [
+        { id: 'all', name: '全部', active: true },
+        ...backendCategories.map(c => ({
+          id: c.type.toLowerCase(),
+          name: c.name,
+          active: false
+        }))
+      ]
+    }
+    
+    await loadProducts()
+  } catch (error) {
+    console.error('加载初始数据失败:', error)
   } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
-  loadProducts()
+  loadInitialData()
 })
 </script>
 

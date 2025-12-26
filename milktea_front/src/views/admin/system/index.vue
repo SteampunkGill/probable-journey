@@ -125,6 +125,33 @@
         </table>
       </div>
     </div>
+
+    <!-- 员工编辑弹窗 -->
+    <div v-if="staffModal.show" class="modal-mask">
+      <div class="modal-container">
+        <h3>{{ staffModal.isEdit ? '编辑员工' : '新增员工' }}</h3>
+        <div class="form-item">
+          <label>用户名：</label>
+          <input v-model="staffModal.form.username" class="admin-input" :disabled="staffModal.isEdit" />
+        </div>
+        <div class="form-item">
+          <label>姓名：</label>
+          <input v-model="staffModal.form.realName" class="admin-input" />
+        </div>
+        <div class="form-item">
+          <label>角色：</label>
+          <select v-model="staffModal.form.roleId" class="admin-select">
+            <option value="1">管理员</option>
+            <option value="2">店长</option>
+            <option value="3">店员</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button @click="staffModal.show = false">取消</button>
+          <button class="btn-primary" @click="saveStaff">保存</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -138,6 +165,36 @@ const stores = ref([])
 const configs = ref([])
 const backups = ref([])
 const logs = ref([])
+
+const staffModal = ref({ show: false, isEdit: false, form: {} })
+
+const showStaffModal = (s = null) => {
+  if (s) {
+    staffModal.value.isEdit = true
+    staffModal.value.form = { ...s }
+  } else {
+    staffModal.value.isEdit = false
+    staffModal.value.form = { username: '', realName: '', roleId: '', storeId: '' }
+  }
+  staffModal.value.show = true
+}
+
+const saveStaff = async () => {
+  if (staffModal.value.isEdit) {
+    await put(`/api/admin/staff/${staffModal.value.form.id}`, staffModal.value.form)
+  } else {
+    await post('/api/admin/staff', staffModal.value.form)
+  }
+  staffModal.value.show = false
+  loadStaff()
+}
+
+const resetPwd = async (s) => {
+  if (confirm(`确定要重置员工 ${s.username} 的密码吗？`)) {
+    await post(`/api/admin/staff/${s.id}/reset-password`)
+    alert('密码已重置为默认密码')
+  }
+}
 
 const loadStaff = async () => {
   const res = await get('/api/admin/staff')
@@ -230,7 +287,12 @@ onMounted(() => {
 .ops button { margin-right: 8px; color: #1890ff; background: none; border: none; cursor: pointer; }
 .ops button:hover { text-decoration: underline; }
 
-.admin-input { padding: 6px 12px; border: 1px solid #d9d9d9; border-radius: 4px; flex: 1; max-width: 400px; }
+.admin-input, .admin-select { padding: 6px 12px; border: 1px solid #d9d9d9; border-radius: 4px; flex: 1; max-width: 400px; }
+.modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-container { background: white; padding: 24px; border-radius: 8px; width: 400px; }
+.form-item { margin-bottom: 16px; }
+.form-item label { display: block; margin-bottom: 8px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
 .btn-primary { background: #1890ff; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 .btn-success { background: #52c41a; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
 .btn-warning { background: #faad14; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }

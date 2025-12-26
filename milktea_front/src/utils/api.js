@@ -221,19 +221,22 @@ export const pointsApi = {
   
   // 积分商城相关
   // 获取积分商品列表
-  getPointsProducts: (page = 1, size = 10, category) => get('/points-mall/products', { page, size, category }),
+  getPointsProducts: (page = 1, size = 10, category) => get('/member/mall/items', { page, size, category }),
   
   // 获取积分商品分类
-  getPointsCategories: () => get('/points-mall/categories'),
+  getPointsCategories: () => get('/member/mall/categories'),
   
   // 兑换积分商品
-  exchangeProduct: (productId) => post('/points-mall/exchange', { productId }),
+  exchangeProduct: (productId) => post('/member/mall/exchange', { productId }),
   
   // 获取兑换记录
-  getExchangeRecords: (page = 1, size = 10) => get('/points-mall/exchange-records', { page, size }),
+  getExchangeRecords: (page = 1, size = 10) => get('/member/mall/exchange-records', { page, size }),
   
   // 积分兑换优惠券
-  exchangeCoupon: (couponId) => post('/points/exchange-coupon', { couponId })
+  exchangeCoupon: (couponId) => post('/member/mall/exchange-coupon', { couponId }),
+  
+  // 每日签到
+  signIn: () => post('/member/mall/sign-in')
 }
 
 // 系统相关（部分后端未实现）
@@ -320,20 +323,6 @@ export const paymentApi = {
   getPaymentStatus: (orderNo) => get(`/payment/status/${orderNo}`)
 }
 
-// 积分商城相关
-export const pointsMallApi = {
-  // 获取积分商品列表
-  getProducts: (category) => get('/points-mall/products', { category }),
-  
-  // 获取积分商品分类
-  getCategories: () => get('/points-mall/categories'),
-  
-  // 兑换积分商品
-  exchangeProduct: (productId) => post('/points-mall/exchange', { productId }),
-  
-  // 获取兑换记录
-  getExchangeRecords: () => get('/points-mall/exchange-records')
-}
 
 // 营销活动相关
 export const promotionApi = {
@@ -381,6 +370,24 @@ export const favoriteApi = {
 export const bannerApi = {
   // 获取轮播图
   getBanners: () => get('/banners')
+}
+
+// 礼品卡相关
+export const giftCardApi = {
+  // 购买礼品卡
+  buyGiftCard: (faceValue) => post('/gift-card/buy', { faceValue }),
+  // 激活礼品卡
+  activateGiftCard: (cardNo, cardCode) => post('/gift-card/activate', { cardNo, cardCode }),
+  // 获取我的礼品卡列表
+  getMyGiftCards: () => get('/gift-card/list')
+}
+
+// 关于我们相关
+export const aboutUsApi = {
+  // 获取关于我们内容
+  getAboutUs: () => get('/about'),
+  // 更新关于我们内容（管理端）
+  updateAboutUs: (data) => put('/admin/about-us', data)
 }
 
 // 门店相关

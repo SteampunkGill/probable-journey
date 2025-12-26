@@ -24,7 +24,11 @@ const commonService = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   config => {
-    console.log(`请求地址: ${config.baseURL}${config.url}`)
+    // 如果 url 是以 /api/admin 开头的，说明是管理端接口，不应该拼接 /v1/app
+    if (config.url.startsWith('/api/admin')) {
+      config.baseURL = ''
+    }
+    console.log(`请求地址: ${config.baseURL || ''}${config.url}`)
     const token = localStorage.getItem('token')
     if (token && token !== 'undefined' && token !== 'null') {
       // 尝试多种常见的 Token 传递方式
@@ -41,6 +45,7 @@ service.interceptors.request.use(
 // 公共服务的请求拦截器
 commonService.interceptors.request.use(
   config => {
+    console.log(`公共请求地址: ${config.baseURL || ''}${config.url}`)
     const token = localStorage.getItem('token')
     if (token && token !== 'undefined' && token !== 'null') {
       config.headers['Authorization'] = `Bearer ${token}`
@@ -57,24 +62,22 @@ commonService.interceptors.request.use(
 service.interceptors.response.use(
   response => {
     const res = response.data
-    // 兼容处理：有些后端直接返回数据，有些包裹在 code/data 中
-    // 增加对业务错误码的判断，如果 code 为 200 但 message 不是 success，且 data 为空，可能是业务错误
+    // 统一处理：后端 ApiResponse 结构包含 code, message, data
     if (res.code === 200 || res.status === 'success') {
-      return res.data
-    } else if (res.code >= 400 || res.code === 1001 || res.code === 1002) {
-      handleBusinessError(res)
-      return Promise.reject(new Error(res.message || '业务请求失败'))
-    } else if (!res.code) {
-      return res.data || res
+      // 返回完整 res 以便页面判断 code，或者根据约定只返回 data
+      // 为了兼容 index.vue 中的 if (res.code === 200)，这里返回 res
+      return res
     } else {
       handleBusinessError(res)
-      return Promise.reject(new Error(res.message || 'Error'))
+      const error = new Error(res.message || '业务请求失败')
+      error.response = response // 挂载原始响应
+      return Promise.reject(error)
     }
   },
   error => {
     if (axios.isCancel(error)) {
       console.log('Request canceled', error.message)
-      return new Promise(() => {}) // 返回一个永远不会 resolve/reject 的 promise
+      return Promise.reject(error)
     }
     handleHttpError(error.response)
     return Promise.reject(error)
@@ -159,12 +162,15 @@ export const uploadFile = (url, file, params = {}) => {
   const formData = new FormData()
   formData.append('file', file)
   Object.keys(params).forEach(key => {
-    formData.append(key, params[key])
+    if (params[key] !== undefined && params[key] !== null) {
+      formData.append(key, params[key])
+    }
   })
   return commonService.post(url, formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    transformRequest: [(data) => data]
   })
 }
 
