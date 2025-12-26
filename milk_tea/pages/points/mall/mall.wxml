@@ -1,0 +1,119 @@
+<!--pages/points/mall/mall.wxml-->
+<view class="page">
+  <!-- 头部 -->
+  <view class="header">
+    <view class="points-info">
+      <view class="points-label">我的积分</view>
+      <view class="points-value">{{points}}</view>
+      <view class="points-actions">
+        <view class="action-btn" bindtap="viewExchangeRecords">
+          <text>兑换记录</text>
+        </view>
+        <view class="action-btn" bindtap="howToGetPoints">
+          <text>如何获取积分</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input">
+      <image src="/images/icons/search.png" class="search-icon"></image>
+      <input 
+        type="text" 
+        placeholder="搜索积分商品" 
+        value="{{searchKeyword}}"
+        bindinput="searchProducts"
+        placeholder-class="placeholder"
+      />
+      <view class="search-clear" wx:if="{{searchKeyword}}" bindtap="clearSearch">
+        <image src="/images/icons/close.png"></image>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分类筛选 -->
+  <scroll-view class="category-scroll" scroll-x>
+    <view class="category-list">
+      <view 
+        wx:for="{{categories}}" 
+        wx:key="id" 
+        class="category-item {{item.active ? 'active' : ''}}"
+        data-index="{{index}}"
+        bindtap="selectCategory"
+      >
+        {{item.name}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 排序选项 -->
+  <scroll-view class="sort-scroll" scroll-x>
+    <view class="sort-list">
+      <view 
+        wx:for="{{sortOptions}}" 
+        wx:key="id" 
+        class="sort-item {{item.active ? 'active' : ''}}"
+        data-index="{{index}}"
+        bindtap="selectSort"
+      >
+        {{item.name}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 商品列表 -->
+  <view class="product-list" wx:if="{{!loading && filteredProducts.length > 0}}">
+    <view 
+      wx:for="{{filteredProducts}}" 
+      wx:key="id" 
+      class="product-item"
+      data-id="{{item.id}}"
+      bindtap="viewProductDetail"
+    >
+      <view class="product-image">
+        <image src="{{item.image}}" mode="aspectFill"></image>
+        <view class="product-hot" wx:if="{{item.hot}}">热门</view>
+        <view class="product-stock" wx:if="{{item.stock < 10}}">仅剩{{item.stock}}件</view>
+      </view>
+      <view class="product-info">
+        <view class="product-name">{{item.name}}</view>
+        <view class="product-desc">{{item.desc}}</view>
+        <view class="product-points">
+          <view class="current-points">{{item.points}}积分</view>
+          <view class="original-points" wx:if="{{item.originalPoints > item.points}}">
+            {{item.originalPoints}}积分
+          </view>
+        </view>
+        <view class="product-meta">
+          <view class="product-limit">{{item.limit}}</view>
+          <view class="product-stock-info">库存: {{item.stock}}</view>
+        </view>
+        <view class="product-actions">
+          <view 
+            class="exchange-btn {{points < item.points || item.stock <= 0 ? 'disabled' : ''}}"
+            data-id="{{item.id}}"
+            bindtap="exchangeProduct"
+            catchtap="stopPropagation"
+          >
+            {{points < item.points ? '积分不足' : (item.stock <= 0 ? '已售罄' : '立即兑换')}}
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && filteredProducts.length === 0}}">
+    <image src="/images/icons/gift.png" class="empty-icon"></image>
+    <view class="empty-text">暂无商品</view>
+    <view class="empty-desc">换个筛选条件试试吧</view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+</view>

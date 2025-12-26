@@ -1,0 +1,17 @@
+package com.milktea.milktea_backend.model.entity;
+
+import jakarta.persistence.Embeddable;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
+
+@Embeddable
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProductSpecCombinationPriceId implements Serializable {
+    private Long combinationId;
+    private Long specItemId; // 这个字段在ProductSpecCombinationPriceId中是缺失的，但根据ProductSpecCombinationItemId，它应该存在
+}

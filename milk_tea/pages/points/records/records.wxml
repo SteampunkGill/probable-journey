@@ -1,0 +1,102 @@
+<!--pages/points/records/records.wxml-->
+<view class="page">
+  <!-- 标签页 -->
+  <view class="tabs">
+    <view 
+      wx:for="{{tabs}}" 
+      wx:key="id" 
+      class="tab-item {{item.active ? 'active' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="switchTab"
+    >
+      {{item.name}}
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+
+  <!-- 记录列表 -->
+  <scroll-view 
+    class="records-list" 
+    scroll-y 
+    wx:if="{{!loading && !empty}}"
+    enable-back-to-top
+    refresher-enabled
+    bindrefresherrefresh="onPullDownRefresh"
+  >
+    <view 
+      wx:for="{{filteredRecords}}" 
+      wx:key="id" 
+      class="record-item"
+    >
+      <view class="record-header">
+        <view class="order-no">{{item.orderNo}}</view>
+        <view class="order-status {{item.status}}">
+          {{item.status === 'COMPLETED' ? '已完成' : 
+            item.status === 'PENDING' ? '待发货' : 
+            item.status === 'CANCELLED' ? '已取消' : '处理中'}}
+        </view>
+      </view>
+
+      <view class="record-content">
+        <image class="product-image" src="{{item.productImage}}" mode="aspectFill"></image>
+        <view class="product-info">
+          <view class="product-name">{{item.productName}}</view>
+          <view class="exchange-info">
+            <text class="points">{{item.pointCost}}积分</text>
+            <text class="time">{{item.exchangeTime}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="record-actions" wx:if="{{item.status === 'PENDING'}}">
+        <view 
+          class="action-btn cancel-btn" 
+          data-id="{{item.id}}"
+          bindtap="cancelExchange"
+        >
+          取消兑换
+        </view>
+        <view 
+          class="action-btn confirm-btn" 
+          data-id="{{item.id}}"
+          bindtap="confirmReceipt"
+        >
+          确认收货
+        </view>
+      </view>
+
+      <view class="record-actions" wx:if="{{item.status === 'COMPLETED'}}">
+        <view 
+          class="action-btn detail-btn" 
+          data-id="{{item.id}}"
+          bindtap="viewRecordDetail"
+        >
+          查看详情
+        </view>
+      </view>
+
+      <view class="record-actions" wx:if="{{item.status === 'CANCELLED'}}">
+        <view 
+          class="action-btn detail-btn" 
+          data-id="{{item.id}}"
+          bindtap="viewRecordDetail"
+        >
+          查看详情
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && empty}}">
+    <image src="/images/icons/gift.png" class="empty-icon"></image>
+    <view class="empty-text">暂无兑换记录</view>
+    <view class="empty-desc">快去积分商城兑换商品吧</view>
+    <view class="back-btn" bindtap="goBack">返回积分商城</view>
+  </view>
+</view>

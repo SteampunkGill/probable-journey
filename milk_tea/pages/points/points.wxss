@@ -1,0 +1,263 @@
+/* pages/points/points.wxss */
+.points-page {
+  min-height: 100vh;
+  background: #F5F5F5;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 积分卡片 */
+.points-card {
+  position: relative;
+  margin: 20rpx;
+  height: 280rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 8rpx 30rpx rgba(212,165,116,0.3);
+}
+
+.card-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #D4A574, #B08968);
+}
+
+.card-content {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40rpx;
+  color: white;
+}
+
+.points-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.points-label {
+  font-size: 28rpx;
+  opacity: 0.9;
+}
+
+.points-value {
+  font-size: 88rpx;
+  font-weight: bold;
+}
+
+.card-actions {
+  display: flex;
+  gap: 40rpx;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 24rpx;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50rpx;
+  font-size: 24rpx;
+}
+
+.action-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+/* 分类标签 */
+.category-tabs {
+  display: flex;
+  background: white;
+  padding: 20rpx;
+  margin: 20rpx 20rpx 0;
+  border-radius: 16rpx;
+  gap: 20rpx;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx;
+  border-radius: 50rpx;
+  font-size: 28rpx;
+  color: #666;
+  background: #F5F5F5;
+  transition: all 0.3s;
+}
+
+.tab-item.active {
+  background: linear-gradient(135deg, #D4A574, #B08968);
+  color: white;
+  font-weight: bold;
+}
+
+/* 商品列表 */
+.product-scroll {
+  flex: 1;
+  padding: 20rpx;
+}
+
+.product-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.product-item {
+  display: flex;
+  background: white;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  gap: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.product-image {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 12rpx;
+  flex-shrink: 0;
+}
+
+.product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.product-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.product-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 16rpx;
+}
+
+.product-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.points-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+}
+
+.points-num {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #D4A574;
+}
+
+.points-unit {
+  font-size: 24rpx;
+  color: #D4A574;
+}
+
+.exchange-btn {
+  padding: 12rpx 32rpx;
+  background: linear-gradient(135deg, #D4A574, #B08968);
+  color: white;
+  border-radius: 50rpx;
+  font-size: 24rpx;
+  border: none;
+}
+
+.exchange-btn[disabled] {
+  background: #E0E0E0;
+  color: #999;
+}
+
+.stock-info {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #FF6B6B;
+}
+
+/* 空状态 */
+.empty-tip,
+.empty-records {
+  padding: 100rpx 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  color: #999;
+}
+
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  opacity: 0.3;
+}
+
+/* 兑换记录弹窗 */
+.records-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+}
+
+.modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-height: 70vh;
+  background: white;
+  border-radius: 32rpx 32rpx 0 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40rpx;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.close-icon {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.modal-body {
+  flex: 1;
+  padding: 40rpx;
+}

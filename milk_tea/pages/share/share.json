@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "社交分享",
+  "navigationBarBackgroundColor": "#FFF9E6",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#FFF9E6",
+  "enableShareAppMessage": true,
+  "enableShareTimeline": true,
+  "usingComponents": {}
+}

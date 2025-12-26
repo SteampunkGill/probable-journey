@@ -1,0 +1,115 @@
+<!-- pages/member/level.wxml -->
+<view class="level-page" style="background: #FFF9E6; min-height: 100vh; padding-bottom: 40rpx;">
+  <!-- 顶部导航 -->
+  <view class="nav-header" style="background: #FFF9E6; padding: 30rpx; display: flex; align-items: center;">
+    <view class="nav-back" bindtap="goBack" style="width: 60rpx; height: 60rpx; display: flex; align-items: center; justify-content: center;">
+      <text class="iconfont icon-left" style="font-size: 40rpx; color: #8B7355;"></text>
+    </view>
+    <text class="nav-title" style="flex: 1; text-align: center; font-size: 36rpx; font-weight: bold; color: #8B7355;">会员等级</text>
+    <view style="width: 60rpx;"></view>
+  </view>
+
+  <!-- 当前等级卡片 -->
+  <view class="current-level-card" wx:if="{{currentLevel}}" style="background: linear-gradient(135deg, {{currentLevel.color}}, {{currentLevel.color}}99); border-radius: 20rpx; margin: 30rpx; padding: 40rpx; color: white;">
+    <view style="display: flex; align-items: center; margin-bottom: 30rpx;">
+      <text class="iconfont {{currentLevel.icon}}" style="font-size: 60rpx; margin-right: 20rpx;"></text>
+      <view>
+        <text style="font-size: 40rpx; font-weight: bold; display: block;">{{currentLevel.name}}</text>
+        <text style="font-size: 28rpx; opacity: 0.9;">{{userInfo.growthValue}} 积分</text>
+      </view>
+    </view>
+    
+    <!-- 进度条 -->
+    <view wx:if="{{nextLevel}}" style="margin: 30rpx 0;">
+      <view style="display: flex; justify-content: space-between; margin-bottom: 15rpx;">
+        <text style="font-size: 26rpx;">升级到 {{nextLevel.name}}</text>
+        <text style="font-size: 26rpx;">{{progress}}%</text>
+      </view>
+      <view style="background: rgba(255, 255, 255, 0.3); height: 20rpx; border-radius: 10rpx; overflow: hidden;">
+        <view style="background: white; height: 100%; width: {{progress}}%; border-radius: 10rpx;"></view>
+      </view>
+      <view style="display: flex; justify-content: space-between; margin-top: 15rpx;">
+        <text style="font-size: 24rpx;">还需 {{nextLevel.minPoints - userInfo.growthValue}} 积分</text>
+        <text style="font-size: 24rpx;">{{nextLevel.minPoints}} 积分</text>
+      </view>
+    </view>
+    
+    <view wx:else style="text-align: center; margin: 30rpx 0;">
+      <text style="font-size: 32rpx; font-weight: bold;">🎉 您已达到最高等级！</text>
+    </view>
+  </view>
+
+  <!-- 等级列表 -->
+  <view class="levels-section" style="background: #FFFDF0; border-radius: 20rpx; margin: 30rpx; padding: 30rpx; border: 1rpx solid #FFE8A3;">
+    <view style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30rpx;">
+      <text style="font-size: 32rpx; font-weight: bold; color: #8B7355;">📊 会员等级</text>
+      <text style="font-size: 26rpx; color: #D4A574;" bindtap="howToUpgrade">如何升级？</text>
+    </view>
+    
+    <view class="levels-list">
+      <view 
+        wx:for="{{levels}}" 
+        wx:key="id" 
+        class="level-item {{currentLevel && currentLevel.id === item.id ? 'current' : ''}}" 
+        data-index="{{index}}"
+        bindtap="viewLevelDetail"
+        style="background: {{currentLevel && currentLevel.id === item.id ? '#FFF9E6' : 'white'}}; border: 2rpx solid {{currentLevel && currentLevel.id === item.id ? item.color : '#FFE8A3'}}; border-radius: 15rpx; padding: 30rpx; margin-bottom: 20rpx; display: flex; align-items: center;"
+      >
+        <view style="width: 80rpx; height: 80rpx; background: {{item.color}}; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 25rpx;">
+          <text class="iconfont {{item.icon}}" style="font-size: 40rpx; color: white;"></text>
+        </view>
+        <view style="flex: 1;">
+          <view style="display: flex; justify-content: space-between; align-items: center;">
+            <text style="font-size: 32rpx; font-weight: bold; color: #8B7355;">{{item.name}}</text>
+            <text style="font-size: 26rpx; color: #D4A574;">{{(item.discount * 10).toFixed(1)}}折</text>
+          </view>
+          <text style="font-size: 26rpx; color: #B38B00; display: block; margin-top: 10rpx;">{{item.minPoints}} - {{item.maxPoints || '∞'}} 积分</text>
+        </view>
+        <text class="iconfont icon-right" style="font-size: 30rpx; color: #D4A574; margin-left: 20rpx;"></text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 会员特权 -->
+  <view class="privileges-section" style="background: #FFFDF0; border-radius: 20rpx; margin: 30rpx; padding: 30rpx; border: 1rpx solid #FFE8A3;">
+    <text style="font-size: 32rpx; font-weight: bold; color: #8B7355; display: block; margin-bottom: 30rpx;">✨ 会员特权</text>
+    
+    <view class="privileges-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20rpx;">
+      <view 
+        wx:for="{{privileges}}" 
+        wx:key="id" 
+        class="privilege-item" 
+        data-index="{{index}}"
+        bindtap="viewPrivilegeDetail"
+        style="background: white; border-radius: 15rpx; padding: 30rpx 20rpx; text-align: center; border: 1rpx solid #FFE8A3;"
+      >
+        <view style="width: 60rpx; height: 60rpx; background: {{item.color}}; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20rpx;">
+          <text class="iconfont {{item.icon}}" style="font-size: 30rpx; color: white;"></text>
+        </view>
+        <text style="font-size: 26rpx; font-weight: bold; color: #8B7355; display: block;">{{item.name}}</text>
+        <text style="font-size: 22rpx; color: #B38B00; display: block; margin-top: 10rpx;">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 升级提示 -->
+  <view class="upgrade-tip" style="background: #FFE8A3; border-radius: 20rpx; margin: 30rpx; padding: 40rpx; text-align: center;">
+    <text style="font-size: 32rpx; font-weight: bold; color: #8B7355; display: block; margin-bottom: 20rpx;">🚀 快速升级会员</text>
+    <text style="font-size: 28rpx; color: #B38B00; display: block; margin-bottom: 30rpx;">消费累积积分，享受更多特权！</text>
+    
+    <view style="display: flex; justify-content: center; gap: 30rpx;">
+      <button 
+        style="background: #D4A574; color: white; border-radius: 50rpx; padding: 20rpx 40rpx; font-size: 28rpx; border: none;"
+        bindtap="howToUpgrade"
+      >
+        查看升级攻略
+      </button>
+      <button 
+        style="background: white; color: #D4A574; border: 2rpx solid #D4A574; border-radius: 50rpx; padding: 20rpx 40rpx; font-size: 28rpx;"
+        bindtap="shareToFriend"
+      >
+        邀请好友
+      </button>
+    </view>
+  </view>
+</view>

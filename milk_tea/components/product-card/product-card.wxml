@@ -1,0 +1,73 @@
+<!-- components/product-card/product-card.wxml -->
+<view class="product-card" bindtap="onTap" data-id="{{product.id}}">
+  <!-- 商品图片 -->
+  <view class="product-image-container">
+    <image 
+      src="{{product.image || product.mainImage}}" 
+      class="product-image"
+      mode="aspectFill"
+      lazy-load="true"
+    ></image>
+    
+    <!-- 商品标签 -->
+    <view class="product-tags">
+      <text class="tag tag-hot" wx:if="{{product.isHot}}">🔥 热销</text>
+      <text class="tag tag-new" wx:if="{{product.isNew}}">✨ 新品</text>
+      <text class="tag tag-discount" wx:if="{{product.discount}}">{{product.discount}}</text>
+    </view>
+    
+    <!-- 收藏按钮 -->
+    <view 
+      class="favorite-btn {{isFavorite ? 'active' : ''}}" 
+      bindtap="onFavoriteTap" 
+      catchtap="stopPropagation"
+    >
+      <image 
+        class="favorite-icon" 
+        src="{{isFavorite ? '/images/icons/heart-fill.png' : '/images/icons/heart.png'}}"
+      ></image>
+    </view>
+    
+    <!-- 售罄遮罩 -->
+    <view class="sold-out-mask" wx:if="{{product.stock <= 0}}">
+      <text>已售罄</text>
+    </view>
+  </view>
+  
+  <!-- 商品信息 -->
+  <view class="product-info">
+    <text class="product-name">{{product.name}}</text>
+    
+    <view class="product-meta">
+      <text class="product-desc" wx:if="{{product.description}}">{{product.description}}</text>
+    </view>
+    
+    <!-- 价格和操作 -->
+    <view class="product-footer">
+      <view class="price-section">
+        <text class="current-price">¥{{product.price}}</text>
+        <text class="original-price" wx:if="{{product.originalPrice > product.price}}">
+          ¥{{product.originalPrice}}
+        </text>
+      </view>
+      
+      <view class="action-section">
+        <!-- 评分 -->
+        <view class="product-rating" wx:if="{{product.rating}}">
+          <image class="star-icon" src="/images/icons/star.png"></image>
+          <text>{{product.rating}}</text>
+        </view>
+        
+        <!-- 购物车按钮 -->
+        <view 
+          class="add-to-cart-btn" 
+          bindtap="onAddToCart" 
+          catchtap="stopPropagation"
+          wx:if="{{product.stock > 0}}"
+        >
+          <image class="add-icon" src="/images/icons/add.png"></image>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

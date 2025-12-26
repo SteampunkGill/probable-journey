@@ -1,0 +1,148 @@
+<!-- pages/share/share.wxml -->
+<view class="share-page" style="background: #FFF9E6; min-height: 100vh; padding-bottom: 40rpx;">
+  <!-- 顶部导航 -->
+  <view class="nav-header" style="background: #FFF9E6; padding: 30rpx; display: flex; align-items: center;">
+    <view class="nav-back" bindtap="goBack" style="width: 60rpx; height: 60rpx; display: flex; align-items: center; justify-content: center;">
+      <text class="iconfont icon-left" style="font-size: 40rpx; color: #8B7355;"></text>
+    </view>
+    <text class="nav-title" style="flex: 1; text-align: center; font-size: 36rpx; font-weight: bold; color: #8B7355;">社交分享</text>
+    <view style="width: 60rpx;"></view>
+  </view>
+
+  <!-- 分享统计数据 -->
+  <view class="stats-card" style="background: linear-gradient(135deg, #FFD166, #FFB347); border-radius: 20rpx; margin: 30rpx; padding: 40rpx; color: white;">
+    <text style="font-size: 36rpx; font-weight: bold; display: block; margin-bottom: 30rpx;">📊 我的分享成果</text>
+    
+    <view style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 30rpx;">
+      <view style="text-align: center;">
+        <text style="font-size: 48rpx; font-weight: bold; display: block;">{{stats.invitedCount}}</text>
+        <text style="font-size: 26rpx; opacity: 0.9;">已邀请好友</text>
+      </view>
+      <view style="text-align: center;">
+        <text style="font-size: 48rpx; font-weight: bold; display: block;">¥{{stats.totalRewards}}</text>
+        <text style="font-size: 26rpx; opacity: 0.9;">累计奖励</text>
+      </view>
+      <view style="text-align: center;">
+        <text style="font-size: 48rpx; font-weight: bold; display: block;">¥{{stats.pendingRewards}}</text>
+        <text style="font-size: 26rpx; opacity: 0.9;">待领取奖励</text>
+      </view>
+      <view style="text-align: center;">
+        <text style="font-size: 48rpx; font-weight: bold; display: block;">{{stats.rank}}</text>
+        <text style="font-size: 26rpx; opacity: 0.9;">分享排名</text>
+      </view>
+    </view>
+    
+    <view style="margin-top: 30rpx; text-align: center;">
+      <text style="font-size: 26rpx; opacity: 0.9; display: block;">邀请好友注册，双方各得20元优惠券</text>
+    </view>
+  </view>
+
+  <!-- 分享链接 -->
+  <view class="share-link-card" style="background: #FFFDF0; border-radius: 20rpx; margin: 30rpx; padding: 30rpx; border: 1rpx solid #FFE8A3;">
+    <text style="font-size: 32rpx; font-weight: bold; color: #8B7355; display: block; margin-bottom: 20rpx;">🔗 我的专属邀请链接</text>
+    
+    <view style="background: white; border-radius: 15rpx; padding: 25rpx; border: 1rpx solid #FFE8A3; margin-bottom: 20rpx;">
+      <text style="font-size: 26rpx; color: #8B7355; word-break: break-all;">{{shareLink}}</text>
+    </view>
+    
+    <button 
+      style="background: #D4A574; color: white; border-radius: 50rpx; padding: 20rpx; font-size: 28rpx; border: none;"
+      bindtap="copyShareLink"
+    >
+      复制链接
+    </button>
+  </view>
+
+  <!-- 分享方式 -->
+  <view class="share-methods" style="background: #FFFDF0; border-radius: 20rpx; margin: 30rpx; padding: 30rpx; border: 1rpx solid #FFE8A3;">
+    <text style="font-size: 32rpx; font-weight: bold; color: #8B7355; display: block; margin-bottom: 30rpx;">📱 分享方式</text>
+    
+    <view style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx;">
+      <view 
+        class="share-method" 
+        style="background: white; border-radius: 15rpx; padding: 30rpx; text-align: center; border: 1rpx solid #FFE8A3;"
+        bindtap="shareToWechat"
+      >
+        <view style="width: 80rpx; height: 80rpx; background: #07C160; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20rpx;">
+          <text class="iconfont icon-wechat" style="font-size: 40rpx; color: white;"></text>
+        </view>
+        <text style="font-size: 28rpx; font-weight: bold; color: #8B7355; display: block;">分享给好友</text>
+        <text style="font-size: 24rpx; color: #B38B00; display: block; margin-top: 10rpx;">微信好友/群聊</text>
+      </view>
+      
+      <view 
+        class="share-method" 
+        style="background: white; border-radius: 15rpx; padding: 30rpx; text-align: center; border: 1rpx solid #FFE8A3;"
+        bindtap="shareToTimeline"
+      >
+        <view style="width: 80rpx; height: 80rpx; background: #7BBA2F; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20rpx;">
+          <text class="iconfont icon-timeline" style="font-size: 40rpx; color: white;"></text>
+        </view>
+        <text style="font-size: 28rpx; font-weight: bold; color: #8B7355; display: block;">分享到朋友圈</text>
+        <text style="font-size: 24rpx; color: #B38B00; display: block; margin-top: 10rpx;">让更多朋友看到</text>
+      </view>
+    </view>
+    
+    <view style="margin-top: 30rpx;">
+      <button 
+        style="background: white; color: #D4A574; border: 2rpx solid #D4A574; border-radius: 50rpx; padding: 20rpx; font-size: 28rpx;"
+        bindtap="generateShareImage"
+      >
+        🎨 生成分享图片
+      </button>
+    </view>
+  </view>
+
+  <!-- 分享奖励 -->
+  <view class="rewards-section" style="background: #FFFDF0; border-radius: 20rpx; margin: 30rpx; padding: 30rpx; border: 1rpx solid #FFE8A3;">
+    <view style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30rpx;">
+      <text style="font-size: 32rpx; font-weight: bold; color: #8B7355;">🎁 分享奖励</text>
+      <text style="font-size: 26rpx; color: #D4A574;" bindtap="viewInviteRecords">查看记录 ></text>
+    </view>
+    
+    <view class="rewards-list">
+      <view 
+        wx:for="{{rewards}}" 
+        wx:key="id" 
+        class="reward-item" 
+        data-index="{{index}}"
+        bindtap="viewRewardDetail"
+        style="background: white; border-radius: 15rpx; padding: 30rpx; margin-bottom: 20rpx; border: 1rpx solid #FFE8A3; display: flex; align-items: center;"
+      >
+        <view style="width: 60rpx; height: 60rpx; background: {{item.color}}; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 25rpx;">
+          <text class="iconfont {{item.icon}}" style="font-size: 30rpx; color: white;"></text>
+        </view>
+        <view style="flex: 1;">
+          <view style="display: flex; justify-content: space-between; align-items: center;">
+            <text style="font-size: 30rpx; font-weight: bold; color: #8B7355;">{{item.title}}</text>
+            <view wx:if="{{item.completed}}" style="background: #73D13D; color: white; padding: 8rpx 16rpx; border-radius: 20rpx; font-size: 22rpx;">
+              已领取
+            </view>
+            <view wx:else style="background: #FFA940; color: white; padding: 8rpx 16rpx; border-radius: 20rpx; font-size: 22rpx;">
+              未完成
+            </view>
+          </view>
+          <text style="font-size: 26rpx; color: #B38B00; display: block; margin-top: 10rpx;">{{item.desc}}</text>
+          <text style="font-size: 24rpx; color: #D4A574; display: block; margin-top: 10rpx;">奖励：{{item.reward}}</text>
+        </view>
+      </view>
+    </view>
+    
+    <view style="text-align: center; margin-top: 30rpx;">
+      <button 
+        style="background: #FFE8A3; color: #8B7355; border-radius: 50rpx; padding: 20rpx 40rpx; font-size: 28rpx; border: none;"
+        bindtap="viewInviteRecords"
+      >
+        查看全部邀请记录
+      </button>
+    </view>
+  </view>
+
+  <!-- 分享提示 -->
+  <view class="share-tips" style="background: #FFE8A3; border-radius: 20rpx; margin: 30rpx; padding: 30rpx; text-align: center;">
+    <text style="font-size: 28rpx; color: #8B7355; display: block; margin-bottom: 15rpx;">💡 分享小贴士</text>
+    <text style="font-size: 24rpx; color: #B38B00; display: block;">1. 分享给经常喝奶茶的朋友效果更好</text>
+    <text style="font-size: 24rpx; color: #B38B00; display: block;">2. 朋友圈分享可以配上使用体验</text>
+    <text style="font-size: 24rpx; color: #B38B00; display: block;">3. 邀请好友注册后提醒他们完成首单</text>
+  </view>
+</view>

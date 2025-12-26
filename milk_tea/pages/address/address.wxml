@@ -1,0 +1,70 @@
+<!--pages/address/address.wxml-->
+<view class="address-page">
+  <!-- 地址列表 -->
+  <view class="address-list" wx:if="{{addressList.length > 0}}">
+    <view class="address-item {{mode === 'select' ? 'selectable' : ''}}" 
+          wx:for="{{addressList}}" 
+          wx:key="id"
+          bindtap="selectAddress"
+          data-id="{{item.id}}">
+      
+      <!-- 默认标签 -->
+      <view class="default-badge" wx:if="{{item.isDefault}}">默认</view>
+      
+      <!-- 地址信息 -->
+      <view class="address-info">
+        <view class="name-phone">
+          <text class="name">{{item.name}}</text>
+          <text class="phone">{{item.phone}}</text>
+        </view>
+        
+        <view class="address-detail">
+          <text class="tag" wx:if="{{item.label}}">{{item.label}}</text>
+          <text class="detail">{{item.province}} {{item.city}} {{item.district}} {{item.detail}}</text>
+        </view>
+      </view>
+      
+      <!-- 操作按钮 -->
+      <view class="address-actions" wx:if="{{mode === 'list'}}">
+        <view class="action-left">
+          <switch checked="{{item.isDefault}}" 
+                  bindchange="toggleDefault" 
+                  data-id="{{item.id}}"
+                  color="#D4A574"
+                  catchtap="stopPropagation" />
+          <text class="action-label">设为默认</text>
+        </view>
+        
+        <view class="action-right">
+          <button class="action-btn edit" catchtap="editAddress" data-id="{{item.id}}">
+            <text class="icon">✏️</text>
+            <text>编辑</text>
+          </button>
+          <button class="action-btn delete" catchtap="deleteAddress" data-id="{{item.id}}">
+            <text class="icon">🗑️</text>
+            <text>删除</text>
+          </button>
+        </view>
+      </view>
+      
+      <!-- 选中标记（选择模式） -->
+      <view class="selected-mark" wx:if="{{mode === 'select' && selectedId === item.id}}">
+        <text class="icon">✓</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <image class="empty-icon" src="/images/empty/address.png" mode="aspectFit"></image>
+    <text class="empty-text">暂无收货地址</text>
+  </view>
+
+  <!-- 底部添加按钮 -->
+  <view class="footer" wx:if="{{mode === 'list'}}">
+    <button class="add-btn" bindtap="addAddress">
+      <text class="icon">➕</text>
+      <text>添加新地址</text>
+    </button>
+  </view>
+</view>

@@ -1,0 +1,131 @@
+<!-- components/coupon-selector/coupon-selector.wxml -->
+<view class="coupon-selector">
+  <!-- 选择按钮 -->
+  <view class="selector-trigger" bindtap="showSelector">
+    <slot name="trigger">
+      <view class="default-trigger {{selectedCoupon ? 'has-value' : ''}}">
+        <view class="trigger-content">
+          <text class="trigger-text">
+            {{selectedCoupon ? selectedCoupon.name : placeholder}}
+          </text>
+          <text class="trigger-desc" wx:if="{{selectedCoupon}}">
+            优惠{{formatValue(selectedCoupon)}}元
+          </text>
+        </view>
+        <text class="iconfont icon-right"></text>
+      </view>
+    </slot>
+  </view>
+
+  <!-- 优惠券选择弹窗 -->
+  <view class="coupon-modal" wx:if="{{showModal}}">
+    <view class="modal-mask" bindtap="hideSelector"></view>
+    
+    <view class="modal-content">
+      <!-- 头部 -->
+      <view class="modal-header">
+        <text class="modal-title">选择优惠券</text>
+        <text class="iconfont icon-close" bindtap="hideSelector"></text>
+      </view>
+
+      <!-- 筛选标签 -->
+      <view class="filter-tabs" wx:if="{{couponTypes.length > 1}}">
+        <scroll-view class="tab-scroll" scroll-x="true">
+          <view class="tab-list">
+            <text 
+              class="tab-item {{activeTab === '' ? 'active' : ''}}" 
+              bindtap="changeTab"
+              data-tab=""
+            >
+              全部({{totalCount}})
+            </text>
+            <text 
+              class="tab-item {{activeTab === tab.type ? 'active' : ''}}" 
+              wx:for="{{couponTypes}}" 
+              wx:key="type"
+              bindtap="changeTab"
+              data-tab="{{tab.type}}"
+            >
+              {{tab.name}}({{tab.count}})
+            </text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 优惠券列表 -->
+      <scroll-view class="coupon-list" scroll-y="true">
+        <view 
+          class="coupon-item {{isSelected(coupon.id) ? 'selected' : ''}} {{!isUsable(coupon) ? 'disabled' : ''}}" 
+          wx:for="{{filteredCoupons}}" 
+          wx:key="id"
+          bindtap="selectCoupon"
+          data-coupon="{{coupon}}"
+        >
+          <!-- 左侧优惠信息 -->
+          <view class="coupon-left">
+            <view class="coupon-value">
+              <text class="value-symbol" wx:if="{{coupon.value >= 1}}">¥</text>
+              <text class="value-number">{{formatValue(coupon)}}</text>
+              <text class="value-unit" wx:if="{{coupon.value < 1}}">折</text>
+            </view>
+            <view class="coupon-conditions">
+              <text class="condition-text" wx:if="{{coupon.minAmount > 0}}">
+                满{{coupon.minAmount}}元可用
+              </text>
+              <text class="condition-text" wx:else>
+                无门槛
+              </text>
+            </view>
+          </view>
+
+          <!-- 右侧详细信息 -->
+          <view class="coupon-right">
+            <view class="coupon-info">
+              <text class="coupon-name">{{coupon.name}}</text>
+              <text class="coupon-desc">{{coupon.description}}</text>
+              <view class="coupon-validity">
+                <text class="validity-text">
+                  {{formatDate(coupon.expireAt)}}
+                </text>
+              </view>
+            </view>
+            
+            <!-- 选择状态 -->
+            <view class="coupon-status">
+              <view class="status-indicator" wx:if="{{isSelected(coupon.id)}}">
+                <text class="iconfont icon-check"></text>
+              </view>
+              <view class="status-text" wx:else>
+                <text wx:if="{{!isUsable(coupon)}}">不可用</text>
+                <text wx:else>点击使用</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view class="empty-coupons" wx:if="{{filteredCoupons.length === 0}}">
+          <image src="/images/empty-coupon.png" class="empty-icon"></image>
+          <text class="empty-text">暂无可用优惠券</text>
+          <text class="empty-hint">去领取更多优惠券吧</text>
+        </view>
+      </scroll-view>
+
+      <!-- 底部操作 -->
+      <view class="modal-footer">
+        <button class="btn btn-secondary" bindtap="goToCouponCenter">
+          <text class="iconfont icon-coupon"></text>
+          <text>去领券</text>
+        </button>
+        
+        <button 
+          class="btn btn-primary" 
+          bindtap="confirmSelection"
+          disabled="{{!selectedCouponId}}"
+        >
+          确定
+        </button>
+      </view>
+    </view>
+  </view>
+</view>

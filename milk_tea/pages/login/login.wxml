@@ -1,0 +1,124 @@
+<!-- pages/login/login.wxml -->
+<view class="login-page">
+  <!-- 顶部Logo和标题 -->
+  <view class="header">
+    <image src="/images/logo.png" class="logo" mode="aspectFit"></image>
+    <text class="app-name">奶茶小店</text>
+    <text class="subtitle">欢迎回来</text>
+  </view>
+
+  <!-- 登录卡片 -->
+  <view class="login-card">
+    <!-- 密码登录表单 -->
+    <view>
+      <view class="form-content">
+        <!-- 用户名输入框 -->
+        <view class="form-group">
+          <view class="input-wrapper {{isFocusUsername ? 'input-focus' : ''}}">
+            <text class="input-icon iconfont icon-user"></text>
+            <input 
+              type="text" 
+              placeholder="请输入用户名/手机号" 
+              placeholder-class="placeholder"
+              class="input-field"
+              value="{{username}}"
+              bindinput="onUsernameInput"
+              bindfocus="onUsernameFocus"
+              bindblur="onUsernameBlur"
+              bindconfirm="onInputConfirm"
+            />
+            <!-- 清空按钮 -->
+            <view wx:if="{{username}}" class="clear-btn" bindtap="clearUsername">
+              <text class="iconfont icon-close"></text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 密码输入框 -->
+        <view class="form-group">
+          <view class="input-wrapper {{isFocusPassword ? 'input-focus' : ''}}">
+            <text class="input-icon iconfont icon-lock"></text>
+            <input 
+              type="{{showPassword ? 'text' : 'password'}}" 
+              placeholder="请输入密码" 
+              placeholder-class="placeholder"
+              class="input-field"
+              value="{{password}}"
+              bindinput="onPasswordInput"
+              bindfocus="onPasswordFocus"
+              bindblur="onPasswordBlur"
+              bindconfirm="onInputConfirm"
+              password="{{!showPassword}}"
+            />
+            <!-- 眼睛图标 -->
+            <view class="eye-icon" bindtap="togglePasswordVisibility">
+              <text class="iconfont {{showPassword ? 'icon-eye-open' : 'icon-eye-close'}}"></text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 记住我 -->
+        <view class="remember-section">
+          <checkbox-group bindchange="onRememberChange">
+            <label class="remember-label">
+              <checkbox value="true" checked="{{rememberMe}}" color="#D4A017" />
+              <text class="remember-text">记住密码</text>
+            </label>
+          </checkbox-group>
+        </view>
+
+        <!-- 登录按钮 -->
+        <button 
+          class="login-btn" 
+          bindtap="loginWithPassword"
+          disabled="{{loading || !agreed}}"
+        >
+          <text wx:if="{{loading}}" class="loading-icon iconfont icon-loading"></text>
+          {{loading ? loadingText : '立即登录'}}
+        </button>
+      </view>
+    </view>
+
+
+    <!-- 底部操作 -->
+    <view class="bottom-actions">
+      <text class="action-text" bindtap="goToForgotPassword">忘记密码</text>
+      <text class="separator">|</text>
+      <text class="action-text" bindtap="goToRegister">注册账号</text>
+    </view>
+
+    <!-- 开发工具（仅开发环境显示） -->
+    <view wx:if="{{__wxConfig && __wxConfig.envVersion === 'develop'}}" class="dev-tools">
+      <view class="dev-buttons">
+        <button class="dev-btn" bindtap="quickLogin" size="mini">测试账号</button>
+        <button class="dev-btn" bindtap="clearAllInputs" size="mini">清空输入</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 协议区域 -->
+  <view class="agreement-section">
+    <checkbox-group bindchange="onAgreementChange">
+      <checkbox value="true" checked="{{agreed}}" color="#D4A017" />
+    </checkbox-group>
+    <text class="agreement-text">
+      我已阅读并同意<text class="agreement-link" bindtap="goToAgreement">《用户协议》</text>和<text class="agreement-link" bindtap="goToPrivacy">《隐私政策》</text>
+    </text>
+  </view>
+
+  <!-- 其他登录方式 -->
+  <view class="other-login">
+    <text class="other-title">其他方式登录</text>
+    <view class="other-options">
+      <button class="wechat-btn" open-type="getUserInfo" bindgetuserinfo="onGetUserInfo">
+        <text class="iconfont icon-wechat"></text>
+        <text class="wechat-text">微信登录</text>
+      </button>
+    </div>
+  </view>
+
+  <!-- 游客登录 -->
+  <view class="guest-login" bindtap="goToHomeAsGuest">
+    <text class="guest-text">先逛逛，暂不登录</text>
+  </view>
+</view>

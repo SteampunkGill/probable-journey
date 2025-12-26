@@ -1,0 +1,82 @@
+<!--pages/settings/settings.wxml-->
+<view class="settings-page">
+  <!-- 用户信息卡片 -->
+  <view class="user-card" wx:if="{{userInfo}}">
+    <view class="user-info">
+      <image class="avatar" src="{{userInfo.avatar || '/images/icons/user.png'}}" mode="aspectFill" />
+      <view class="user-details">
+        <text class="nickname">{{userInfo.nickname || '用户'}}</text>
+        <text class="phone">{{userInfo.phone || '未绑定手机'}}</text>
+      </view>
+    </view>
+    <view class="member-badge">
+      <text class="level">{{userInfo.levelName || '普通会员'}}</text>
+    </view>
+  </view>
+  
+  <view class="user-card" wx:else>
+    <view class="user-info">
+      <image class="avatar" src="/images/icons/user.png" mode="aspectFill" />
+      <view class="user-details">
+        <text class="nickname">未登录</text>
+        <text class="phone">点击登录查看设置</text>
+      </view>
+    </view>
+    <button class="login-btn" bindtap="goToLogin">立即登录</button>
+  </view>
+
+  <!-- 设置项列表 -->
+  <view class="settings-section">
+    <view class="section-title">通用设置</view>
+    <view class="settings-list">
+      <block wx:for="{{settings}}" wx:key="id">
+        <view class="setting-item" bindtap="onSettingTap" data-index="{{index}}" data-type="setting">
+          <view class="setting-left">
+            <text class="iconfont {{item.icon}} setting-icon"></text>
+            <text class="setting-title">{{item.title}}</text>
+          </view>
+          <view class="setting-right">
+            <text wx:if="{{item.type === 'switch'}}" class="setting-value">
+              <switch checked="{{item.value}}" bindchange="onSwitchChange" data-index="{{index}}" />
+            </text>
+            <text wx:elif="{{item.type === 'action' || item.type === 'navigate'}}" class="setting-value">
+              {{item.value}}
+              <text class="iconfont icon-right arrow"></text>
+            </text>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 账户设置 -->
+  <view class="settings-section">
+    <view class="section-title">账户与安全</view>
+    <view class="settings-list">
+      <block wx:for="{{accountSettings}}" wx:key="id">
+        <view class="setting-item" bindtap="onSettingTap" data-index="{{index}}" data-type="account">
+          <view class="setting-left">
+            <text class="iconfont {{item.icon}} setting-icon" style="color: {{item.color || '#333'}}"></text>
+            <text class="setting-title" style="color: {{item.color || '#333'}}">{{item.title}}</text>
+          </view>
+          <view class="setting-right">
+            <text wx:if="{{item.type === 'navigate' || item.type === 'action'}}" class="setting-value">
+              <text class="iconfont icon-right arrow"></text>
+            </text>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <view class="logout-section" wx:if="{{userInfo}}">
+    <button class="logout-btn" bindtap="showLogoutConfirm">退出登录</button>
+  </view>
+
+  <!-- 版本信息 -->
+  <view class="version-info">
+    <text>温馨奶茶 v1.0.0</text>
+    <text>© 2023 温馨奶茶 版权所有</text>
+  </view>
+</view>

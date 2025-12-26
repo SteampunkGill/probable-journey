@@ -1,0 +1,96 @@
+<!--pages/points/product-detail/product-detail.wxml-->
+<view class="page">
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+
+  <!-- 商品详情 -->
+  <view class="product-detail" wx:if="{{!loading && product}}">
+    <!-- 商品图片 -->
+    <view class="product-image">
+      <image src="{{product.image}}" mode="widthFix"></image>
+      <view class="product-hot" wx:if="{{product.hot}}">热门</view>
+    </view>
+
+    <!-- 商品信息 -->
+    <view class="product-info">
+      <view class="product-name">{{product.name}}</view>
+      <view class="product-desc">{{product.desc}}</view>
+      
+      <!-- 积分信息 -->
+      <view class="points-info">
+        <view class="current-points">
+          <text class="label">兑换积分：</text>
+          <text class="value">{{product.points}}</text>
+        </view>
+        <view class="original-points" wx:if="{{product.originalPoints > product.points}}">
+          <text class="label">原价：</text>
+          <text class="value">{{product.originalPoints}}积分</text>
+        </view>
+      </view>
+
+      <!-- 库存信息 -->
+      <view class="stock-info">
+        <text class="label">库存：</text>
+        <text class="value {{product.stock <= 10 ? 'low-stock' : ''}}">
+          {{product.stock}}件
+        </text>
+        <text class="limit">{{product.limit}}</text>
+      </view>
+
+      <!-- 商品详情 -->
+      <view class="detail-section">
+        <view class="section-title">商品详情</view>
+        <view class="detail-content">{{product.detail}}</view>
+      </view>
+
+      <!-- 数量选择 -->
+      <view class="quantity-section">
+        <view class="section-title">兑换数量</view>
+        <view class="quantity-selector">
+          <view 
+            class="quantity-btn {{selectedCount <= 1 ? 'disabled' : ''}}"
+            bindtap="decreaseCount"
+          >
+            -
+          </view>
+          <view class="quantity-value">{{selectedCount}}</view>
+          <view 
+            class="quantity-btn {{selectedCount >= maxCount ? 'disabled' : ''}}"
+            bindtap="increaseCount"
+          >
+            +
+          </view>
+        </view>
+        <view class="quantity-tip">最多可兑换{{maxCount}}件</view>
+      </view>
+
+      <!-- 我的积分 -->
+      <view class="my-points">
+        <text class="label">我的积分：</text>
+        <text class="value">{{points}}</text>
+        <text class="required">需要{{product.points * selectedCount}}积分</text>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="action-buttons">
+        <view 
+          class="exchange-btn {{points < product.points * selectedCount || product.stock <= 0 ? 'disabled' : ''}}"
+          bindtap="exchangeNow"
+        >
+          {{points < product.points * selectedCount ? '积分不足' : (product.stock <= 0 ? '已售罄' : '立即兑换')}}
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && !product}}">
+    <image src="/images/icons/gift.png" class="empty-icon"></image>
+    <view class="empty-text">商品不存在</view>
+    <view class="empty-desc">该商品可能已下架</view>
+    <view class="back-btn" bindtap="goBack">返回上一页</view>
+  </view>
+</view>

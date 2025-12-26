@@ -1,0 +1,219 @@
+<!-- pages/cart/cart.wxml -->
+<view class="cart-page">
+  <!-- 购物车头部 -->
+  <view class="cart-header">
+    <text class="cart-title">购物车</text>
+    <view class="cart-actions">
+      <text class="edit-btn" bindtap="toggleEditMode">
+        {{isEditing ? '完成' : '编辑'}}
+      </text>
+      <text class="clear-btn" bindtap="showClearConfirm" wx:if="{{!isEditing && cartItems.length > 0}}">
+        清空
+      </text>
+    </view>
+  </view>
+
+  <!-- 购物车为空 -->
+  <view class="empty-cart" wx:if="{{cartItems.length === 0}}">
+    <image src="/images/empty-cart.png" class="empty-icon"></image>
+    <text class="empty-text">购物车还是空的哦~</text>
+    <text class="empty-hint">去首页逛逛吧</text>
+    <button class="btn btn-primary" bindtap="goToIndex">
+      去逛逛
+    </button>
+  </view>
+
+  <!-- 购物车商品列表 -->
+  <scroll-view class="cart-list" scroll-y="true" wx:else>
+    <!-- 全选操作 -->
+    <view class="select-all-section" wx:if="{{!isEditing}}">
+      <view class="select-all-checkbox" bindtap="toggleSelectAll">
+        <view class="checkbox {{isAllSelected ? 'checked' : ''}}">
+          <text class="iconfont icon-check" wx:if="{{isAllSelected}}"></text>
+        </view>
+        <text class="select-all-text">全选</text>
+      </view>
+      <view class="selected-info">
+        <text>已选{{selectedCount}}件</text>
+      </view>
+    </view>
+
+    <!-- 商品列表 -->
+    <view class="cart-items">
+      <view class="cart-item" wx:for="{{cartItems}}" wx:key="id" data-index="{{index}}">
+        <!-- 选择框 -->
+        <view 
+          class="item-checkbox" 
+          bindtap="toggleSelectItem" 
+          data-index="{{index}}"
+          wx:if="{{!isEditing}}"
+        >
+          <view class="checkbox {{item.selected ? 'checked' : ''}}">
+            <text class="iconfont icon-check" wx:if="{{item.selected}}"></text>
+          </view>
+        </view>
+
+        <!-- 商品信息 -->
+        <view class="item-content">
+          <image 
+            src="{{item.image}}" 
+            class="item-image"
+            bindtap="goToProduct"
+            data-id="{{item.id}}"
+          ></image>
+          
+          <view class="item-info">
+            <view class="item-header">
+              <text class="item-name">{{item.name}}</text>
+              <view class="item-price">
+                <text class="current-price">¥{{item.price}}</text>
+                <text class="original-price" wx:if="{{item.originalPrice > item.price}}">
+                  ¥{{item.originalPrice}}
+                </text>
+              </view>
+            </view>
+            
+            <!-- 定制化信息 -->
+            <view class="customization-info">
+              <text wx:if="{{item.customizations.sweetness}}">
+                {{getSweetnessLabel(item.customizations.sweetness)}}
+              </text>
+              <text wx:if="{{item.customizations.temperature}}">
+                / {{getTemperatureLabel(item.customizations.temperature)}}
+              </text>
+              <text wx:if="{{item.customizations.toppings && item.customizations.toppings.length > 0}}">
+                / {{getToppingsText(item.customizations.toppings)}}
+              </text>
+            </view>
+            
+            <!-- 操作区域 -->
+            <view class="item-actions">
+              <view class="price-info" wx:if="{{!isEditing}}">
+                <text class="subtotal">小计: ¥{{item.subtotal}}</text>
+              </view>
+              
+              <view class="action-buttons" wx:if="{{isEditing}}">
+                <button 
+                  class="btn btn-secondary delete-btn" 
+                  bindtap="deleteItem"
+                  data-index="{{index}}"
+                >
+                  删除
+                </button>
+              </view>
+              
+              <quantity-selector 
+                wx:if="{{!isEditing}}"
+                value="{{item.quantity}}"
+                min="1"
+                max="{{item.stock || 99}}"
+                bind:change="onQuantityChange"
+                data-index="{{index}}"
+              ></quantity-selector>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 优惠券 -->
+    <view class="coupon-section card" wx:if="{{!isEditing && cartItems.length > 0}}">
+      <view class="section-header" bindtap="goToCoupons">
+        <text class="section-title">优惠券</text>
+        <view class="coupon-info">
+          <text class="available-coupons" wx:if="{{availableCoupons.length > 0}}">
+            {{availableCoupons.length}}张可用
+          </text>
+          <text class="selected-coupon" wx:if="{{selectedCoupon}}">
+            -¥{{selectedCoupon.value}}
+          </text>
+          <text class="iconfont icon-right"></text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 积分抵扣 -->
+    <view class="points-section card" wx:if="{{!isEditing && cartItems.length > 0 && availablePoints > 0}}">
+      <view class="section-header">
+        <text class="section-title">积分抵扣</text>
+        <view class="points-info">
+          <text class="available-points">可用{{availablePoints}}积分</text>
+          <switch 
+            checked="{{usePoints}}"
+            bindchange="toggleUsePoints"
+            color="{{secondary-brown}}"
+          ></switch>
+        </view>
+      </view>
+      <view class="points-detail" wx:if="{{usePoints}}">
+        <text class="points-rate">100积分=¥1</text>
+        <text class="points-max">最多可使用{{maxPoints}}积分</text>
+        <view class="points-input">
+          <input 
+            type="number" 
+            value="{{pointsToUse}}" 
+            placeholder="输入积分数量"
+            bindinput="onPointsInput"
+            max="{{maxPoints}}"
+            min="0"
+          />
+          <text class="points-value">{{pointsDiscount}}元</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 备注 -->
+    <view class="remark-section card" wx:if="{{!isEditing && cartItems.length > 0}}">
+      <view class="section-header">
+        <text class="section-title">订单备注</text>
+      </view>
+      <textarea 
+        class="remark-input" 
+        placeholder="请输入备注信息（口味、偏好等）"
+        value="{{remark}}"
+        maxlength="100"
+        bindinput="onRemarkInput"
+      ></textarea>
+      <view class="remark-counter">
+        <text>{{remark.length}}/100</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 底部结算栏 -->
+  <view class="bottom-settlement" wx:if="{{cartItems.length > 0}}">
+    <view class="settlement-left" wx:if="{{!isEditing}}">
+      <view class="total-amount">
+        <text class="total-label">合计：</text>
+        <text class="total-price">¥{{totalAmount}}</text>
+      </view>
+      <view class="discount-info" wx:if="{{totalDiscount > 0}}">
+        <text>已优惠¥{{totalDiscount}}</text>
+      </view>
+    </view>
+    
+    <view class="settlement-right">
+      <button 
+        class="btn btn-secondary edit-mode-btn" 
+        bindtap="deleteSelectedItems"
+        wx:if="{{isEditing && selectedCount > 0}}"
+      >
+        删除({{selectedCount}})
+      </button>
+      <button 
+        class="btn btn-primary checkout-btn" 
+        bindtap="goToCheckout"
+        wx:if="{{!isEditing && selectedCount > 0}}"
+      >
+        去结算({{selectedCount}})
+      </button>
+      <button 
+        class="btn btn-disabled checkout-btn" 
+        wx:if="{{!isEditing && selectedCount === 0}}"
+        disabled
+      >
+        请选择商品
+      </button>
+    </view>
+  </view>
+</view>

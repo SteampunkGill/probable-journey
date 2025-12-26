@@ -1,0 +1,6 @@
+{
+  "usingComponents": {
+    "quantity-selector": "/components/quantity-selector/quantity-selector"
+  },
+  "navigationBarTitleText": "商品详情"
+}

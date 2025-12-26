@@ -1,0 +1,130 @@
+<!-- pages/user/user.wxml -->
+<view class="user-page" style="background: #FFF9E6; min-height: 100vh;">
+  <!-- 用户信息区域 -->
+  <view class="user-header" style="background: linear-gradient(135deg, #FFD166, #FFB347); border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+    <view class="user-info" bindtap="goToUserProfile">
+      <image 
+        src="{{userInfo.avatar || '/images/default-avatar.png'}}" 
+        class="user-avatar"
+      ></image>
+      <view class="user-details">
+        <text class="user-name">{{userInfo.nickname || '点击登录'}}</text>
+        <view class="user-meta">
+          <view class="level-badge" style="background: #FFD700; color: #8B7355; padding: 4rpx 12rpx; border-radius: 20rpx; font-size: 22rpx; margin-right: 15rpx;">
+            ⭐ {{userInfo.levelName || '普通会员'}}
+          </view>
+          <text class="user-points">积分: {{userInfo.points || 0}}</text>
+        </view>
+        <!-- 等级进度条 -->
+        <view wx:if="{{userInfo}}" class="level-progress" style="margin-top: 15rpx;">
+          <view style="display: flex; justify-content: space-between; margin-bottom: 8rpx;">
+            <text style="font-size: 24rpx; color: white;">升级到下一等级</text>
+            <text style="font-size: 24rpx; color: white;">{{userInfo.growthValue || 0}}/{{userInfo.nextLevelPoints || 1000}}</text>
+          </view>
+          <view style="background: rgba(255, 255, 255, 0.3); height: 12rpx; border-radius: 6rpx; overflow: hidden;">
+            <view style="background: white; height: 100%; width: {{levelProgress || 0}}%; border-radius: 6rpx;"></view>
+          </view>
+        </view>
+      </view>
+      <text class="iconfont icon-right"></text>
+    </view>
+    
+    <view class="user-assets">
+      <view class="asset-item" bindtap="goToWallet">
+        <text class="asset-value">¥{{userInfo.balance || '0.00'}}</text>
+        <text class="asset-label">余额</text>
+      </view>
+      <view class="asset-item" bindtap="goToCoupons">
+        <text class="asset-value">{{userInfo.couponCount || 0}}</text>
+        <text class="asset-label">优惠券</text>
+      </view>
+      <view class="asset-item" bindtap="goToPointsMall">
+        <text class="asset-value">{{userInfo.points || 0}}</text>
+        <text class="asset-label">积分</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 我的资产（改为更突出显示） -->
+  <view class="assets-section" style="background: #FFFDF0; border-radius: 15px; margin: 20rpx; padding: 30rpx; border: 1rpx solid #FFE8A3;">
+    <view class="section-header">
+      <text class="section-title" style="color: #8B7500;">💰 我的资产</text>
+    </view>
+    <view class="assets-grid">
+      <view 
+        class="asset-card" 
+        wx:for="{{assets}}" 
+        wx:key="id"
+        bindtap="goToAsset" 
+        data-type="{{item.type}}"
+      >
+        <view class="asset-icon" style="background: {{item.bgColor}};">
+          <text class="iconfont {{item.icon}}"></text>
+        </view>
+        <text class="asset-name" style="color: #8B7500;">{{item.name}}</text>
+        <text class="asset-value" wx:if="{{item.value}}" style="color: #D4A017;">{{item.value}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 会员卡绑定 -->
+  <view class="bind-card-section" style="background: #FFFDF0; border-radius: 15px; margin: 20rpx; padding: 30rpx; border: 1rpx solid #FFE8A3;">
+    <view class="section-header">
+      <text class="section-title" style="color: #8B7500;">💳 会员卡绑定</text>
+    </view>
+    <view class="bind-card-form" style="margin-top: 20rpx; display: flex;">
+      <input
+        style="flex: 1; background: #fff; border: 1rpx solid #FFE8A3; border-radius: 10rpx; padding: 15rpx 20rpx; font-size: 28rpx;"
+        placeholder="请输入会员卡号"
+        value="{{cardNumber}}"
+        bindinput="onCardNumberInput"
+      />
+      <button
+        style="margin-left: 20rpx; background: #D4A017; color: #fff; font-size: 26rpx; padding: 0 30rpx; height: 70rpx; line-height: 70rpx; border-radius: 10rpx;"
+        bindtap="bindMemberCard"
+      >立即绑定</button>
+    </view>
+  </view>
+
+  <!-- 常用功能 -->
+  <view class="functions-section" style="background: #FFFDF0; border-radius: 15px; margin: 20rpx; padding: 30rpx; border: 1rpx solid #FFE8A3;">
+    <view class="section-header">
+      <text class="section-title" style="color: #8B7500;">📋 常用功能</text>
+    </view>
+    <view class="function-list">
+      <view 
+        class="function-item" 
+        wx:for="{{functions}}" 
+        wx:key="id"
+        bindtap="goToFunction" 
+        data-url="{{item.url}}"
+        style="background: #FFFDF0; border-bottom: 1rpx solid #FFE8A3;"
+      >
+        <view class="function-left">
+          <text class="iconfont {{item.icon}}" style="color: {{item.color}};"></text>
+          <text class="function-name" style="color: #8B7500;">{{item.name}}</text>
+        </view>
+        <text class="iconfont icon-right" style="color: #D4A017;"></text>
+      </view>
+    </view>
+  </view>
+
+
+  <!-- 客服中心 -->
+  <view class="service-section" style="display: flex; justify-content: space-around; margin: 40rpx 20rpx;">
+    <button class="service-btn" open-type="contact" style="background: #FFFDF0; border: 1rpx solid #FFE8A3; color: #8B7500; border-radius: 50rpx; padding: 20rpx 40rpx;">
+      <text class="iconfont icon-service"></text>
+      <text style="margin-left: 10rpx;">在线客服</text>
+    </button>
+    <button class="service-btn" bindtap="makePhoneCall" style="background: #FFFDF0; border: 1rpx solid #FFE8A3; color: #8B7500; border-radius: 50rpx; padding: 20rpx 40rpx;">
+      <text class="iconfont icon-phone"></text>
+      <text style="margin-left: 10rpx;">电话联系</text>
+    </button>
+  </view>
+
+  <!-- 设置入口 -->
+  <view class="settings-btn" bindtap="goToSettings" style="background: #FFFDF0; border: 1rpx solid #FFE8A3; border-radius: 50rpx; padding: 25rpx; margin: 20rpx; text-align: center; color: #8B7500;">
+    <text class="iconfont icon-settings"></text>
+    <text style="margin-left: 15rpx;">设置</text>
+  </view>
+</view>

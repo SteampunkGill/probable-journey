@@ -1,0 +1,15 @@
+package com.milktea.backend.dto;
+
+import lombok.Data;
+import java.time.LocalDateTime;
+
+@Data
+public class PushTaskDTO {
+    private Long id;
+    private String title;
+    private String content;
+    private String targetType; // ALL, MEMBER_LEVEL, INDIVIDUAL
+    private String targetValue;
+    private LocalDateTime sentTime;
+    private String status;
+}
