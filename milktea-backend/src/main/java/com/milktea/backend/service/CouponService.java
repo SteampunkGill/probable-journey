@@ -173,11 +173,14 @@ public class CouponService {
                 .orElseThrow(() -> new ServiceException("模板不存在"));
         
         long usedCount = userCouponRepository.countByCouponTemplateIdAndUsedTrue(id);
+        long receivedCount = userCouponRepository.countByCouponTemplateId(id);
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("templateName", template.getName());
         stats.put("totalIssued", template.getIssuedQuantity());
+        stats.put("receivedCount", receivedCount);
         stats.put("usedCount", usedCount);
+        stats.put("usageRate", receivedCount > 0 ? (double) usedCount / receivedCount * 100 : 0);
         return stats;
     }
 

@@ -144,8 +144,9 @@ const handleConfirm = () => {
   emit('update:modelValue', false)
 }
 </script>
-
 <style scoped>
+/* 饮饮茶 (SipSipTea) - 奶茶主题地区选择器样式 */
+
 .region-picker {
   position: fixed;
   top: 0;
@@ -155,64 +156,299 @@ const handleConfirm = () => {
   z-index: 2000;
 }
 
+/* 遮罩层 */
 .picker-mask {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--primary-color-rgb), 0.12);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.3s ease-out;
 }
 
+/* 内容区域 */
 .picker-content {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  background: white;
-  border-radius: 16px 16px 0 0;
+  background: linear-gradient(to bottom, var(--accent-cream) 0%, var(--surface-color) 100%);
+  border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
   display: flex;
   flex-direction: column;
-  height: 40vh;
+  height: 50vh;
+  box-shadow: 0 -8px 30px rgba(var(--primary-color-rgb), 0.08);
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* 头部区域 */
 .picker-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
-  border-bottom: 1px solid #eee;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(var(--surface-color-rgb), 0.9);
+  backdrop-filter: blur(5px);
+  border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
 }
 
-.cancel { color: #999; cursor: pointer; }
-.confirm { color: #D4A574; font-weight: bold; cursor: pointer; }
-.title { font-weight: bold; }
+/* 按钮样式 */
+.cancel,
+.confirm {
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease-out;
+  padding: 8px 12px;
+  border-radius: var(--border-radius-md);
+  font-weight: 500;
+}
 
+.cancel {
+  color: var(--text-color-medium);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+}
+
+.cancel:hover {
+  color: var(--primary-color);
+  background: rgba(var(--primary-color-rgb), 0.08);
+}
+
+.confirm {
+  color: var(--primary-color);
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  font-weight: 600;
+}
+
+.confirm:hover {
+  background: rgba(var(--primary-color-rgb), 0.08);
+  transform: translateY(-1px);
+}
+
+.confirm:active {
+  transform: translateY(0);
+}
+
+/* 标题 */
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  color: var(--primary-color);
+  letter-spacing: 0.08em;
+}
+
+/* 主体区域 */
 .picker-body {
   flex: 1;
   display: flex;
   overflow: hidden;
+  background: rgba(var(--surface-color-rgb), 0.8);
 }
 
+/* 列样式 */
 .column {
   flex: 1;
   overflow-y: auto;
-  border-right: 1px solid #f5f5f5;
+  border-right: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  position: relative;
 }
 
-.column:last-child { border-right: none; }
+.column:last-child {
+  border-right: none;
+}
 
+/* 滚动条样式 */
+.column::-webkit-scrollbar {
+  width: 4px;
+}
+
+.column::-webkit-scrollbar-track {
+  background: rgba(var(--border-color-rgb), 0.3);
+  border-radius: var(--border-radius-sm);
+}
+
+.column::-webkit-scrollbar-thumb {
+  background: var(--primary-light);
+  border-radius: var(--border-radius-sm);
+}
+
+.column::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+/* 项目样式 */
 .item {
-  padding: 12px 10px;
+  padding: var(--spacing-sm) var(--spacing-xs);
   text-align: center;
-  font-size: 14px;
-  color: #333;
+  font-size: 15px;
+  color: var(--text-color-medium);
   cursor: pointer;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.03em;
+  transition: all 0.3s ease-out;
+  position: relative;
+  border-bottom: 1px solid rgba(var(--border-color-rgb), 0.3);
+}
+
+.item:hover {
+  background: rgba(var(--primary-color-rgb), 0.05);
+  color: var(--primary-color);
+  transform: translateX(2px);
 }
 
 .item.active {
-  color: #D4A574;
-  background: #FFF9E6;
-  font-weight: bold;
+  color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(var(--primary-color-rgb), 0.08) 0%, rgba(var(--primary-dark-rgb), 0.04) 100%);
+  font-weight: 600;
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  position: relative;
+}
+
+.item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: linear-gradient(to bottom, var(--primary-color) 0%, var(--primary-dark) 100%);
+  border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+  animation: slideIn 0.3s ease-out;
+}
+
+/* 选中指示器 */
+.item.active::after {
+  content: '✓';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--primary-color);
+  font-size: 14px;
+  animation: checkPop 0.3s ease-out;
+}
+
+/* 列之间的分隔线装饰 */
+.column::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom,
+  transparent,
+  var(--border-color),
+  transparent
+  );
+}
+
+.column:last-child::before {
+  display: none;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50%) scaleX(0);
+  }
+  to {
+    transform: translateY(-50%) scaleX(1);
+  }
+}
+
+@keyframes checkPop {
+  0% {
+    transform: translateY(-50%) scale(0);
+  }
+  50% {
+    transform: translateY(-50%) scale(1.2);
+  }
+  100% {
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .picker-content {
+    height: 60vh;
+    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+  }
+
+  .picker-header {
+    padding: var(--spacing-sm);
+  }
+
+  .title {
+    font-size: 16px;
+  }
+
+  .cancel,
+  .confirm {
+    font-size: 15px;
+    padding: 6px 10px;
+  }
+
+  .item {
+    padding: 12px 8px;
+    font-size: 14px;
+  }
+}
+
+/* 奶茶主题装饰 */
+.picker-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg,
+  var(--primary-color),
+  var(--accent-pink),
+  var(--primary-color)
+  );
+  border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
+  opacity: 0.3;
+}
+
+/* 列顶部的渐变装饰 */
+.column::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+  transparent,
+  rgba(var(--primary-color-rgb), 0.2),
+  transparent
+  );
 }
 </style>

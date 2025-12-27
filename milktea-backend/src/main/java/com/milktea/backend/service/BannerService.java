@@ -27,7 +27,21 @@ public class BannerService {
 
     @Transactional
     public Banner saveOrUpdate(Banner banner) {
+        if (banner.getIsActive() == null) {
+            banner.setIsActive(true);
+        }
+        if (banner.getClickCount() == null) {
+            banner.setClickCount(0);
+        }
         return bannerRepository.save(banner);
+    }
+
+    @Transactional
+    public void recordClick(Long id) {
+        Banner banner = bannerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("广告不存在"));
+        banner.setClickCount(banner.getClickCount() + 1);
+        bannerRepository.save(banner);
     }
 
     public List<Map<String, Object>> findAllPositions() {
@@ -60,5 +74,10 @@ public class BannerService {
         result.put("id", id);
         result.put("updatedAt", java.time.LocalDateTime.now());
         return result;
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        bannerRepository.deleteById(id);
     }
 }

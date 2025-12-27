@@ -19,6 +19,22 @@ Page({
         key: 'notification'
       },
       {
+        id: 11,
+        title: '订单状态更新推送',
+        icon: 'icon-order',
+        type: 'switch',
+        value: true,
+        key: 'orderUpdate'
+      },
+      {
+        id: 12,
+        title: '促销活动推送',
+        icon: 'icon-promotion',
+        type: 'switch',
+        value: false,
+        key: 'promotion'
+      },
+      {
         id: 2,
         title: '隐私协议',
         icon: 'icon-privacy',

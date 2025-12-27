@@ -31,4 +31,16 @@ public class Banner {
 
     @Column(name = "position", length = 20)
     private String position; // HOME
+
+    @Column(name = "start_time")
+    private java.time.LocalDateTime startTime;
+
+    @Column(name = "end_time")
+    private java.time.LocalDateTime endTime;
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
+    @Column(name = "click_count")
+    private Integer clickCount = 0;
 }

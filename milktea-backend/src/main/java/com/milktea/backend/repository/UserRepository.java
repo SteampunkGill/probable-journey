@@ -114,4 +114,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * 统计在指定时间之前注册的用户总数
      */
     long countByRegistrationTimeBefore(java.time.LocalDateTime time);
+
+    /**
+     * 统计在指定时间之后注册的用户总数
+     */
+    long countByCreatedAtAfter(java.time.LocalDateTime time);
 }

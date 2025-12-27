@@ -24,6 +24,7 @@ public class CartService {
     private final UserCouponRepository userCouponRepository;
     private final UserAddressRepository userAddressRepository;
     private final UserRepository userRepository;
+    private final StoreRepository storeRepository;
     private final CartItemRepository cartItemRepository;
     private final OrderRepository orderRepository;
 
@@ -68,29 +69,49 @@ public class CartService {
                 .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "用户不存在"));
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ServiceException("PRODUCT_NOT_FOUND", "商品不存在"));
-
-        CartItem item = new CartItem();
-        item.setUser(user);
-        item.setProduct(product);
-        item.setQuantity(request.getQuantity());
-        item.setSweetness(request.getSweetness());
-        item.setTemperature(request.getTemperature());
-        
-        if (request.getSpecId() != null) {
-            ProductSpec spec = productSpecRepository.findById(request.getSpecId()).orElse(null);
-            item.setSpec(spec);
+        Store store = null;
+        if (request.getStoreId() != null) {
+            store = storeRepository.findById(request.getStoreId()).orElse(null);
         }
-        
-        if (request.getToppings() != null && !request.getToppings().isEmpty()) {
-            List<ProductOption> options = productOptionRepository.findAllById(request.getToppings());
-            List<CartItemCustomization> customizations = options.stream().map(option -> {
-                CartItemCustomization c = new CartItemCustomization();
-                c.setCartItem(item);
-                c.setOption(option);
-                c.setQuantity(1);
-                return c;
-            }).collect(Collectors.toList());
-            item.setCustomizations(customizations);
+
+        ProductSpec spec = null;
+        if (request.getSpecId() != null) {
+            spec = productSpecRepository.findById(request.getSpecId()).orElse(null);
+        }
+
+        // 尝试查找已存在的相同配置的购物车项
+        // 注意：这里简化了加料的比较，实际业务中可能需要更复杂的逻辑
+        java.util.Optional<CartItem> existingItem = cartItemRepository.findByUserIdAndProductIdAndSpecAndSweetnessAndTemperature(
+                userId, request.getProductId(), spec, request.getSweetness(), request.getTemperature());
+
+        CartItem item;
+        if (existingItem.isPresent()) {
+            item = existingItem.get();
+            item.setQuantity(item.getQuantity() + request.getQuantity());
+        } else {
+            item = new CartItem();
+            item.setUser(user);
+            item.setStore(store);
+            item.setProduct(product);
+            item.setQuantity(request.getQuantity());
+            item.setSweetness(request.getSweetness());
+            item.setTemperature(request.getTemperature());
+            item.setIsSelected(true);
+            item.setIsValid(true);
+            item.setPriceAtAdd(product.getPrice());
+            item.setSpec(spec);
+
+            if (request.getToppings() != null && !request.getToppings().isEmpty()) {
+                List<ProductOption> options = productOptionRepository.findAllById(request.getToppings());
+                List<CartItemCustomization> customizations = options.stream().map(option -> {
+                    CartItemCustomization c = new CartItemCustomization();
+                    c.setCartItem(item);
+                    c.setOption(option);
+                    c.setQuantity(1);
+                    return c;
+                }).collect(Collectors.toList());
+                item.setCustomizations(customizations);
+            }
         }
         
         cartItemRepository.save(item);

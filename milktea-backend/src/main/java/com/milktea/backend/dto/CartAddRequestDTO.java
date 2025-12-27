@@ -5,6 +5,7 @@ import java.util.List;
 
 @Data
 public class CartAddRequestDTO {
+    private Long storeId;
     private Long productId;
     private Long specId;
     private String sweetness;

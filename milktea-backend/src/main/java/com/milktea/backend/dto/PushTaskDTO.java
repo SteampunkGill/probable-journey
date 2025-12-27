@@ -12,4 +12,10 @@ public class PushTaskDTO {
     private String targetValue;
     private LocalDateTime sentTime;
     private String status;
+    private String pushType;
+    private String triggerType;
+    private String triggerCondition;
+    private String imageUrl;
+    private String linkUrl;
+    private LocalDateTime scheduledTime;
 }

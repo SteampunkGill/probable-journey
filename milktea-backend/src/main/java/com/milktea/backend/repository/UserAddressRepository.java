@@ -14,7 +14,12 @@ public interface UserAddressRepository extends JpaRepository<UserAddress, Long> 
     /**
      * 获取用户地址列表，按是否默认和创建时间排序
      */
-    List<UserAddress> findByUserIdOrderByIsDefaultDescCreatedAtDesc(Long userId);
+    List<UserAddress> findByUserIdAndIsHistoryFalseOrderByIsDefaultDescCreatedAtDesc(Long userId);
+
+    /**
+     * 获取用户历史地址列表
+     */
+    List<UserAddress> findByUserIdAndIsHistoryTrueOrderByLastUsedAtDesc(Long userId);
 
     /**
      * 获取用户的默认地址

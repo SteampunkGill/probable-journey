@@ -21,6 +21,7 @@ public class OrderDTO {
     private String payMethod;
     private String transactionId;
     private LocalDateTime payTime;
+    private LocalDateTime orderTime;
     private String deliveryType;
     private String addressJson;
     private String pickupCode;

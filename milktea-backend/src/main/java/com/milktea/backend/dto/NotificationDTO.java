@@ -17,4 +17,7 @@ public class NotificationDTO {
     private String type;
     private LocalDateTime createdAt;
     private Boolean isRead;
+    private String pushType;
+    private String imageUrl;
+    private String linkUrl;
 }

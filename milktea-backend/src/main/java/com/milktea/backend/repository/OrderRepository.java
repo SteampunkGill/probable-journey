@@ -207,6 +207,27 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     long countChurnedUsers(@Param("cutoffTime") LocalDateTime cutoffTime);
 
     /**
+     * 统计核心用户 (RFM)
+     */
+    @Query("SELECT COUNT(DISTINCT o.user.id) FROM Order o " +
+           "WHERE o.orderTime >= :since " +
+           "GROUP BY o.user.id " +
+           "HAVING COUNT(o.id) >= :minFrequency AND SUM(o.actualAmount) >= :minMonetary")
+    long countCoreUsers(@Param("since") LocalDateTime since,
+                        @Param("minFrequency") long minFrequency,
+                        @Param("minMonetary") BigDecimal minMonetary);
+
+    /**
+     * 统计潜力用户
+     */
+    @Query("SELECT COUNT(DISTINCT o.user.id) FROM Order o " +
+           "WHERE o.orderTime >= :since " +
+           "GROUP BY o.user.id " +
+           "HAVING SUM(o.actualAmount) >= :minMonetary")
+    long countPotentialUsers(@Param("since") LocalDateTime since,
+                             @Param("minMonetary") BigDecimal minMonetary);
+
+    /**
      * 按消费金额对用户进行分组统计
      */
     @Query(value = "SELECT " +

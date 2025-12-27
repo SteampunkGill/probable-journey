@@ -12,9 +12,10 @@ export const useUserStore = defineStore('user', {
       console.error('Pinia state init error:', e)
     }
     
+    const token = localStorage.getItem('token')
     return {
       userInfo,
-      token: localStorage.getItem('token') || '',
+      token: (token && token !== 'undefined' && token !== 'null') ? token : '',
       orderType: 'pickup', // 'pickup' or 'delivery'
       selectedStore: null
     }

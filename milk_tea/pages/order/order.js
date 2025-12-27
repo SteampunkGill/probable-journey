@@ -62,7 +62,8 @@ Page({
     // 当前筛选状态
     activeFilters: {
       hot: 'all',
-      price: 'all'
+      price: 'all',
+      sweetness: 'all'
     },
     
     // 是否显示筛选面板
@@ -116,7 +117,8 @@ Page({
         keyword: searchKeyword,
         isHot: activeFilters.hot === 'hot' ? true : null,
         isNew: activeFilters.hot === 'new' ? true : null,
-        priceRange: activeFilters.price !== 'all' ? activeFilters.price : null
+        priceRange: activeFilters.price !== 'all' ? activeFilters.price : null,
+        sweetness: activeFilters.sweetness !== 'all' ? activeFilters.sweetness : null
       };
       const res = await productApi.getProductList(params);
       if (res.code === 200) {
@@ -255,7 +257,7 @@ Page({
   // 重置筛选
   resetFilters() {
     this.setData({
-      activeFilters: { hot: 'all', price: 'all' }
+      activeFilters: { hot: 'all', price: 'all', sweetness: 'all' }
     });
     this.loadProducts();
   },

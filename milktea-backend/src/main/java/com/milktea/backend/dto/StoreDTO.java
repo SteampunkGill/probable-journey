@@ -9,6 +9,9 @@ public class StoreDTO {
     private Long id;
     private String name;
     private String code;
+    private String province;
+    private String city;
+    private String district;
     private String address;
     private String phone;
     private String managerName;

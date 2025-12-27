@@ -59,7 +59,7 @@ public class Order {
     @Column(name = "transaction_id", length = 64)
     private String transactionId;
 
-    @Column(name = "order_time") // 订单创建时间，设为可空以符合非必须约束原则
+    @Column(name = "order_time", updatable = false) // 订单创建时间，设为可空以符合非必须约束原则，且不可更新
     private LocalDateTime orderTime;
 
     @Column(name = "pay_time")

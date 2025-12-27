@@ -37,9 +37,15 @@ public class OrderService {
     private final OrderReviewRepository orderReviewRepository;
     private final ComplaintRepository complaintRepository;
     private final UserCouponRepository userCouponRepository;
+    private final AddressService addressService;
+    private final CouponService couponService;
+    private final PromotionRepository promotionRepository;
 
     @Transactional
     public Order createOrderFromDTO(Long userId, OrderCreateDTO dto) {
+        if (dto.getStoreId() == null) {
+            throw new ServiceException("INVALID_PARAMETER", "门店ID不能为空");
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "用户不存在"));
         Store store = storeRepository.findById(dto.getStoreId())
@@ -58,16 +64,29 @@ public class OrderService {
         order.setRemindCount(0);
 
         List<OrderItem> items = dto.getItems().stream().map(itemDto -> {
+            if (itemDto.getProductId() == null) {
+                throw new ServiceException("INVALID_PARAMETER", "商品ID不能为空");
+            }
             Product product = productRepository.findById(itemDto.getProductId())
                     .orElseThrow(() -> new ServiceException("PRODUCT_NOT_FOUND", "商品不存在"));
+            
+            // 优先使用前端传递的价格，若无则使用商品原价
+            BigDecimal unitPrice = itemDto.getPrice();
+            if (unitPrice == null) {
+                unitPrice = product.getPrice();
+            }
+            if (unitPrice == null) {
+                throw new ServiceException("INVALID_PARAMETER", "商品价格异常");
+            }
+
             OrderItem item = new OrderItem();
             item.setOrder(order);
             item.setProduct(product);
             item.setProductName(product.getName());
             item.setProductImage(product.getImageUrl());
             item.setQuantity(itemDto.getQuantity());
-            item.setPrice(itemDto.getPrice());
-            item.setTotalPrice(itemDto.getPrice().multiply(BigDecimal.valueOf(itemDto.getQuantity())));
+            item.setPrice(unitPrice);
+            item.setTotalPrice(unitPrice.multiply(BigDecimal.valueOf(itemDto.getQuantity())));
             return item;
         }).collect(Collectors.toList());
 
@@ -112,10 +131,46 @@ public class OrderService {
             pointTransactionRepository.save(pt);
         }
 
+        // 3. 促销活动 (满减、第二杯半价、限时折扣)
+        LocalDateTime now = LocalDateTime.now();
+        List<com.milktea.milktea_backend.model.entity.Promotion> activePromotions = promotionRepository.findAll().stream()
+                .filter(p -> p.getIsActive() != null && p.getIsActive() && p.getStartTime().isBefore(now) && p.getEndTime().isAfter(now))
+                .collect(Collectors.toList());
+
+        for (com.milktea.milktea_backend.model.entity.Promotion p : activePromotions) {
+            try {
+                Map<String, Object> rules = new com.fasterxml.jackson.databind.ObjectMapper().readValue(p.getRulesJson(), Map.class);
+                if ("FULL_REDUCE".equals(p.getType())) {
+                    BigDecimal threshold = new BigDecimal(rules.get("threshold").toString());
+                    BigDecimal reduce = new BigDecimal(rules.get("reduce").toString());
+                    if (totalAmount.compareTo(threshold) >= 0) {
+                        discountAmount = discountAmount.add(reduce);
+                    }
+                } else if ("SECOND_HALF".equals(p.getType())) {
+                    // 简单逻辑：如果商品数量 >= 2，减去最便宜的一件的一半价格
+                    if (items.size() >= 2 || (items.size() == 1 && items.get(0).getQuantity() >= 2)) {
+                        BigDecimal minPrice = items.stream().map(OrderItem::getPrice).min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+                        discountAmount = discountAmount.add(minPrice.multiply(new BigDecimal("0.5")));
+                    }
+                } else if ("LIMITED_DISCOUNT".equals(p.getType())) {
+                    BigDecimal rate = new BigDecimal(rules.get("rate").toString()); // 如 0.8
+                    BigDecimal promoDiscount = totalAmount.multiply(BigDecimal.ONE.subtract(rate));
+                    discountAmount = discountAmount.add(promoDiscount);
+                }
+            } catch (Exception e) {
+                // 规则解析失败，跳过该活动
+            }
+        }
+
         order.setDiscountAmount(discountAmount);
         BigDecimal actualAmount = totalAmount.subtract(discountAmount);
         if (actualAmount.compareTo(BigDecimal.ZERO) < 0) actualAmount = BigDecimal.ZERO;
         order.setActualAmount(actualAmount);
+
+        // 保存地址到历史记录
+        if ("DELIVERY".equals(order.getDeliveryType())) {
+            addressService.saveToHistory(user, order.getAddressJson());
+        }
 
         Order savedOrder = orderRepository.save(order);
         saveTimeline(savedOrder, "PENDING_PAYMENT");
@@ -387,6 +442,13 @@ public class OrderService {
     public String initiatePayment(String orderNo, String method) {
         Order order = orderRepository.findByOrderNo(orderNo)
                 .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
+        
+        if ("ALIPAY".equalsIgnoreCase(method)) {
+            // 模拟支付宝沙箱支付链接
+            // 在实际项目中，这里会调用支付宝SDK生成支付表单
+            return "https://openapi.alipaydev.com/gateway.do?app_id=2021000117650001&method=alipay.trade.page.pay&out_trade_no="
+                    + orderNo + "&total_amount=" + order.getActualAmount() + "&subject=奶茶订单支付";
+        }
         
         // 从系统配置获取支付网关配置
         String gatewayUrl = systemConfigRepository.findById("payment_gateway_url")

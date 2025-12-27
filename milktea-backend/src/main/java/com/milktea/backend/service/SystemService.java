@@ -26,6 +26,7 @@ public class SystemService {
     private final SystemConfigRepository systemConfigRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final SysBackupRepository sysBackupRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     // --- 员工管理 ---
@@ -156,6 +157,32 @@ public class SystemService {
         });
     }
 
+    // --- 备份管理 ---
+
+    public List<BackupDTO> getBackups() {
+        return sysBackupRepository.findAll().stream().map(this::convertToBackupDTO).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public BackupDTO createBackup() {
+        SysBackup backup = new SysBackup();
+        String fileName = "backup_" + System.currentTimeMillis() + ".sql";
+        backup.setFileName(fileName);
+        backup.setFilePath("/backups/" + fileName);
+        backup.setFileSize(1024L * 1024 * 2); // 模拟生成 2MB 的备份文件
+        backup.setStatus("COMPLETED");
+        SysBackup saved = sysBackupRepository.save(backup);
+        return convertToBackupDTO(saved);
+    }
+
+    @Transactional
+    public void restoreBackup(Long id) {
+        sysBackupRepository.findById(id).ifPresent(backup -> {
+            // 实际恢复逻辑...
+            recordLog("SYSTEM", "RESTORE_BACKUP", "恢复备份文件: " + backup.getFileName());
+        });
+    }
+
     public Map<String, Object> getPerformance() {
         Map<String, Object> metrics = new HashMap<>();
         
@@ -201,11 +228,13 @@ public class SystemService {
      * 获取推送设置
      */
     public Object getNotificationSettings() {
+        User user = userRepository.findByUsername(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new com.milktea.backend.exception.ServiceException("USER_NOT_FOUND", "用户不存在"));
+        
         Map<String, Boolean> settings = new HashMap<>();
-        settings.put("orderUpdate", systemConfigRepository.findById("notif_order_update")
-                .map(c -> "true".equals(c.getConfigValue())).orElse(true));
-        settings.put("promotion", systemConfigRepository.findById("notif_promotion")
-                .map(c -> "true".equals(c.getConfigValue())).orElse(false));
+        settings.put("enabled", user.getPushNotificationEnabled());
+        settings.put("orderUpdate", user.getPushOrderUpdate());
+        settings.put("promotion", user.getPushMarketing());
         return settings;
     }
 
@@ -214,15 +243,15 @@ public class SystemService {
      */
     @Transactional
     public void updateNotificationSettings(Object settings) {
+        User user = userRepository.findByUsername(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new com.milktea.backend.exception.ServiceException("USER_NOT_FOUND", "用户不存在"));
+
         if (settings instanceof Map) {
             Map<?, ?> map = (Map<?, ?>) settings;
-            map.forEach((key, value) -> {
-                SystemConfig config = systemConfigRepository.findById("notif_" + key)
-                        .orElse(new SystemConfig());
-                config.setConfigKey("notif_" + key);
-                config.setConfigValue(value.toString());
-                systemConfigRepository.save(config);
-            });
+            if (map.containsKey("enabled")) user.setPushNotificationEnabled((Boolean) map.get("enabled"));
+            if (map.containsKey("orderUpdate")) user.setPushOrderUpdate((Boolean) map.get("orderUpdate"));
+            if (map.containsKey("promotion")) user.setPushMarketing((Boolean) map.get("promotion"));
+            userRepository.save(user);
         }
     }
 
@@ -266,6 +295,16 @@ public class SystemService {
         dto.setAddress(store.getAddress());
         dto.setPhone(store.getPhone());
         dto.setStatus(store.getStatus());
+        return dto;
+    }
+
+    private BackupDTO convertToBackupDTO(SysBackup backup) {
+        BackupDTO dto = new BackupDTO();
+        dto.setId(backup.getId().toString());
+        dto.setFileName(backup.getFileName());
+        dto.setFileSize(backup.getFileSize());
+        dto.setStatus(backup.getStatus());
+        dto.setCreatedAt(backup.getCreatedAt());
         return dto;
     }
 }

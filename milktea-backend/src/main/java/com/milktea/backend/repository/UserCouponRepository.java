@@ -65,4 +65,9 @@ public interface UserCouponRepository extends JpaRepository<UserCoupon, Long> {
      * 统计指定模板已使用的优惠券数量
      */
     long countByCouponTemplateIdAndUsedTrue(Long templateId);
+
+    /**
+     * 统计指定模板已领取的优惠券数量
+     */
+    long countByCouponTemplateId(Long templateId);
 }

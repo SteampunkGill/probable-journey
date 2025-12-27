@@ -11,6 +11,9 @@ Page({
     // 地址列表
     addressList: [],
     
+    // 历史地址列表
+    historyList: [],
+    
     // 当前选中的地址ID(选择模式下使用)
     selectedId: '',
     

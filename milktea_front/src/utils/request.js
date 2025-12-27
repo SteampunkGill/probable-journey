@@ -105,6 +105,8 @@ commonService.interceptors.response.use(
   }
 )
 
+let isRedirecting = false
+
 function handleBusinessError(data) {
   const errorMap = {
     1001: '参数错误',
@@ -114,14 +116,33 @@ function handleBusinessError(data) {
   }
   const message = errorMap[data.code] || data.message || '请求失败'
   console.error('业务错误:', message)
-  // 避免在登录页频繁弹窗
-  if (window.location.pathname !== '/login') {
-    alert(message)
-  }
+  
   if (data.code === 1002) {
-    localStorage.removeItem('token')
-    window.location.href = '/login'
+    handleUnauthorized()
+  } else {
+    // 避免在登录页频繁弹窗
+    if (!window.location.pathname.includes('/login')) {
+      alert(message)
+    }
   }
+}
+
+function handleUnauthorized() {
+  if (isRedirecting) return
+  isRedirecting = true
+  
+  localStorage.removeItem('token')
+  localStorage.removeItem('userInfo')
+  
+  // 只有不在登录页时才跳转
+  if (!window.location.pathname.includes('/login')) {
+    alert('登录已过期，请重新登录')
+    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search)
+  }
+  
+  setTimeout(() => {
+    isRedirecting = false
+  }, 2000)
 }
 
 function handleHttpError(response) {
@@ -132,18 +153,20 @@ function handleHttpError(response) {
   const errorMap = {
     400: '请求参数错误',
     401: '未授权，请登录',
-    403: '拒绝访问',
+    403: '权限不足，拒绝访问',
     404: '请求地址不存在',
     500: '服务器内部错误'
   }
   const message = errorMap[response.status] || `请求失败: ${response.status}`
   console.error('HTTP错误:', message, response.config.url)
   
-  if (response.status === 401 || response.status === 403) {
-    // 如果是登录接口本身报 403，不要跳转，否则会死循环
+  if (response.status === 401) {
+    handleUnauthorized()
+  } else if (response.status === 403) {
+    // 403 权限不足，仅提示，不强制登出
+    // 除非是登录接口报错（通常不会报403，除非被封禁）
     if (!response.config.url.includes('/auth/login')) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      console.warn('检测到权限不足请求，已拦截登出逻辑')
     }
   }
 }

@@ -25,11 +25,8 @@
       <!-- 轮播图 -->
       <div class="banner-container" v-if="banners.length > 0">
         <div class="banner-wrapper" :style="{ transform: `translateX(-${currentBanner * 100}%)` }">
-          <div class="banner-item" v-for="item in banners" :key="item.id">
-            <img :src="item.image" class="banner-image" />
-            <div class="banner-overlay">
-              <span class="banner-title">{{ item.title }}</span>
-            </div>
+          <div class="banner-item" v-for="item in banners" :key="item.id" @click="onBannerClick(item)">
+            <img :src="item.imageUrl" class="banner-image" />
           </div>
         </div>
         <div class="banner-dots">
@@ -94,12 +91,6 @@
           </div>
           <span class="menu-name">点单</span>
         </div>
-        <div class="menu-item" @click="router.push('/address?type=select_store')">
-          <div class="menu-icon-wrapper">
-            <img class="menu-icon" src="@/assets/images/icons/pick_up_food.png" />
-          </div>
-          <span class="menu-name">取餐</span>
-        </div>
         <div class="menu-item" @click="router.push('/coupon')">
           <div class="menu-icon-wrapper">
             <img class="menu-icon" src="@/assets/images/icons/coupon.png" />
@@ -113,11 +104,11 @@
           </div>
           <span class="menu-name">钱包</span>
         </div>
-        <div class="menu-item" @click="router.push('/user/bind-card')">
+        <div class="menu-item" @click="router.push('/share')">
           <div class="menu-icon-wrapper">
-            <img class="menu-icon" src="@/assets/images/icons/scan.png" />
+            <img class="menu-icon" src="@/assets/images/icons/gift.png" />
           </div>
-          <span class="menu-name">绑卡</span>
+          <span class="menu-name">分享有礼</span>
         </div>
       </div>
 
@@ -186,31 +177,33 @@
       </div>
 
       <!-- 附近门店 -->
-      <div class="section" v-if="nearbyStore">
+      <div class="section" v-if="userStore.selectedStore">
         <div class="section-header">
           <span class="section-title">附近门店</span>
-          <div class="section-more" @click="router.push('/order')">
+          <div class="section-more" @click="router.push('/address?type=select_store')">
             <span>更多</span>
             <img class="arrow-icon" src="@/assets/images/icons/right.png" />
           </div>
         </div>
         
-        <div class="store-card">
+        <div class="store-card" @click="router.push('/address?type=select_store')">
           <div class="store-header">
-            <span class="store-name">{{ nearbyStore.name }}</span>
-            <div class="store-status open">营业中</div>
+            <span class="store-name">{{ userStore.selectedStore.name }}</span>
+            <div class="store-status" :class="userStore.selectedStore.status === 'OPEN' ? 'open' : 'closed'">
+              {{ userStore.selectedStore.status === 'OPEN' ? '营业中' : '休息中' }}
+            </div>
           </div>
           <div class="store-info">
             <img class="info-icon" src="@/assets/images/icons/address.png" />
-            <span class="store-address">{{ nearbyStore.address }}</span>
+            <span class="store-address">{{ userStore.selectedStore.address }}</span>
           </div>
           <div class="store-info">
             <img class="info-icon" src="@/assets/images/icons/info.png" />
-            <span class="store-hours">{{ nearbyStore.businessHours }}</span>
+            <span class="store-hours">{{ userStore.selectedStore.businessHours || '09:00-22:00' }}</span>
           </div>
           <div class="store-footer">
-            <span class="store-distance">距您 {{ nearbyStore.distance }}</span>
-            <div class="store-call" @click="makePhoneCall(nearbyStore.phone)">
+            <span class="store-distance" v-if="userStore.selectedStore.distance">距您 {{ userStore.selectedStore.distance.toFixed(2) }}km</span>
+            <div class="store-call" @click.stop="makePhoneCall(userStore.selectedStore.phone)">
               <img class="call-icon" src="@/assets/images/icons/phone.png" />
               <span>联系门店</span>
             </div>
@@ -232,10 +225,18 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
-import { homeApi, storeApi, bannerApi, productApi, couponApi } from '@/utils/api'
+import { homeApi, storeApi, bannerApi, productApi, couponApi, promotionApi, addressApi } from '@/utils/api'
+import { getDistance } from '@/utils/util'
 
 const router = useRouter()
 const cartStore = useCartStore()
+
+// 使用工具类计算距离 (单位: km)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null
+  // getDistance 返回的是米，转换为千米
+  return getDistance(lat1, lon1, lat2, lon2) / 1000
+}
 const userStore = useUserStore()
 
 const loading = ref(true)
@@ -245,7 +246,6 @@ const currentBanner = ref(0)
 const banners = ref([])
 const recommendProducts = ref([])
 const hotProducts = ref([])
-const nearbyStore = ref(null)
 const availableCouponCount = ref(0)
 const cartCount = ref(0)
 const cartAnimating = ref(false)
@@ -254,69 +254,168 @@ let bannerTimer = null
 
 const getLocation = () => {
   return new Promise((resolve) => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          })
-        },
-        (error) => {
-          console.error('获取定位失败:', error)
-          resolve(null)
-        },
-        { timeout: 5000 }
-      )
-    } else {
+    if (!navigator.geolocation) {
+      alert('您的浏览器不支持地理定位功能')
       resolve(null)
+      return
     }
+
+    // 检查是否是安全上下文 (HTTPS 或 localhost)
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      console.warn('地理定位需要 HTTPS 环境或 localhost')
+      // 在非安全环境下，getCurrentPosition 可能不会触发任何回调
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('定位成功:', position.coords)
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        })
+      },
+      (error) => {
+        console.error('获取定位失败:', error)
+        let msg = '定位失败'
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            msg = '您已拒绝地理定位权限，请在浏览器设置中开启'
+            break
+          case error.POSITION_UNAVAILABLE:
+            msg = '无法获取当前位置信息'
+            break
+          case error.TIMEOUT:
+            msg = '定位请求超时，请重试'
+            break
+        }
+        alert(msg)
+        resolve(null)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    )
   })
+}
+
+const updateLocationAndNearbyStores = async () => {
+  isLocating.value = true
+  try {
+    const location = await getLocation()
+    
+    // 如果定位失败，尝试获取用户默认地址作为参考
+    let refProvince = '', refCity = '', refDistrict = ''
+    if (!location) {
+      try {
+        const addrRes = await addressApi.getAddressList()
+        const defaultAddr = addrRes.find(a => a.isDefault) || addrRes[0]
+        if (defaultAddr) {
+          refProvince = defaultAddr.province
+          refCity = defaultAddr.city
+          refDistrict = defaultAddr.district
+          console.log('定位失败，使用默认地址参考:', refCity)
+        }
+      } catch (e) {
+        console.warn('获取参考地址失败')
+      }
+    }
+
+    const params = {
+      latitude: location?.latitude || null,
+      longitude: location?.longitude || null,
+      province: refProvince,
+      city: refCity,
+      district: refDistrict
+    }
+    
+    const nearbyRes = await storeApi.getNearbyStores(params)
+    
+    // 统一处理后端返回的数据结构
+    const resData = nearbyRes.data || nearbyRes
+    if (resData && (Array.isArray(resData) || Array.isArray(resData.list))) {
+      let stores = Array.isArray(resData) ? resData : resData.list
+      
+      // 如果有定位，计算精确距离并排序
+      if (location) {
+        stores = stores.map(store => {
+          const distance = calculateDistance(
+            location.latitude,
+            location.longitude,
+            store.latitude,
+            store.longitude
+          )
+          return { ...store, distance }
+        }).sort((a, b) => a.distance - b.distance)
+      } else if (refCity) {
+        // 如果没有定位但有参考城市，优先匹配同城门店
+        stores = stores.sort((a, b) => {
+          if (a.city === refCity && b.city !== refCity) return -1
+          if (a.city !== refCity && b.city === refCity) return 1
+          return 0
+        })
+      }
+      
+      const store = stores[0]
+      userStore.setSelectedStore(store)
+    }
+  } catch (e) {
+    console.error('更新定位和门店失败:', e)
+  } finally {
+    isLocating.value = false
+  }
 }
 
 const loadData = async () => {
   loading.value = true
   try {
-    // 并行获取首页数据、轮播图、推荐商品
-    // 定位改为异步，不阻塞核心数据加载
     const [homeRes, bannersRes, recommendRes] = await Promise.all([
       homeApi.getHomeData(),
       bannerApi.getBanners(),
       homeApi.getRecommendations()
     ])
     
-    // 首页数据
-    const homeData = homeRes.data || {}
+    const homeData = homeRes.data || homeRes || {}
+    const bannersData = bannersRes.data || bannersRes || []
+    const recommendData = recommendRes.data || recommendRes || []
     
-    // 轮播图
-    banners.value = bannersRes.data || []
+    banners.value = (Array.isArray(bannersData) ? bannersData : bannersData.list || []).map(b => {
+      let imageUrl = b.imageUrl || b.image
+      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+        const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+        imageUrl = `http://localhost:8081${path}`
+      }
+      return { ...b, imageUrl }
+    })
     
-    // 推荐商品
-    recommendProducts.value = recommendRes.data || []
-    
-    // 热门商品
-    hotProducts.value = homeData.hotProducts || []
-    
-    // 异步获取定位和附近门店，不阻塞页面显示
-    getLocation().then(async (location) => {
-      try {
-        const nearbyRes = await storeApi.getNearbyStores({
-          latitude: location?.latitude || null,
-          longitude: location?.longitude || null
-        })
-        
-        if (nearbyRes.data && nearbyRes.data.length > 0) {
-          const store = nearbyRes.data[0]
-          nearbyStore.value = store
-          // 自动选择最近门店
-          userStore.setSelectedStore(store)
-        } else {
-          nearbyStore.value = null
-        }
-      } catch (e) {
-        console.error('获取附近门店失败:', e)
+    recommendProducts.value = (Array.isArray(recommendData) ? recommendData : recommendData.list || []).map(p => {
+      let imageUrl = p.imageUrl || p.mainImageUrl || p.image
+      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+        const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+        imageUrl = `http://localhost:8081${path}`
+      }
+      return {
+        ...p,
+        image: imageUrl || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
       }
     })
+    
+    const hotList = homeData.hotProducts || []
+    hotProducts.value = hotList.map(p => {
+      let imageUrl = p.imageUrl || p.mainImageUrl || p.image
+      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+        const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+        imageUrl = `http://localhost:8081${path}`
+      }
+      return {
+        ...p,
+        image: imageUrl || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
+      }
+    })
+    
+    // 异步获取定位，不阻塞页面显示
+    updateLocationAndNearbyStores()
     
     // 获取可用优惠券数量
     try {
@@ -358,6 +457,7 @@ const selectOrderMode = (mode) => {
 const quickAdd = (product) => {
   cartStore.addToCart({
     ...product,
+    storeId: userStore.selectedStore?.id,
     quantity: 1
   })
   cartCount.value = cartStore.totalCount
@@ -392,67 +492,106 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   height: 100vh;
-  background: #F5F5F5;
+  background: var(--background-color, #f5f0e1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
+/* 顶部搜索栏 */
 .search-bar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  padding: 10px 15px;
+  padding: var(--spacing-lg) var(--spacing-xl);
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: var(--spacing-lg);
   background: transparent;
-  transition: all 0.3s;
+  transition: all 0.3s ease-out;
+  backdrop-filter: blur(8px);
 }
 
 .search-bar.shadow {
-  background: white;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 20px rgba(160, 82, 45, 0.08);
+  border-bottom: 2px solid var(--border-color, #d4c7b5);
 }
 
 .search-box {
   flex: 1;
-  height: 36px;
-  background: rgba(255,255,255,0.9);
-  border-radius: 18px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--border-radius-xl);
   display: flex;
   align-items: center;
-  padding: 0 15px;
-  gap: 10px;
+  padding: 0 var(--spacing-lg);
+  gap: var(--spacing-md);
   cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.25s ease-out;
+  box-shadow: 0 2px 8px rgba(160, 82, 45, 0.05);
 }
 
 .search-bar.shadow .search-box {
-  background: #F5F5F5;
+  background: var(--accent-cream, #fff8dc);
 }
 
-.search-icon { width: 16px; height: 16px; }
-.search-placeholder { font-size: 13px; color: #999; }
-.scan-btn { width: 24px; height: 24px; cursor: pointer; }
+.search-box:hover {
+  border-color: var(--primary-light, #d2b48c);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.1);
+}
+
+.search-icon {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 2px 4px rgba(160, 82, 45, 0.1));
+}
+
+.search-placeholder {
+  font-size: 15px;
+  color: var(--text-color-medium, #7a6a5b);
+  font-family: 'Nunito', sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.scan-btn {
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+  filter: drop-shadow(0 2px 6px rgba(160, 82, 45, 0.1));
+}
+
+.scan-btn:hover {
+  transform: scale(1.1) rotate(5deg);
+}
 
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 30px;
+  padding-bottom: 40px;
+  padding-top: 80px;
 }
 
+/* 轮播图 */
 .banner-container {
   position: relative;
-  height: 250px;
+  height: 280px;
   overflow: hidden;
+  margin: var(--spacing-lg);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.12);
+  border: 3px solid var(--accent-cream, #fff8dc);
 }
 
 .banner-wrapper {
   display: flex;
   height: 100%;
-  transition: transform 0.5s ease-in-out;
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .banner-item {
@@ -460,36 +599,70 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   position: relative;
+  cursor: pointer;
 }
 
 .banner-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.5s ease;
 }
 
-.banner-overlay {
+.banner-item:hover .banner-image {
+  transform: scale(1.03);
+}
+
+.banner-dots {
   position: absolute;
-  bottom: 0;
+  bottom: 20px;
   left: 0;
   right: 0;
-  padding: 40px 20px 20px;
-  background: linear-gradient(transparent, rgba(0,0,0,0.5));
-  color: white;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
 }
 
-.banner-title { font-size: 18px; font-weight: bold; }
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease-out;
+  cursor: pointer;
+}
 
-.store-selector-section {
-  margin: 15px;
-  background: white;
-  padding: 15px;
+.dot.active {
+  width: 24px;
+  background: var(--primary-color, #a0522d);
   border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(160, 82, 45, 0.3);
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* 门店选择组件 */
+.store-selector-section {
+  margin: var(--spacing-lg);
+  background: var(--surface-color, #e8dccb);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-xl);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 15px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  gap: var(--spacing-lg);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.08);
+  border: 2px solid var(--border-color, #d4c7b5);
+  backdrop-filter: blur(4px);
+  transition: all 0.25s ease-out;
+}
+
+.store-selector-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(160, 82, 45, 0.12);
+  border-color: var(--primary-light, #d2b48c);
 }
 
 .current-store {
@@ -501,13 +674,14 @@ onUnmounted(() => {
 .store-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-md);
 }
 
 .location-icon {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(160, 82, 45, 0.1));
 }
 
 .store-info-content {
@@ -518,58 +692,80 @@ onUnmounted(() => {
 .store-name-wrapper {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--spacing-sm);
   margin-bottom: 4px;
 }
 
 .store-name {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-color-dark, #4a3b30);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  letter-spacing: 0.03em;
 }
 
 .store-distance {
-  font-size: 12px;
-  color: #999;
+  font-size: 13px;
+  color: var(--accent-brown, #deb887);
   white-space: nowrap;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
 }
 
 .store-address-text {
-  font-size: 12px;
-  color: #666;
+  font-size: 13px;
+  color: var(--text-color-medium, #7a6a5b);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: 'Nunito', sans-serif;
 }
 
 .arrow-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.current-store:hover .arrow-icon {
+  transform: translateX(4px);
 }
 
 .location-action {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding-left: 15px;
-  border-left: 1px solid #eee;
+  gap: 6px;
+  padding-left: var(--spacing-lg);
+  border-left: 2px solid var(--border-color, #d4c7b5);
   cursor: pointer;
   flex-shrink: 0;
+  transition: all 0.25s ease-out;
+}
+
+.location-action:hover {
+  transform: translateY(-2px);
 }
 
 .re-location-icon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
+}
+
+.location-action:hover .re-location-icon {
+  transform: rotate(15deg);
 }
 
 .location-action span {
-  font-size: 10px;
-  color: #999;
+  font-size: 11px;
+  color: var(--text-color-medium, #7a6a5b);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
 }
 
 .rotating {
@@ -581,235 +777,661 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-.banner-dots {
-  position: absolute;
-  bottom: 15px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(255,255,255,0.5);
-  transition: all 0.3s;
-}
-
-.dot.active {
-  width: 15px;
-  background: #D4A574;
-}
-
+/* 点餐方式选择 */
 .order-mode-section {
-  margin: 0 15px 15px;
+  margin: 0 var(--spacing-lg) var(--spacing-lg);
   background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  padding: var(--spacing-xl);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.08);
+  border: 2px solid var(--border-color, #d4c7b5);
+  backdrop-filter: blur(4px);
 }
 
 .mode-title {
-  font-size: 15px;
-  font-weight: bold;
-  margin-bottom: 15px;
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: var(--spacing-lg);
+  color: var(--text-color-dark, #4a3b30);
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  letter-spacing: 0.03em;
 }
 
 .mode-buttons {
   display: flex;
-  gap: 15px;
+  gap: var(--spacing-lg);
 }
 
 .mode-card {
   flex: 1;
   display: flex;
   align-items: center;
-  padding: 15px;
-  border-radius: 8px;
-  gap: 12px;
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-lg);
+  gap: var(--spacing-md);
   cursor: pointer;
+  transition: all 0.25s ease-out;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
 }
 
-.mode-card.delivery { background: #FFF9F0; }
-.mode-card.pickup { background: #F0F7FF; }
+.mode-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(160, 82, 45, 0.15);
+}
 
-.mode-icon { width: 40px; height: 40px; }
-.mode-name { font-size: 14px; font-weight: bold; display: block; }
-.mode-desc { font-size: 11px; color: #999; }
+.mode-card.delivery {
+  background: linear-gradient(135deg, rgba(255, 248, 220, 0.8), rgba(255, 240, 225, 0.9));
+  border-color: var(--accent-cream, #fff8dc);
+}
 
+.mode-card.pickup {
+  background: linear-gradient(135deg, rgba(222, 184, 135, 0.1), rgba(210, 180, 140, 0.2));
+  border-color: var(--accent-brown, #deb887);
+}
+
+.mode-icon {
+  width: 48px;
+  height: 48px;
+  transition: transform 0.3s ease;
+}
+
+.mode-card:hover .mode-icon {
+  transform: scale(1.1);
+}
+
+.mode-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.mode-name {
+  font-size: 15px;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-color-dark, #4a3b30);
+  font-family: 'Prompt', serif;
+  letter-spacing: 0.03em;
+}
+
+.mode-desc {
+  font-size: 12px;
+  color: var(--text-color-medium, #7a6a5b);
+  font-family: 'Nunito', sans-serif;
+}
+
+/* 快捷入口 */
 .quick-menu {
   display: flex;
   justify-content: space-around;
-  padding: 15px;
+  padding: var(--spacing-lg);
   background: white;
-  margin: 0 15px 15px;
-  border-radius: 12px;
+  margin: 0 var(--spacing-lg) var(--spacing-lg);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.08);
+  border: 2px solid var(--border-color, #d4c7b5);
 }
 
 .menu-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
   cursor: pointer;
+  transition: all 0.25s ease-out;
+  position: relative;
+}
+
+.menu-item:hover {
+  transform: translateY(-4px);
 }
 
 .menu-icon-wrapper {
-  width: 45px;
-  height: 45px;
-  background: #FDF8F3;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--accent-cream, #fff8dc), rgba(255, 248, 220, 0.8));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  border: 3px solid var(--border-color, #d4c7b5);
+  transition: all 0.3s ease;
 }
 
-.menu-icon { width: 24px; height: 24px; }
-.menu-name { font-size: 12px; color: #333; }
+.menu-item:hover .menu-icon-wrapper {
+  background: linear-gradient(135deg, var(--primary-light, #d2b48c), var(--accent-cream, #fff8dc));
+  border-color: var(--primary-color, #a0522d);
+  transform: scale(1.1);
+}
+
+.menu-icon {
+  width: 28px;
+  height: 28px;
+  transition: transform 0.3s ease;
+}
+
+.menu-item:hover .menu-icon {
+  transform: scale(1.1);
+}
+
+.menu-name {
+  font-size: 13px;
+  color: var(--text-color-dark, #4a3b30);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
 
 .coupon-badge {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  background: #FF6B6B;
+  top: -4px;
+  right: -4px;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
   color: white;
   font-size: 10px;
-  padding: 0 4px;
-  border-radius: 8px;
-  border: 2px solid white;
+  padding: 2px 6px;
+  border-radius: 12px;
+  border: 3px solid white;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+  animation: pulse 2s ease-in-out infinite;
 }
 
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* 通用区块样式 */
 .section {
-  margin: 0 15px 20px;
+  margin: 0 var(--spacing-lg) var(--spacing-xl);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-lg);
 }
 
-.section-title { font-size: 16px; font-weight: bold; }
-.section-more { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #999; cursor: pointer; }
-.arrow-icon { width: 12px; height: 12px; }
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-color-dark, #4a3b30);
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  letter-spacing: 0.03em;
+}
 
+.section-more {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-color-medium, #7a6a5b);
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: all 0.25s ease-out;
+}
+
+.section-more:hover {
+  color: var(--primary-color, #a0522d);
+  transform: translateX(4px);
+}
+
+.section-more:hover .arrow-icon {
+  transform: translateX(4px);
+}
+
+/* 推荐商品 */
 .recommend-scroll {
   overflow-x: auto;
-  padding-bottom: 5px;
+  padding-bottom: 10px;
+  margin: 0 -15px;
+  padding: 0 15px;
 }
 
 .recommend-list {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-lg);
 }
 
 .recommend-item {
-  width: 140px;
+  width: 160px;
   flex-shrink: 0;
   background: white;
-  border-radius: 8px;
+  border-radius: var(--border-radius-lg);
   overflow: hidden;
   cursor: pointer;
+  transition: all 0.25s ease-out;
+  border: 2px solid var(--border-color, #d4c7b5);
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.08);
 }
 
-.recommend-image { width: 140px; height: 140px; object-fit: cover; }
-.recommend-info { padding: 10px; }
-.recommend-name { font-size: 13px; font-weight: bold; display: block; margin-bottom: 8px; }
-.recommend-bottom { display: flex; justify-content: space-between; align-items: center; }
-.recommend-price { font-size: 14px; color: #D4A574; font-weight: bold; }
-.add-icon { width: 20px; height: 20px; cursor: pointer; }
-
-.hot-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.recommend-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(160, 82, 45, 0.15);
+  border-color: var(--primary-light, #d2b48c);
 }
 
-.hot-item {
-  display: flex;
-  background: white;
-  padding: 12px;
-  border-radius: 8px;
-  gap: 12px;
-  cursor: pointer;
+.recommend-image {
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+  transition: transform 0.5s ease;
 }
 
-.hot-image { width: 80px; height: 80px; border-radius: 4px; object-fit: cover; }
-.hot-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
-.hot-name { font-size: 14px; font-weight: bold; }
-.hot-desc { font-size: 11px; color: #999; }
-.hot-bottom { display: flex; justify-content: space-between; align-items: center; }
-.hot-price { font-size: 15px; color: #D4A574; font-weight: bold; }
-.hot-sales { font-size: 11px; color: #999; margin-left: 10px; }
-
-.store-card {
-  background: white;
-  padding: 15px;
-  border-radius: 12px;
+.recommend-item:hover .recommend-image {
+  transform: scale(1.05);
 }
 
-.store-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.store-name { font-size: 15px; font-weight: bold; }
-.store-status { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
-.store-status.open { background: #E6F7ED; color: #27AE60; }
+.recommend-info {
+  padding: var(--spacing-md);
+}
 
-.store-info { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: #666; }
-.info-icon { width: 14px; height: 14px; }
+.recommend-name {
+  font-size: 14px;
+  font-weight: 700;
+  display: block;
+  margin-bottom: var(--spacing-sm);
+  color: var(--text-color-dark, #4a3b30);
+  font-family: 'Prompt', serif;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+}
 
-.store-footer {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #F5F5F5;
+.recommend-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.store-distance { font-size: 12px; color: #999; }
-.store-call { display: flex; align-items: center; gap: 6px; color: #D4A574; font-size: 13px; cursor: pointer; }
-.call-icon { width: 16px; height: 16px; }
+.recommend-price {
+  font-size: 16px;
+  color: var(--primary-color, #a0522d);
+  font-weight: 700;
+  font-family: 'Prompt', serif;
+  letter-spacing: 0.03em;
+}
 
+.add-icon {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+  filter: drop-shadow(0 2px 4px rgba(160, 82, 45, 0.1));
+}
+
+.add-icon:hover {
+  transform: scale(1.2) rotate(15deg);
+}
+
+/* 今日热门 */
+.hot-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.hot-item {
+  display: flex;
+  background: white;
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-lg);
+  gap: var(--spacing-lg);
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+  border: 2px solid var(--border-color, #d4c7b5);
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.08);
+}
+
+.hot-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(160, 82, 45, 0.15);
+  border-color: var(--primary-light, #d2b48c);
+}
+
+.hot-image {
+  width: 100px;
+  height: 100px;
+  border-radius: var(--border-radius-md);
+  object-fit: cover;
+  border: 3px solid var(--accent-cream, #fff8dc);
+  transition: transform 0.5s ease;
+}
+
+.hot-item:hover .hot-image {
+  transform: scale(1.05);
+}
+
+.hot-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hot-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-color-dark, #4a3b30);
+  font-family: 'Prompt', serif;
+  letter-spacing: 0.03em;
+  margin-bottom: 4px;
+}
+
+.hot-desc {
+  font-size: 12px;
+  color: var(--text-color-medium, #7a6a5b);
+  font-family: 'Nunito', sans-serif;
+  line-height: 1.4;
+  margin-bottom: var(--spacing-md);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hot-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hot-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.hot-price {
+  font-size: 16px;
+  color: var(--primary-color, #a0522d);
+  font-weight: 700;
+  font-family: 'Prompt', serif;
+  letter-spacing: 0.03em;
+}
+
+.hot-sales {
+  font-size: 12px;
+  color: var(--accent-brown, #deb887);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}
+
+/* 附近门店 */
+.store-card {
+  background: white;
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.08);
+  border: 2px solid var(--border-color, #d4c7b5);
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+}
+
+.store-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(160, 82, 45, 0.15);
+  border-color: var(--primary-light, #d2b48c);
+}
+
+.store-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.store-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-color-dark, #4a3b30);
+  font-family: 'Prompt', serif;
+  letter-spacing: 0.03em;
+}
+
+.store-status {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--border-radius-md);
+  font-weight: 600;
+  font-family: 'Nunito', sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.store-status.open {
+  background: linear-gradient(135deg, rgba(44, 150, 120, 0.15), rgba(44, 150, 120, 0.25));
+  color: #2c9678;
+  border: 1px solid rgba(44, 150, 120, 0.3);
+}
+
+.store-status.closed {
+  background: linear-gradient(135deg, rgba(193, 60, 60, 0.15), rgba(193, 60, 60, 0.25));
+  color: #c13c3c;
+  border: 1px solid rgba(193, 60, 60, 0.3);
+}
+
+.store-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  font-size: 13px;
+  color: var(--text-color-medium, #7a6a5b);
+  font-family: 'Nunito', sans-serif;
+}
+
+.info-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.store-footer {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 2px solid var(--border-color, #d4c7b5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.store-distance {
+  font-size: 13px;
+  color: var(--accent-brown, #deb887);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}
+
+.store-call {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary-color, #a0522d);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--border-radius-md);
+  background: rgba(160, 82, 45, 0.1);
+  border: 2px solid transparent;
+  transition: all 0.25s ease-out;
+}
+
+.store-call:hover {
+  background: rgba(160, 82, 45, 0.2);
+  border-color: var(--primary-color, #a0522d);
+  transform: translateY(-2px);
+}
+
+.call-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* 购物车浮动按钮 */
 .cart-float {
   position: fixed;
-  right: 20px;
-  bottom: 30px;
-  width: 50px;
-  height: 50px;
-  background: #D4A574;
+  right: var(--spacing-xl);
+  bottom: var(--spacing-xl);
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--primary-color, #a0522d), var(--primary-dark, #8b4513));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(212,165,116,0.4);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.4);
   transform: scale(0);
-  transition: transform 0.3s;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
+  z-index: 99;
+  border: 3px solid var(--accent-cream, #fff8dc);
 }
 
-.cart-float.show { transform: scale(1); }
-.cart-icon { width: 24px; height: 24px; }
+.cart-float.show {
+  transform: scale(1);
+}
+
+.cart-float:hover {
+  transform: scale(1.1);
+  box-shadow: 0 12px 35px rgba(160, 82, 45, 0.5);
+}
+
+.cart-icon {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
 .cart-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #FF6B6B;
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
   color: white;
-  font-size: 10px;
-  padding: 0 4px;
-  border-radius: 9px;
-  min-width: 18px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  min-width: 22px;
   text-align: center;
-  border: 2px solid white;
+  border: 3px solid white;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
 }
 
-.bounce { animation: bounce 0.6s; }
+.bounce {
+  animation: bounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 @keyframes bounce {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.2); }
+  50% { transform: scale(1.3); }
+}
+
+/* 骨架屏样式 */
+.skeleton-container {
+  padding: var(--spacing-lg);
+}
+
+.skeleton-banner {
+  height: 280px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  border-radius: var(--border-radius-xl);
+  margin-bottom: var(--spacing-lg);
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-mode {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.skeleton-mode-item {
+  flex: 1;
+  height: 100px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  border-radius: var(--border-radius-lg);
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-menu {
+  display: flex;
+  justify-content: space-around;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.skeleton-menu-item {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  border-radius: 50%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .search-bar {
+    padding: var(--spacing-md);
+  }
+
+  .main-content {
+    padding-top: 70px;
+  }
+
+  .banner-container {
+    height: 200px;
+    margin: var(--spacing-md);
+  }
+
+  .store-selector-section,
+  .order-mode-section,
+  .quick-menu,
+  .section {
+    margin: 0 var(--spacing-md) var(--spacing-lg);
+  }
+
+  .mode-buttons {
+    flex-direction: column;
+  }
+
+  .recommend-item {
+    width: 140px;
+  }
+
+  .recommend-image {
+    width: 140px;
+    height: 140px;
+  }
+
+  .hot-item {
+    flex-direction: column;
+  }
+
+  .hot-image {
+    width: 100%;
+    height: 120px;
+  }
+
+  .cart-float {
+    width: 56px;
+    height: 56px;
+    right: var(--spacing-md);
+    bottom: var(--spacing-md);
+  }
 }
 </style>

@@ -383,43 +383,67 @@ onMounted(() => {
   updateSelectedCoupon(props.value)
 })
 </script>
-
 <style scoped>
+/* 饮饮茶 (SipSipTea) - 奶茶主题优惠券选择器样式 */
 .coupon-selector {
   width: 100%;
 }
 
+/* 选择按钮样式 */
 .default-trigger {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px solid #eee;
+  padding: var(--spacing-md) var(--spacing-sm);
+  background: linear-gradient(135deg, var(--accent-cream) 0%, var(--surface-color) 100%);
+  border-radius: var(--border-radius-lg);
+  border: 2px solid rgba(var(--primary-color-rgb), 0.15);
+  box-shadow: 0 4px 15px rgba(var(--primary-color-rgb), 0.05);
+  backdrop-filter: blur(3px);
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease-out;
+  cursor: pointer;
+}
+
+.default-trigger:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(var(--primary-color-rgb), 0.1);
+  border-color: rgba(var(--primary-color-rgb), 0.25);
+}
+
+.default-trigger:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .trigger-content {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
 .trigger-text {
   font-size: 14px;
-  color: #999;
+  color: var(--text-color-medium);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  opacity: 0.7;
+  transition: all 0.3s ease-out;
 }
 
 .has-value .trigger-text {
-  color: #333;
-  font-weight: bold;
+  color: var(--primary-color);
+  font-weight: 600;
+  opacity: 1;
 }
 
 .trigger-desc {
   font-size: 12px;
-  color: var(--primary-color, #D4A574);
-  margin-top: 4px;
+  color: var(--accent-pink);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.03em;
+  font-weight: 500;
 }
 
+/* 弹窗样式 */
 .coupon-modal {
   position: fixed;
   top: 0;
@@ -438,232 +462,473 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(var(--primary-color-rgb), 0.12);
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.3s ease-out;
 }
 
 .modal-content {
   position: relative;
-  background: #f8f8f8;
-  border-radius: 16px 16px 0 0;
+  background: linear-gradient(to bottom, var(--accent-cream) 0%, var(--surface-color) 100%);
+  border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 -8px 30px rgba(var(--primary-color-rgb), 0.08);
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* 弹窗头部 */
 .modal-header {
-  padding: 16px;
+  padding: var(--spacing-lg) var(--spacing-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-  border-radius: 16px 16px 0 0;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(var(--surface-color-rgb), 0.9);
+  border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
 }
 
 .modal-title {
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  color: var(--primary-color);
+  letter-spacing: 0.08em;
+  line-height: 1.6;
 }
 
+.icon-close {
+  font-size: 20px;
+  color: var(--text-color-medium);
+  cursor: pointer;
+  transition: all 0.3s ease-out;
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.icon-close:hover {
+  color: var(--primary-color);
+  background: rgba(var(--primary-color-rgb), 0.1);
+  transform: rotate(90deg);
+}
+
+/* 筛选标签 */
 .filter-tabs {
-  background: #fff;
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
+  background: rgba(var(--surface-color-rgb), 0.85);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(4px);
 }
 
 .tab-scroll {
   overflow-x: auto;
   white-space: nowrap;
-  padding: 0 16px;
+  padding: 0 var(--spacing-md);
+  scrollbar-width: none;
+}
+
+.tab-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-list {
   display: flex;
-  gap: 20px;
+  gap: var(--spacing-md);
 }
 
 .tab-item {
   font-size: 14px;
-  color: #666;
-  padding: 4px 0;
+  color: var(--text-color-medium);
+  padding: 6px 0;
   position: relative;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  opacity: 0.7;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.3s ease-out;
+  white-space: nowrap;
+}
+
+.tab-item:hover {
+  color: var(--primary-color);
+  opacity: 0.9;
 }
 
 .tab-item.active {
-  color: var(--primary-color, #D4A574);
-  font-weight: bold;
+  color: var(--primary-color);
+  font-weight: 600;
+  opacity: 1;
 }
 
 .tab-item.active::after {
   content: '';
   position: absolute;
-  bottom: -4px;
+  bottom: -6px;
   left: 0;
   right: 0;
-  height: 2px;
-  background: var(--primary-color, #D4A574);
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  border-radius: var(--border-radius-sm);
+  animation: tabSlide 0.3s ease-out;
 }
 
+/* 优惠券列表 */
 .coupon-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: var(--spacing-md);
 }
 
 .coupon-item {
   display: flex;
-  background: #fff;
-  border-radius: 8px;
-  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--border-radius-lg);
+  margin-bottom: var(--spacing-sm);
   overflow: hidden;
   position: relative;
-  border: 1px solid transparent;
+  border: 2px solid var(--border-color);
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease-out;
+  cursor: pointer;
+}
+
+.coupon-item:hover:not(.disabled) {
+  transform: translateY(-2px);
+  border-color: var(--primary-light);
+  box-shadow: 0 4px 15px rgba(var(--primary-color-rgb), 0.08);
 }
 
 .coupon-item.selected {
-  border-color: var(--primary-color, #D4A574);
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 20px rgba(var(--primary-color-rgb), 0.15);
+  transform: translateY(-2px) scale(1.01);
 }
 
 .coupon-item.disabled {
-  opacity: 0.6;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
+/* 左侧优惠信息 */
 .coupon-left {
   width: 100px;
-  background: var(--primary-color, #D4A574);
-  color: #fff;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: var(--accent-cream);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: var(--spacing-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.coupon-left::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
 }
 
 .coupon-item.disabled .coupon-left {
-  background: #ccc;
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--border-color) 100%);
 }
 
 .coupon-value {
   display: flex;
   align-items: baseline;
+  gap: 2px;
 }
 
 .value-symbol {
   font-size: 14px;
-  margin-right: 2px;
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  font-weight: 500;
 }
 
 .value-number {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: 26px;
+  font-weight: 700;
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  letter-spacing: 0.05em;
+  line-height: 1;
 }
 
 .value-unit {
   font-size: 12px;
-  margin-left: 2px;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  font-weight: 500;
 }
 
 .coupon-conditions {
   font-size: 10px;
-  margin-top: 4px;
+  margin-top: 6px;
   text-align: center;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.03em;
+  opacity: 0.9;
+  font-weight: 500;
 }
 
+/* 右侧详细信息 */
 .coupon-right {
   flex: 1;
-  padding: 12px;
+  padding: var(--spacing-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .coupon-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  flex: 1;
 }
 
 .coupon-name {
-  font-size: 15px;
-  font-weight: bold;
-  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color-dark);
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  letter-spacing: 0.05em;
 }
 
 .coupon-desc {
-  font-size: 12px;
-  color: #999;
+  font-size: 13px;
+  color: var(--accent-pink);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  opacity: 0.8;
+  letter-spacing: 0.03em;
+  font-weight: 500;
 }
 
 .coupon-validity {
-  font-size: 11px;
-  color: #bbb;
-  margin-top: 4px;
+  font-size: 12px;
+  color: var(--accent-brown);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+
+/* 选择状态 */
+.coupon-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .status-indicator {
-  color: var(--primary-color, #D4A574);
+  color: var(--primary-color);
+  font-size: 20px;
+  animation: checkPop 0.3s ease-out;
 }
 
 .status-text {
   font-size: 12px;
-  color: #999;
+  color: var(--text-color-medium);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  opacity: 0.6;
+  letter-spacing: 0.03em;
+  font-weight: 500;
 }
 
+/* 空状态 */
 .empty-coupons {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 0;
+  padding: var(--spacing-xl) 0;
+  text-align: center;
 }
 
 .empty-icon {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  width: 80px;
+  height: 80px;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.4;
+  filter: grayscale(0.8);
+  transition: all 0.5s ease-out;
+}
+
+.empty-coupons:hover .empty-icon {
+  opacity: 0.6;
+  filter: grayscale(0.5);
+  transform: scale(1.05);
 }
 
 .empty-text {
-  font-size: 15px;
-  color: #333;
-  margin-bottom: 8px;
+  font-size: 16px;
+  color: var(--text-color-dark);
+  margin-bottom: var(--spacing-xs);
+  font-family: 'Prompt', 'Noto Serif KR', serif;
+  letter-spacing: 0.05em;
+  font-weight: 500;
 }
 
 .empty-hint {
-  font-size: 13px;
-  color: #999;
+  font-size: 14px;
+  color: var(--accent-pink);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  opacity: 0.7;
+  letter-spacing: 0.03em;
+  font-weight: 500;
 }
 
+/* 底部操作按钮 */
 .modal-footer {
-  padding: 16px;
+  padding: var(--spacing-lg) var(--spacing-md);
   display: flex;
-  gap: 12px;
-  background: #fff;
-  border-top: 1px solid #eee;
+  gap: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+  background: rgba(var(--surface-color-rgb), 0.9);
 }
 
 .btn {
   flex: 1;
-  height: 44px;
-  border-radius: 22px;
+  height: 48px;
+  border-radius: var(--border-radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 16px;
   border: none;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  transition: all 0.3s ease-out;
+  cursor: pointer;
+  gap: 8px;
 }
 
 .btn-secondary {
-  background: #f5f5f5;
-  color: #333;
+  background: rgba(var(--primary-color-rgb), 0.08);
+  color: var(--primary-color);
+  border: 2px solid rgba(var(--primary-color-rgb), 0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(var(--primary-color-rgb), 0.15);
+  border-color: rgba(var(--primary-color-rgb), 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .btn-primary {
-  background: var(--primary-color, #D4A574);
-  color: #fff;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: var(--accent-cream);
+  box-shadow: 0 4px 15px rgba(var(--primary-color-rgb), 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--primary-color-rgb), 0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .btn-primary:disabled {
   opacity: 0.5;
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--border-color) 100%);
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes tabSlide {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes checkPop {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 滚动条样式 */
+.coupon-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.coupon-list::-webkit-scrollbar-track {
+  background: rgba(var(--border-color-rgb), 0.3);
+  border-radius: var(--border-radius-sm);
+}
+
+.coupon-list::-webkit-scrollbar-thumb {
+  background: var(--primary-light);
+  border-radius: var(--border-radius-sm);
+}
+
+.coupon-list::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+/* 优惠券装饰效果 */
+.coupon-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100px;
+  bottom: 0;
+  width: 1px;
+  background: repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 6px,
+      var(--border-color) 6px,
+      var(--border-color) 12px
+  );
+}
+
+.coupon-item.selected::before {
+  background: repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 6px,
+      var(--primary-color) 6px,
+      var(--primary-color) 12px
+  );
 }
 </style>

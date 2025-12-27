@@ -29,6 +29,15 @@ public class Store {
     @Column(name = "code", length = 20, unique = true)
     private String code;
 
+    @Column(name = "province", length = 50)
+    private String province;
+
+    @Column(name = "city", length = 50)
+    private String city;
+
+    @Column(name = "district", length = 50)
+    private String district;
+
     @Column(name = "address", length = 200)
     private String address;
 

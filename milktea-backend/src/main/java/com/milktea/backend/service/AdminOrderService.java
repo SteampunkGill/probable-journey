@@ -113,6 +113,7 @@ public class AdminOrderService {
         dto.setPayMethod(order.getPayMethod());
         dto.setTransactionId(order.getTransactionId());
         dto.setPayTime(order.getPayTime());
+        dto.setOrderTime(order.getOrderTime());
         dto.setDeliveryType(order.getDeliveryType());
         dto.setAddressJson(order.getAddressJson());
         dto.setPickupCode(order.getPickupCode());

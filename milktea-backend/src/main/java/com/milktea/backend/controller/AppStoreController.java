@@ -20,7 +20,10 @@ public class AppStoreController {
     public ApiResponse<List<Store>> getNearbyStores(
             @RequestParam(required = false) BigDecimal latitude,
             @RequestParam(required = false) BigDecimal longitude,
-            @RequestParam(required = false) Double radius) {
+            @RequestParam(required = false) Double radius,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String district) {
         
         if (latitude != null && longitude != null) {
             if (radius != null) {
@@ -28,6 +31,8 @@ public class AppStoreController {
             } else {
                 return ApiResponse.success(storeService.findAllOpenStoresOrderByDistance(latitude, longitude));
             }
+        } else if (province != null || city != null || district != null) {
+            return ApiResponse.success(storeService.findOpenStoresByRegion(province, city, district));
         } else {
             return ApiResponse.success(storeService.findOpenStores());
         }

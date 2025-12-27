@@ -82,6 +82,24 @@ public class StoreService {
     }
 
     /**
+     * 根据区域获取营业中的门店列表
+     * @param province 省
+     * @param city 市
+     * @param district 区
+     * @return 门店列表
+     */
+    public List<Store> findOpenStoresByRegion(String province, String city, String district) {
+        if (StringUtils.hasText(district)) {
+            return storeRepository.findByDistrictAndStatus(district, "OPEN");
+        } else if (StringUtils.hasText(city)) {
+            return storeRepository.findByCityAndStatus(city, "OPEN");
+        } else if (StringUtils.hasText(province)) {
+            return storeRepository.findByProvinceAndStatus(province, "OPEN");
+        }
+        return findOpenStores();
+    }
+
+    /**
      * 获取支持配送的门店列表
      * @return 门店列表
      */
@@ -121,6 +139,15 @@ public class StoreService {
             // 更新基本信息
             if (storeDetails.getName() != null) {
                 store.setName(storeDetails.getName());
+            }
+            if (storeDetails.getProvince() != null) {
+                store.setProvince(storeDetails.getProvince());
+            }
+            if (storeDetails.getCity() != null) {
+                store.setCity(storeDetails.getCity());
+            }
+            if (storeDetails.getDistrict() != null) {
+                store.setDistrict(storeDetails.getDistrict());
             }
             if (storeDetails.getAddress() != null) {
                 store.setAddress(storeDetails.getAddress());

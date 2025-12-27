@@ -22,7 +22,7 @@ public class Promotion {
     private String name;
 
     @Column(name = "type", nullable = false, length = 50)
-    private String type; // FULL_REDUCE, SECOND_HALF, FLASH_SALE
+    private String type; // FULL_REDUCE, SECOND_HALF, LIMITED_DISCOUNT, FLASH_SALE
 
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;

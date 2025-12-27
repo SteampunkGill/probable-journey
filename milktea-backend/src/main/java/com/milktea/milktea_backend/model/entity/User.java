@@ -86,6 +86,18 @@ public class User implements UserDetails {
     
     @Column(name = "member_card_no", length = 50)
     private String memberCardNo;
+
+    @Column(name = "push_notification_enabled")
+    private Boolean pushNotificationEnabled = true;
+
+    @Column(name = "push_order_update")
+    private Boolean pushOrderUpdate = true;
+
+    @Column(name = "push_marketing")
+    private Boolean pushMarketing = false;
+
+    @Column(name = "invite_code", length = 20, unique = true)
+    private String inviteCode;
     
     @Column(name = "status", length = 20, nullable = false) // 用户状态：ACTIVE, INACTIVE, LOCKED
     private String status = "ACTIVE";

@@ -37,4 +37,22 @@ public class Notification {
 
     @Column(name = "status", length = 20)
     private String status; // SENT
+
+    @Column(name = "push_type", length = 20)
+    private String pushType; // MARKETING, ACTIVITY
+
+    @Column(name = "trigger_type", length = 20)
+    private String triggerType; // IMMEDIATE, SCHEDULED, BEHAVIOR_TRIGGER
+
+    @Column(name = "trigger_condition")
+    private String triggerCondition;
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @Column(name = "link_url")
+    private String linkUrl;
+
+    @Column(name = "scheduled_time")
+    private LocalDateTime scheduledTime;
 }

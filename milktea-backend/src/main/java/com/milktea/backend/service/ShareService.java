@@ -21,19 +21,25 @@ public class ShareService {
     private final com.milktea.backend.repository.UserRepository userRepository;
     private final com.milktea.backend.repository.PointTransactionRepository pointTransactionRepository;
     private final CouponService couponService;
+    private final com.milktea.backend.repository.UserShareRewardRepository userShareRewardRepository;
+    private final com.milktea.backend.repository.UserInviteRewardRepository userInviteRewardRepository;
 
     public ShareService(UserShareRepository userShareRepository,
                         SystemConfigRepository systemConfigRepository,
                         UserService userService,
                         com.milktea.backend.repository.UserRepository userRepository,
                         com.milktea.backend.repository.PointTransactionRepository pointTransactionRepository,
-                        CouponService couponService) {
+                        CouponService couponService,
+                        com.milktea.backend.repository.UserShareRewardRepository userShareRewardRepository,
+                        com.milktea.backend.repository.UserInviteRewardRepository userInviteRewardRepository) {
         this.userShareRepository = userShareRepository;
         this.systemConfigRepository = systemConfigRepository;
         this.userService = userService;
         this.userRepository = userRepository;
         this.pointTransactionRepository = pointTransactionRepository;
         this.couponService = couponService;
+        this.userShareRewardRepository = userShareRewardRepository;
+        this.userInviteRewardRepository = userInviteRewardRepository;
     }
 
     /**
@@ -81,6 +87,14 @@ public class ShareService {
         
         // 发放优惠券 (假设模板ID为3是分享领取的优惠券)
         couponService.receiveCoupon(3L);
+
+        // 记录奖励
+        com.milktea.milktea_backend.model.entity.UserShareReward reward = new com.milktea.milktea_backend.model.entity.UserShareReward();
+        reward.setUser(currentUser);
+        reward.setShareId(shareId);
+        reward.setRewardType("COUPON");
+        reward.setRewardValue("分享专享8折券");
+        userShareRewardRepository.save(reward);
     }
 
     /**
@@ -120,6 +134,13 @@ public class ShareService {
         pt2.setType("EARN");
         pt2.setRemark("受邀注册奖励");
         pointTransactionRepository.save(pt2);
+
+        // 记录邀请奖励
+        com.milktea.milktea_backend.model.entity.UserInviteReward reward = new com.milktea.milktea_backend.model.entity.UserInviteReward();
+        reward.setInviter(inviter);
+        reward.setInvitee(invitee);
+        reward.setRewardStatus("ISSUED");
+        userInviteRewardRepository.save(reward);
     }
 
     /**

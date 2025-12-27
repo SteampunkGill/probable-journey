@@ -299,6 +299,14 @@ export const socialApi = {
   rewardInvite: (inviteeId) => post('/share/reward-invite', { inviteeId })
 }
 
+// 分享相关
+export const shareApi = {
+  // 获取分享统计
+  getShareStats: () => get('/share/stats'),
+  // 获取分享奖励记录
+  getRewardRecords: () => get('/share/rewards')
+}
+
 // 公共接口
 export const commonApi = {
   // 获取门店列表

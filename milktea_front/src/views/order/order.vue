@@ -38,6 +38,73 @@
 
       <!-- 右侧商品列表 -->
       <div class="product-section" @scroll="onScroll">
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+          <div class="sort-options">
+            <div
+              class="sort-item"
+              :class="{ active: filterConfig.sortBy === 'default' }"
+              @click="filterConfig.sortBy = 'default'"
+            >综合</div>
+            <div
+              class="sort-item"
+              :class="{ active: filterConfig.sortBy === 'sales' }"
+              @click="filterConfig.sortBy = 'sales'"
+            >销量</div>
+            <div
+              class="sort-item"
+              :class="{ active: filterConfig.sortBy === 'price' }"
+              @click="togglePriceSort"
+            >
+              价格
+              <div class="price-arrows">
+                <i class="arrow-up" :class="{ active: filterConfig.sortBy === 'price' && filterConfig.sortOrder === 'asc' }"></i>
+                <i class="arrow-down" :class="{ active: filterConfig.sortBy === 'price' && filterConfig.sortOrder === 'desc' }"></i>
+              </div>
+            </div>
+          </div>
+          <div class="filter-dropdown" @click="showFilterPanel = !showFilterPanel">
+            <span :class="{ active: filterConfig.sugarLevel !== 'all' }">
+              {{ sugarLevelLabel }}
+            </span>
+            <i class="iconfont icon-filter"></i>
+          </div>
+          
+          <!-- 糖度筛选面板 -->
+          <div class="filter-panel" v-if="showFilterPanel">
+            <div class="panel-mask" @click="showFilterPanel = false"></div>
+            <div class="panel-content">
+              <div class="panel-title">糖度筛选</div>
+              <div class="filter-options">
+                <div
+                  class="filter-opt-item"
+                  :class="{ active: filterConfig.sugarLevel === 'all' }"
+                  @click="selectSugar('all')"
+                >全部</div>
+                <div
+                  class="filter-opt-item"
+                  :class="{ active: filterConfig.sugarLevel === 'no' }"
+                  @click="selectSugar('no')"
+                >无糖</div>
+                <div
+                  class="filter-opt-item"
+                  :class="{ active: filterConfig.sugarLevel === 'low' }"
+                  @click="selectSugar('low')"
+                >低糖</div>
+                <div
+                  class="filter-opt-item"
+                  :class="{ active: filterConfig.sugarLevel === 'normal' }"
+                  @click="selectSugar('normal')"
+                >正常糖</div>
+              </div>
+              <div class="panel-footer">
+                <button class="reset-btn" @click="resetFilter">重置</button>
+                <button class="confirm-btn" @click="showFilterPanel = false">确定</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 骨架屏 -->
         <div class="skeleton-list" v-if="loading && productList.length === 0">
           <div class="skeleton-product" v-for="i in 5" :key="i"></div>
@@ -92,10 +159,19 @@
       </div>
     </div>
 
-    <!-- 购物车浮动按钮 -->
-    <div class="cart-float" :class="{ show: cartCount > 0 }" @click="router.push('/cart')">
-      <img class="cart-icon" src="../../assets/images/icons/cart.png" />
-      <div class="cart-badge" :class="{ bounce: cartAnimating }">{{ cartCount }}</div>
+    <!-- 底部购物车栏 -->
+    <div class="cart-bar" v-if="cartCount > 0">
+      <div class="cart-bar-content" @click="router.push('/cart')">
+        <div class="cart-icon-wrapper">
+          <img class="cart-icon" src="../../assets/images/icons/cart.png" />
+          <div class="cart-badge" :class="{ bounce: cartAnimating }">{{ cartCount }}</div>
+        </div>
+        <div class="cart-info">
+          <div class="total-price">¥{{ cartStore.totalPrice.toFixed(2) }}</div>
+          <div class="delivery-info">另需配送费约 ¥5</div>
+        </div>
+        <button class="checkout-btn" @click.stop="router.push('/cart')">去结算</button>
+      </div>
     </div>
 
     <!-- 定制弹窗 -->
@@ -214,27 +290,58 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
+import { useUserStore } from '../../store/user'
 import { productApi } from '@/utils/api'
 import heartIcon from '../../assets/images/icons/heart.png'
 import heartFillIcon from '../../assets/images/icons/heart-fill.png'
 
 const router = useRouter()
 const cartStore = useCartStore()
+const userStore = useUserStore()
 
-const categories = [
-  { id: 1, name: '经典奶茶', icon: '🧋' },
-  { id: 2, name: '果茶系列', icon: '🍹' },
-  { id: 3, name: '咖啡系列', icon: '☕' },
-  { id: 4, name: '芝士奶盖', icon: '🧀' },
-  { id: 5, name: '冰沙系列', icon: '🍦' }
-]
-
-const activeCategoryId = ref(1)
+const categories = ref([])
+const activeCategoryId = ref(null)
 const productList = ref([])
 const searchKeyword = ref('')
 const loading = ref(false)
 const cartCount = computed(() => cartStore.totalCount)
 const cartAnimating = ref(false)
+
+// 筛选相关状态
+const showFilterPanel = ref(false)
+const filterConfig = ref({
+  sortBy: 'default', // default, sales, price
+  sortOrder: 'desc', // asc, desc
+  sugarLevel: 'all' // all, no, low, normal
+})
+
+const sugarLevelLabel = computed(() => {
+  const map = {
+    'all': '糖度',
+    'no': '无糖',
+    'low': '低糖',
+    'normal': '正常糖'
+  }
+  return map[filterConfig.value.sugarLevel]
+})
+
+const togglePriceSort = () => {
+  if (filterConfig.value.sortBy !== 'price') {
+    filterConfig.value.sortBy = 'price'
+    filterConfig.value.sortOrder = 'asc'
+  } else {
+    filterConfig.value.sortOrder = filterConfig.value.sortOrder === 'asc' ? 'desc' : 'asc'
+  }
+}
+
+const selectSugar = (level) => {
+  filterConfig.value.sugarLevel = level
+}
+
+const resetFilter = () => {
+  filterConfig.value.sugarLevel = 'all'
+  filterConfig.value.sortBy = 'default'
+}
 
 const showCustomModal = ref(false)
 const selectedProduct = ref(null)
@@ -246,23 +353,50 @@ const customizations = ref({
   toppings: []
 })
 
-const sizeOptions = ['小杯', '中杯', '大杯']
-const temperatureOptions = ['热饮', '常温', '冷饮']
-const sweetnessOptions = ['无糖', '三分糖', '五分糖', '七分糖', '正常糖']
-const toppingOptions = [
+const sizeOptions = ref(['小杯', '中杯', '大杯'])
+const temperatureOptions = ref(['热饮', '常温', '冷饮'])
+const sweetnessOptions = ref(['无糖', '三分糖', '五分糖', '七分糖', '正常糖'])
+const toppingOptions = ref([
   { id: 1, name: '珍珠', price: 3 },
   { id: 2, name: '椰果', price: 3 },
   { id: 3, name: '布丁', price: 4 }
-]
+])
 
 const filteredProductList = computed(() => {
-  if (!searchKeyword.value) return productList.value
-  return productList.value.filter(p => p.name.includes(searchKeyword.value))
+  let list = [...productList.value]
+
+  // 1. 搜索关键词过滤
+  if (searchKeyword.value) {
+    list = list.filter(p =>
+      (p.name && p.name.includes(searchKeyword.value)) ||
+      (p.description && p.description.includes(searchKeyword.value))
+    )
+  }
+
+  // 2. 糖度筛选 (纯前端模拟逻辑)
+  if (filterConfig.value.sugarLevel !== 'all') {
+    list = list.filter(p => p.sugarLevel === filterConfig.value.sugarLevel)
+  }
+
+  // 3. 排序逻辑
+  list.sort((a, b) => {
+    if (filterConfig.value.sortBy === 'sales') {
+      return b.sales - a.sales
+    } else if (filterConfig.value.sortBy === 'price') {
+      return filterConfig.value.sortOrder === 'asc'
+        ? a.price - b.price
+        : b.price - a.price
+    }
+    return 0 // 默认排序（综合）
+  })
+
+  return list
 })
 
 const toppingsCost = computed(() => {
-  return customizations.value.toppings.reduce((total, id) => {
-    const topping = toppingOptions.find(t => t.id === id)
+  const toppings = customizations.value.toppings || []
+  return toppings.reduce((total, id) => {
+    const topping = toppingOptions.value.find(t => t.id === id)
     return total + (topping ? topping.price : 0)
   }, 0)
 })
@@ -272,13 +406,62 @@ const totalPrice = computed(() => {
   return ((selectedProduct.value.price + toppingsCost.value) * quantity.value).toFixed(2)
 })
 
+const loadCategories = async () => {
+  try {
+    const res = await productApi.getCategories()
+    const resData = res.data || res
+    const list = Array.isArray(resData) ? resData : (resData.list || [])
+    
+    if (list.length > 0) {
+      const formattedCategories = list.map(c => ({
+        id: c.id,
+        name: c.name,
+        icon: c.iconUrl && !c.iconUrl.includes('/') ? c.iconUrl : '🧋'
+      }))
+      
+      // 添加“全部”分类
+      categories.value = [
+        { id: 'all', name: '全部', icon: '🌟' },
+        ...formattedCategories
+      ]
+      
+      if (!activeCategoryId.value) {
+        activeCategoryId.value = 'all'
+      }
+    }
+  } catch (error) {
+    console.error('加载分类失败:', error)
+  }
+}
+
 const loadProducts = async () => {
+  if (!activeCategoryId.value) return
   loading.value = true
   try {
-    const res = await productApi.getProducts(activeCategoryId.value)
-    if (res.code === 200) {
-      productList.value = res.data.list || res.data || []
-    }
+    // 如果是“全部”分类，传 null 或不传 ID
+    const categoryId = activeCategoryId.value === 'all' ? null : activeCategoryId.value
+    const res = await productApi.getProducts(categoryId)
+    const resData = res.data || res
+    const rawList = Array.isArray(resData) ? resData : (resData.list || [])
+    
+    productList.value = rawList.map(item => {
+      // 后端实体类 Product 中字段名是 imageUrl (映射自 main_image_url)
+      let imageUrl = item.imageUrl || item.mainImageUrl || item.image
+      
+      // 修复图片路径：如果是相对路径，补全后端地址
+      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+        // 确保路径以 / 开头
+        const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+        imageUrl = `http://localhost:8081${path}`
+      }
+      return {
+        ...item,
+        image: imageUrl || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200',
+        hot: item.isHot || false,
+        sales: item.sales || 0,
+        sugarLevel: 'normal' // 默认糖度
+      }
+    })
   } catch (error) {
     console.error('加载商品失败:', error)
   } finally {
@@ -291,19 +474,58 @@ const selectCategory = (id) => {
   loadProducts()
 }
 
-const onProductTap = (product) => {
+const onProductTap = async (product) => {
   selectedProduct.value = product
   quantity.value = 1
+  
+  // 默认值
   customizations.value = {
     size: '中杯',
     temperature: '常温',
     sweetness: '正常糖',
     toppings: []
   }
+
+  try {
+    const res = await productApi.getProductCustomizations(product.id)
+    if (res && res.data) {
+      const { specs, options } = res.data
+      
+      // 处理规格 (糖度、温度)
+      if (specs && specs.length > 0) {
+        const sweetness = specs.filter(s => s.type === 'SWEETNESS')
+        if (sweetness.length > 0) {
+          sweetnessOptions.value = sweetness.map(s => s.name)
+          customizations.value.sweetness = sweetness.find(s => s.isDefault)?.name || sweetness[0].name
+        }
+        
+        const temperature = specs.filter(s => s.type === 'TEMPERATURE')
+        if (temperature.length > 0) {
+          temperatureOptions.value = temperature.map(s => s.name)
+          customizations.value.temperature = temperature.find(s => s.isDefault)?.name || temperature[0].name
+        }
+      }
+      
+      // 处理加料
+      if (options && options.length > 0) {
+        toppingOptions.value = options.filter(o => o.type === 'TOPPING').map(o => ({
+          id: o.id,
+          name: o.name,
+          price: o.price
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('获取定制选项失败:', error)
+  }
+
   showCustomModal.value = true
 }
 
 const toggleTopping = (id) => {
+  if (!customizations.value.toppings) {
+    customizations.value.toppings = []
+  }
   const index = customizations.value.toppings.indexOf(id)
   if (index > -1) {
     customizations.value.toppings.splice(index, 1)
@@ -319,6 +541,7 @@ const toggleFavorite = (product) => {
 const confirmAddToCart = () => {
   cartStore.addToCart({
     ...selectedProduct.value,
+    storeId: userStore.selectedStore?.id,
     quantity: quantity.value,
     customizations: { ...customizations.value },
     totalPrice: parseFloat(totalPrice.value)
@@ -328,8 +551,11 @@ const confirmAddToCart = () => {
   setTimeout(() => cartAnimating.value = false, 600)
 }
 
-onMounted(() => {
-  loadProducts()
+onMounted(async () => {
+  await loadCategories()
+  if (activeCategoryId.value) {
+    loadProducts()
+  }
 })
 
 watch(activeCategoryId, () => {
@@ -342,32 +568,68 @@ watch(activeCategoryId, () => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #F5F5F5;
+  background: var(--background-color);
+  font-family: 'Noto Sans KR', sans-serif;
 }
 
 .search-bar {
-  padding: 10px 15px;
-  background: white;
+  padding: 20px 24px;
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 10px rgba(139, 69, 19, 0.05);
 }
 
 .search-input {
-  height: 36px;
-  background: #F5F5F5;
-  border-radius: 18px;
+  height: 52px;
+  background: white;
+  border-radius: 26px;
   display: flex;
   align-items: center;
-  padding: 0 15px;
-  gap: 10px;
+  padding: 0 20px;
+  gap: 12px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.1);
 }
 
-.search-icon { width: 16px; height: 16px; }
+.search-input:focus-within {
+  border-color: var(--primary-light);
+  box-shadow: 0 4px 20px rgba(160, 82, 45, 0.15);
+  transform: translateY(-2px);
+}
+
+.search-icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.6;
+}
+
 .search-input input {
   flex: 1;
   border: none;
   background: transparent;
-  font-size: 14px;
+  font-size: 16px;
+  color: var(--text-color-dark);
+  font-family: 'Noto Sans KR', sans-serif;
+  outline: none;
 }
-.clear-icon { width: 16px; height: 16px; cursor: pointer; }
+
+.search-input input::placeholder {
+  color: var(--text-color-light);
+  opacity: 0.7;
+}
+
+.clear-icon {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.clear-icon:hover {
+  opacity: 0.8;
+}
 
 .content-wrapper {
   flex: 1;
@@ -376,149 +638,173 @@ watch(activeCategoryId, () => {
 }
 
 .category-sidebar {
-  width: 90px;
-  background: #F8F8F8;
+  width: 100px;
+  background: var(--surface-color);
   overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+  padding: 20px 0;
 }
 
 .category-item {
-  padding: 20px 10px;
+  padding: 24px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
   position: relative;
   cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 0 8px;
+  border-radius: 20px;
+}
+
+.category-item:hover {
+  background: rgba(160, 82, 45, 0.05);
+  transform: translateX(3px);
 }
 
 .category-item.active {
   background: white;
-  color: #D4A574;
-  font-weight: bold;
+  color: var(--primary-dark);
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.1);
+  border: 2px solid var(--primary-light);
 }
 
 .active-indicator {
   position: absolute;
-  left: 0;
-  top: 25%;
-  height: 50%;
-  width: 4px;
-  background: #D4A574;
-  border-radius: 0 2px 2px 0;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 40px;
+  width: 6px;
+  background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-light) 100%);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 2px 8px rgba(160, 82, 45, 0.3);
 }
 
-.category-icon { font-size: 20px; }
-.category-name { font-size: 12px; }
+.category-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.category-name {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Prompt', sans-serif;
+  text-align: center;
+  line-height: 1.3;
+}
 
 .product-section {
   flex: 1;
   background: white;
   overflow-y: auto;
-  padding: 10px;
-}
-
-.product-card {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  cursor: pointer;
-}
-
-.product-image-wrapper {
-  position: relative;
-  width: 90px;
-  height: 90px;
-}
-
-.product-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-.tag {
-  position: absolute;
-  top: 0;
-  left: 0;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 8px 0 8px 0;
-  color: white;
-}
-
-.tag.hot { background: #FF6B6B; }
-.tag.discount { background: #FFA940; }
-
-.favorite-btn {
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-  width: 24px;
-  height: 24px;
-  background: rgba(255,255,255,0.8);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.favorite-icon { width: 14px; height: 14px; }
-
-.product-info {
-  flex: 1;
+  padding: 0 24px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
 }
 
-.product-name { font-size: 15px; font-weight: bold; }
-.product-desc { font-size: 12px; color: #999; line-height: 1.4; }
-
-.product-footer {
+.filter-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 20px 0;
+  background: white;
+  border-bottom: 2px dashed var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
 }
 
-.price { font-size: 16px; font-weight: bold; color: #D4A574; }
-.original-price { font-size: 11px; color: #CCC; text-decoration: line-through; margin-left: 5px; }
-.sales { font-size: 11px; color: #999; }
-
-.cart-float {
-  position: fixed;
-  right: 20px;
-  bottom: 80px;
-  width: 50px;
-  height: 50px;
-  background: #D4A574;
-  border-radius: 50%;
+.sort-options {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(212,165,116,0.4);
-  transform: scale(0);
-  transition: transform 0.3s;
+  gap: 24px;
+}
+
+.sort-item {
+  font-size: 14px;
+  color: var(--text-color-medium);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 15px;
+  transition: all 0.3s ease;
 }
 
-.cart-float.show { transform: scale(1); }
-.cart-icon { width: 24px; height: 24px; }
-.cart-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #FF6B6B;
-  color: white;
-  font-size: 10px;
-  padding: 0 4px;
-  border-radius: 9px;
-  min-width: 18px;
-  text-align: center;
-  border: 2px solid white;
+.sort-item:hover {
+  background: rgba(160, 82, 45, 0.05);
+  color: var(--primary-color);
 }
 
-.custom-modal {
+.sort-item.active {
+  color: var(--primary-dark);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-cream) 0%, rgba(255, 248, 220, 0.3) 100%);
+  box-shadow: 0 2px 8px rgba(210, 180, 140, 0.2);
+}
+
+.price-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.arrow-up, .arrow-down {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.arrow-up {
+  border-bottom: 5px solid var(--border-color);
+}
+
+.arrow-up.active {
+  border-bottom-color: var(--primary-color);
+}
+
+.arrow-down {
+  border-top: 5px solid var(--border-color);
+}
+
+.arrow-down.active {
+  border-top-color: var(--primary-color);
+}
+
+.filter-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-color-medium);
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: var(--accent-cream);
+  border: 2px solid var(--primary-light);
+  transition: all 0.3s ease;
+}
+
+.filter-dropdown:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.3);
+}
+
+.filter-dropdown span.active {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.filter-panel {
   position: fixed;
   top: 0;
   left: 0;
@@ -527,11 +813,427 @@ watch(activeCategoryId, () => {
   z-index: 1000;
 }
 
+.panel-mask {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+}
+
+.panel-content {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 80%;
+  height: 100%;
+  background: var(--surface-color);
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 30px 0 0 30px;
+  box-shadow: -4px 0 20px rgba(139, 69, 19, 0.1);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.panel-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 30px;
+  padding-top: 40px;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  border-left: 4px solid var(--primary-color);
+  padding-left: 16px;
+}
+
+.filter-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  flex: 1;
+}
+
+.filter-opt-item {
+  padding: 16px 12px;
+  background: white;
+  border-radius: 16px;
+  text-align: center;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(210, 180, 140, 0.1);
+}
+
+.filter-opt-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.15);
+}
+
+.filter-opt-item.active {
+  background: linear-gradient(135deg, var(--accent-cream) 0%, white 100%);
+  color: var(--primary-dark);
+  border: 2px solid var(--primary-light);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.2);
+}
+
+.panel-footer {
+  display: flex;
+  gap: 16px;
+  padding: 20px 0;
+  border-top: 2px dashed var(--border-color);
+  margin-top: 20px;
+}
+
+.reset-btn, .confirm-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Prompt', sans-serif;
+}
+
+.reset-btn {
+  background: white;
+  color: var(--text-color-dark);
+  border: 2px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.08);
+}
+
+.reset-btn:hover {
+  transform: translateY(-3px);
+  border-color: var(--primary-light);
+  color: var(--primary-dark);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.15);
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.3);
+}
+
+.confirm-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.4);
+}
+
+.skeleton-list {
+  padding: 20px 0;
+}
+
+.skeleton-product {
+  height: 120px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  border-radius: 20px;
+  margin-bottom: 20px;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
+.product-list {
+  padding: 20px 0;
+}
+
+.product-card {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  cursor: pointer;
+  padding: 20px;
+  border-radius: 25px;
+  background: var(--surface-color);
+  border: 2px solid transparent;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.1);
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--primary-light);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.15);
+}
+
+.product-image-wrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.product-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  object-fit: cover;
+  border: 3px solid var(--accent-cream);
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.2);
+}
+
+.tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  font-family: 'Prompt', sans-serif;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.tag.hot {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+}
+
+.tag.discount {
+  background: linear-gradient(135deg, #ffa940 0%, #ff8c00 100%);
+}
+
+.favorite-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid var(--border-color);
+}
+
+.favorite-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.2);
+}
+
+.favorite-btn.active {
+  background: rgba(255, 192, 203, 0.2);
+  border-color: var(--accent-pink);
+}
+
+.favorite-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.product-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-color-dark);
+  font-family: 'Prompt', sans-serif;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.product-desc {
+  font-size: 13px;
+  color: var(--text-color-medium);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  flex: 1;
+}
+
+.product-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.price-box {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.price {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+}
+
+.original-price {
+  font-size: 13px;
+  color: var(--text-color-light);
+  text-decoration: line-through;
+}
+
+.sales {
+  font-size: 12px;
+  color: var(--text-color-medium);
+  font-weight: 500;
+  background: var(--accent-cream);
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.empty-tip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-color-medium);
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  opacity: 0.3;
+  margin-bottom: 20px;
+}
+
+.empty-tip span {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.cart-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface-color);
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  box-shadow: 0 -4px 20px rgba(139, 69, 19, 0.1);
+  z-index: 100;
+  border-radius: 30px 30px 0 0;
+}
+
+.cart-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 25px;
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.1);
+  border: 2px solid var(--accent-cream);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cart-bar-content:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.15);
+}
+
+.cart-icon-wrapper {
+  position: relative;
+}
+
+.cart-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+  font-weight: 700;
+  border: 2px solid white;
+  font-family: 'Prompt', sans-serif;
+}
+
+.cart-badge.bounce {
+  animation: bounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+
+.cart-info {
+  flex: 1;
+}
+
+.total-price {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  margin-bottom: 4px;
+}
+
+.delivery-info {
+  font-size: 12px;
+  color: var(--text-color-medium);
+}
+
+.checkout-btn {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Prompt', sans-serif;
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.3);
+}
+
+.checkout-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.4);
+}
+
+.custom-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2000;
+}
+
 .modal-mask {
   position: absolute;
   width: 100%;
   height: 100%;
   background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
 }
 
 .modal-content {
@@ -539,77 +1241,298 @@ watch(activeCategoryId, () => {
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
-  border-radius: 20px 20px 0 0;
-  padding: 20px;
-  max-height: 80vh;
+  background: var(--surface-color);
+  border-radius: 40px 40px 0 0;
+  padding: 30px;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
+  animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 -8px 30px rgba(139, 69, 19, 0.15);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 .modal-header {
   display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
+  gap: 20px;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px dashed var(--border-color);
 }
 
-.modal-image { width: 80px; height: 80px; border-radius: 8px; }
-.modal-info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-.modal-name { font-size: 18px; font-weight: bold; }
-.modal-price { font-size: 20px; color: #D4A574; font-weight: bold; margin-top: 5px; }
-.close-btn { width: 24px; height: 24px; cursor: pointer; }
-.close-icon { width: 100%; height: 100%; }
+.modal-image {
+  width: 100px;
+  height: 100px;
+  border-radius: 20px;
+  object-fit: cover;
+  border: 3px solid var(--accent-cream);
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.3);
+}
+
+.modal-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.modal-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-color-dark);
+  font-family: 'Prompt', sans-serif;
+  margin-bottom: 8px;
+}
+
+.modal-price {
+  font-size: 24px;
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-family: 'Prompt', sans-serif;
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  background: var(--accent-cream);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  transform: rotate(90deg);
+  background: white;
+  border-color: var(--primary-light);
+}
+
+.close-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+}
 
 .modal-body {
   flex: 1;
   overflow-y: auto;
+  padding-right: 10px;
 }
 
-.option-group { margin-bottom: 20px; }
-.option-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; display: block; }
-.option-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.option-group {
+  margin-bottom: 24px;
+}
+
+.option-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .option-item {
-  padding: 6px 15px;
-  background: #F5F5F5;
-  border-radius: 4px;
-  font-size: 13px;
+  padding: 10px 20px;
+  background: white;
+  border-radius: 20px;
+  font-size: 14px;
   cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 8px rgba(210, 180, 140, 0.1);
 }
-.option-item.active { background: #FFF9F0; color: #D4A574; border: 1px solid #D4A574; }
-.option-item.topping { display: flex; justify-content: space-between; min-width: 80px; }
-.topping-price { font-size: 11px; color: #999; margin-left: 5px; }
 
-.quantity-control { display: flex; align-items: center; gap: 20px; }
+.option-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.15);
+}
+
+.option-item.active {
+  background: linear-gradient(135deg, var(--accent-cream) 0%, white 100%);
+  color: var(--primary-dark);
+  border: 2px solid var(--primary-light);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.2);
+}
+
+.option-item.topping {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-width: 120px;
+  padding: 12px 16px;
+}
+
+.topping-price {
+  font-size: 12px;
+  color: var(--primary-color);
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
 .quantity-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid #DDD;
-  border-radius: 4px;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color-dark);
+  background: white;
+  transition: all 0.3s ease;
 }
-.quantity-btn.disabled { color: #CCC; border-color: #EEE; }
+
+.quantity-btn:hover:not(.disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-dark);
+  transform: scale(1.1);
+}
+
+.quantity-btn.disabled {
+  color: var(--text-color-light);
+  border-color: var(--border-color);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.quantity-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  min-width: 40px;
+  text-align: center;
+  font-family: 'Prompt', sans-serif;
+}
 
 .modal-footer {
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid #F5F5F5;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px dashed var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.total-label { font-size: 12px; color: #999; }
-.total-value { font-size: 22px; font-weight: bold; color: #D4A574; margin-left: 5px; }
+.total-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.total-label {
+  font-size: 14px;
+  color: var(--text-color-medium);
+  font-weight: 500;
+}
+
+.total-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  text-shadow: 0 2px 4px rgba(139, 69, 19, 0.1);
+}
+
 .confirm-btn {
-  background: #D4A574;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   color: white;
   border: none;
-  padding: 10px 30px;
+  padding: 14px 40px;
   border-radius: 25px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Prompt', sans-serif;
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.3);
+}
+
+.confirm-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.4);
+}
+
+/* 响应式调整 */
+@media (max-width: 375px) {
+  .search-bar {
+    padding: 16px 20px;
+  }
+
+  .search-input {
+    height: 48px;
+    padding: 0 16px;
+  }
+
+  .category-sidebar {
+    width: 85px;
+  }
+
+  .category-item {
+    padding: 20px 10px;
+  }
+
+  .product-section {
+    padding: 0 20px;
+  }
+
+  .filter-bar {
+    padding: 16px 0;
+  }
+
+  .sort-options {
+    gap: 16px;
+  }
+
+  .product-card {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .product-image-wrapper {
+    width: 100px;
+    height: 100px;
+  }
+
+  .modal-content {
+    padding: 24px;
+  }
+
+  .modal-image {
+    width: 80px;
+    height: 80px;
+  }
+
+  .option-item {
+    padding: 8px 16px;
+  }
+
+  .option-item.topping {
+    min-width: 100px;
+  }
 }
 </style>

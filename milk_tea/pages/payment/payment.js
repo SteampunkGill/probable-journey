@@ -97,6 +97,8 @@ Page({
     try {
       if (paymentMethod === 'wechat') {
         await this.payWithWechat();
+      } else if (paymentMethod === 'alipay') {
+        await this.payWithAlipay();
       } else if (paymentMethod === 'balance') {
         await this.payWithBalance();
       }

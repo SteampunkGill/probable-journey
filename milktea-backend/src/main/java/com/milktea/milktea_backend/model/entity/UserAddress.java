@@ -56,6 +56,9 @@ public class UserAddress {
     @Column(name = "tag", length = 20)
     private String tag;
 
+    @Column(name = "is_history")
+    private Boolean isHistory = false;
+
     @Column(name = "type", length = 20)
     private String type = "RECEIVE";
     

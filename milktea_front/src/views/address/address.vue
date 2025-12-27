@@ -43,65 +43,101 @@
 
     <!-- 地址管理模式 -->
     <template v-else>
-      <div class="address-list" v-if="addressList.length > 0">
-        <div class="address-item"
-             :class="{ selectable: mode === 'select' }"
-             v-for="item in addressList"
-             :key="item.id"
-             @click="selectAddress(item)">
-          
-          <!-- 默认标签 -->
-          <div class="default-badge" v-if="item.isDefault">默认</div>
-          
-          <!-- 地址信息 -->
-          <div class="address-info">
-            <div class="name-phone">
-              <span class="name">{{ item.name }}</span>
-              <span class="phone">{{ item.phone }}</span>
+      <!-- Tab 切换 -->
+      <div class="address-tabs">
+        <div class="tab-item" :class="{ active: activeTab === 'mine' }" @click="activeTab = 'mine'">我的地址</div>
+        <div class="tab-item" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">历史记录</div>
+      </div>
+
+      <!-- 我的地址列表 -->
+      <div v-if="activeTab === 'mine'">
+        <div class="address-list" v-if="addressList.length > 0">
+          <div class="address-item"
+               :class="{ selectable: mode === 'select' }"
+               v-for="item in addressList"
+               :key="item.id"
+               @click="selectAddress(item)">
+            
+            <!-- 默认标签 -->
+            <div class="default-badge" v-if="item.isDefault">默认</div>
+            
+            <!-- 地址信息 -->
+            <div class="address-info">
+              <div class="name-phone">
+                <span class="name">{{ item.name }}</span>
+                <span class="phone">{{ item.phone }}</span>
+              </div>
+              
+              <div class="address-detail">
+                <span class="tag" v-if="item.tag || item.label">{{ item.tag || item.label }}</span>
+                <span class="detail">{{ item.province }} {{ item.city }} {{ item.district }} {{ item.detail }}</span>
+              </div>
             </div>
             
-            <div class="address-detail">
-              <span class="tag" v-if="item.tag || item.label">{{ item.tag || item.label }}</span>
-              <span class="detail">{{ item.province }} {{ item.city }} {{ item.district }} {{ item.detail }}</span>
-            </div>
-          </div>
-          
-          <!-- 操作按钮 -->
-          <div class="address-actions" v-if="mode === 'list'">
-            <div class="action-left">
-              <input type="checkbox"
-                     :checked="item.isDefault"
-                     @change.stop="toggleDefault(item.id)" />
-              <span class="action-label">设为默认</span>
+            <!-- 操作按钮 -->
+            <div class="address-actions" v-if="mode === 'list'">
+              <div class="action-left">
+                <input type="checkbox"
+                       :checked="item.isDefault"
+                       @change.stop="toggleDefault(item.id)" />
+                <span class="action-label">设为默认</span>
+              </div>
+              
+              <div class="action-right">
+                <button class="action-btn edit" @click.stop="editAddress(item.id)">
+                  <span class="icon">✏️</span>
+                  <span>编辑</span>
+                </button>
+                <button class="action-btn delete" @click.stop="deleteAddress(item)">
+                  <span class="icon">🗑️</span>
+                  <span>删除</span>
+                </button>
+              </div>
             </div>
             
-            <div class="action-right">
-              <button class="action-btn edit" @click.stop="editAddress(item.id)">
-                <span class="icon">✏️</span>
-                <span>编辑</span>
-              </button>
-              <button class="action-btn delete" @click.stop="deleteAddress(item)">
-                <span class="icon">🗑️</span>
-                <span>删除</span>
-              </button>
+            <!-- 选中标记（选择模式） -->
+            <div class="selected-mark" v-if="mode === 'select' && selectedId === item.id">
+              <span class="icon">✓</span>
             </div>
           </div>
-          
-          <!-- 选中标记（选择模式） -->
-          <div class="selected-mark" v-if="mode === 'select' && selectedId === item.id">
-            <span class="icon">✓</span>
-          </div>
+        </div>
+
+        <!-- 地址空状态 -->
+        <div class="empty-state" v-else>
+          <img class="empty-icon" src="../../assets/images/icons/address.png" />
+          <span class="empty-text">暂无收货地址</span>
         </div>
       </div>
 
-      <!-- 地址空状态 -->
-      <div class="empty-state" v-else>
-        <img class="empty-icon" src="../../assets/images/icons/address.png" />
-        <span class="empty-text">暂无收货地址</span>
+      <!-- 历史记录列表 -->
+      <div v-if="activeTab === 'history'">
+        <div class="address-list" v-if="historyList.length > 0">
+          <div class="address-item history"
+               v-for="item in historyList"
+               :key="'hist-'+item.id"
+               @click="selectAddress(item)">
+            <div class="address-info">
+              <div class="name-phone">
+                <span class="name">{{ item.name }}</span>
+                <span class="phone">{{ item.phone }}</span>
+              </div>
+              <div class="address-detail">
+                <span class="detail">{{ item.province }} {{ item.city }} {{ item.district }} {{ item.detail }}</span>
+              </div>
+              <div class="history-meta" v-if="item.usedCount">
+                <span class="used-count">使用次数: {{ item.usedCount }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="empty-state" v-else>
+          <img class="empty-icon" src="../../assets/images/icons/address.png" />
+          <span class="empty-text">暂无历史地址</span>
+        </div>
       </div>
 
       <!-- 底部添加按钮 -->
-      <div class="footer" v-if="mode === 'list'">
+      <div class="footer">
         <button class="add-btn" @click="addAddress">
           <span class="icon">➕</span>
           <span>添加新地址</span>
@@ -124,7 +160,9 @@ const userStore = useUserStore()
 const mode = ref(route.query.mode || 'list')
 const type = ref(route.query.type || '')
 const selectedId = ref(route.query.selectedId || '')
+const activeTab = ref('mine')
 const addressList = ref([])
+const historyList = ref([])
 const storeList = ref([])
 
 const isSelectStore = computed(() => type.value === 'select_store')
@@ -132,8 +170,12 @@ const isSelectStore = computed(() => type.value === 'select_store')
 const loadAddressList = async () => {
   try {
     const res = await addressApi.getAddressList()
-    // 拦截器已返回 res.data
-    addressList.value = res || []
+    // 统一处理 ApiResponse 结构，获取 data 字段
+    addressList.value = (res.data || res) || []
+    
+    // 加载历史地址
+    const historyRes = await addressApi.getAddressHistory()
+    historyList.value = (historyRes.data || historyRes) || []
   } catch (error) {
     console.error('加载地址列表失败:', error)
   }
@@ -141,12 +183,32 @@ const loadAddressList = async () => {
 
 const loadStoreList = async () => {
   try {
+    // 尝试获取用户默认地址作为参考
+    let refProvince = '', refCity = '', refDistrict = ''
+    try {
+      const addrRes = await addressApi.getAddressList()
+      const defaultAddr = addrRes.find(a => a.isDefault) || addrRes[0]
+      if (defaultAddr) {
+        refProvince = defaultAddr.province
+        refCity = defaultAddr.city
+        refDistrict = defaultAddr.district
+      }
+    } catch (e) {
+      console.warn('获取参考地址失败')
+    }
+
     // 先尝试不带定位加载门店列表，保证页面有内容
     const initialRes = await storeApi.getNearbyStores({
       latitude: null,
-      longitude: null
+      longitude: null,
+      province: refProvince,
+      city: refCity,
+      district: refDistrict
     })
-    storeList.value = initialRes || []
+    
+    // 统一处理后端返回的数据结构
+    const resData = initialRes.data || initialRes
+    storeList.value = Array.isArray(resData) ? resData : (resData.list || [])
 
     // 异步获取定位并更新列表，不阻塞页面显示
     if (navigator.geolocation) {
@@ -160,9 +222,13 @@ const loadStoreList = async () => {
         if (location) {
           const res = await storeApi.getNearbyStores({
             latitude: location.latitude,
-            longitude: location.longitude
+            longitude: location.longitude,
+            province: refProvince,
+            city: refCity,
+            district: refDistrict
           })
-          storeList.value = res || []
+          const resData2 = res.data || res
+          storeList.value = Array.isArray(resData2) ? resData2 : (resData2.list || [])
         }
       })
     }
@@ -224,30 +290,88 @@ onMounted(() => {
     loadAddressList()
   }
 })
-</script>
-
-<style scoped>
+</script><style scoped>
 .address-page {
   min-height: 100vh;
-  background: #F5F5F5;
-  padding-bottom: 80px;
+  background: var(--background-color, #f5f0e1);
+  padding-bottom: 100px;
+}
+
+.address-tabs {
+  display: flex;
+  background: var(--surface-color, #e8dccb);
+  padding: 12px 20px;
+  margin-bottom: 16px;
+  border-radius: 0 0 25px 25px;
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.08);
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 14px 0;
+  font-size: 16px;
+  color: var(--text-color-medium, #7a6a5b);
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  position: relative;
+  cursor: pointer;
+  border-radius: 20px;
+  margin: 0 6px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-item.active {
+  color: var(--primary-color, #a0522d);
+  font-weight: 600;
+  background: rgba(255, 248, 220, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.15);
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 4px;
+  background: var(--accent-cream, #fff8dc);
+  border-radius: 2px;
+}
+
+.history-meta {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--primary-color, #a0522d);
+  opacity: 0.8;
+  font-family: 'Quicksand', sans-serif;
 }
 
 .address-list {
-  padding: 10px;
+  padding: 20px;
 }
 
 .address-item {
   position: relative;
-  background: white;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  background: var(--surface-color, #e8dccb);
+  border-radius: 25px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.1);
+  border: 2px solid var(--border-color, #d4c7b5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.address-item:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(160, 82, 45, 0.15);
 }
 
 .address-item.selectable {
-  padding-right: 50px;
+  padding-right: 70px;
   cursor: pointer;
 }
 
@@ -255,146 +379,205 @@ onMounted(() => {
   position: absolute;
   top: 0;
   right: 0;
-  background: linear-gradient(135deg, #D4A574, #B08968);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 0 8px 0 10px;
-  font-size: 11px;
-  font-weight: bold;
+  background: linear-gradient(135deg, var(--primary-color, #a0522d), var(--primary-dark, #8b4513));
+  color: var(--accent-cream, #fff8dc);
+  padding: 8px 20px;
+  border-radius: 0 25px 0 30px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Nunito', sans-serif;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 10px rgba(139, 69, 19, 0.2);
 }
 
 .status-tag {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: #F5F5F5;
-  color: #999;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(222, 184, 135, 0.15);
+  color: var(--accent-brown, #deb887);
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 500;
+  margin-left: 10px;
 }
 
 .status-tag.open {
-  background: #E6F7ED;
-  color: #27AE60;
+  background: rgba(255, 192, 203, 0.2);
+  color: var(--accent-pink, #ffc0cb);
 }
 
 .store-meta {
-  margin-top: 8px;
+  margin-top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .distance, .hours {
+  font-size: 14px;
+  color: var(--primary-color, #a0522d);
+  font-family: 'Quicksand', sans-serif;
+  opacity: 0.9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.distance::before {
+  content: '📍';
   font-size: 12px;
-  color: #999;
+}
+
+.hours::before {
+  content: '🕐';
+  font-size: 12px;
 }
 
 .address-info {
-  margin-bottom: 12px;
+  margin-bottom: 20px;
 }
 
 .name-phone {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .name {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-color-dark, #4a3b30);
+  font-family: 'Nunito', sans-serif;
+  letter-spacing: 0.3px;
 }
 
 .phone {
-  font-size: 14px;
-  color: #666;
+  font-size: 16px;
+  color: var(--primary-color, #a0522d);
+  font-family: 'Quicksand', sans-serif;
+  opacity: 0.9;
+  font-weight: 500;
 }
 
 .address-detail {
   display: flex;
   align-items: flex-start;
+  gap: 10px;
 }
 
 .tag {
   flex-shrink: 0;
-  padding: 2px 6px;
-  background: #FFF9E6;
-  color: #D4A574;
-  border-radius: 4px;
-  font-size: 11px;
-  margin-right: 6px;
-  border: 1px solid #D4A574;
+  padding: 6px 14px;
+  background: rgba(255, 192, 203, 0.15);
+  color: var(--accent-pink, #ffc0cb);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 192, 203, 0.3);
+  font-family: 'Quicksand', sans-serif;
 }
 
 .detail {
   flex: 1;
-  font-size: 13px;
-  color: #666;
-  line-height: 1.6;
+  font-size: 15px;
+  color: var(--text-color-dark, #4a3b30);
+  line-height: 1.7;
+  font-family: 'Quicksand', sans-serif;
+  opacity: 0.9;
 }
 
 .address-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid #F0F0F0;
+  padding-top: 20px;
+  border-top: 2px dashed var(--border-color, #d4c7b5);
 }
 
 .action-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
 }
 
 .action-label {
-  font-size: 13px;
-  color: #666;
+  font-size: 15px;
+  color: var(--primary-color, #a0522d);
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 500;
 }
 
 .action-right {
   display: flex;
-  gap: 10px;
+  gap: 16px;
 }
 
 .action-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border-radius: 25px;
-  font-size: 12px;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
   border: none;
   cursor: pointer;
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-btn:hover {
+  transform: translateY(-2px) scale(1.05);
 }
 
 .action-btn.edit {
-  background: #FFF9E6;
-  color: #D4A574;
+  background: rgba(255, 192, 203, 0.2);
+  color: var(--accent-pink, #ffc0cb);
+  border: 2px solid rgba(255, 192, 203, 0.4);
+}
+
+.action-btn.edit:hover {
+  background: rgba(255, 192, 203, 0.3);
+  box-shadow: 0 4px 12px rgba(255, 192, 203, 0.2);
 }
 
 .action-btn.delete {
-  background: #FFF5F5;
-  color: #FF6B6B;
+  background: rgba(255, 107, 107, 0.1);
+  color: #ff6b6b;
+  border: 2px solid rgba(255, 107, 107, 0.2);
+}
+
+.action-btn.delete:hover {
+  background: rgba(255, 107, 107, 0.15);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.15);
 }
 
 .selected-mark {
   position: absolute;
-  right: 15px;
+  right: 24px;
   top: 50%;
   transform: translateY(-50%);
-  width: 30px;
-  height: 30px;
-  background: #D4A574;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary-color, #a0522d), var(--primary-dark, #8b4513));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 6px 15px rgba(160, 82, 45, 0.3);
+  animation: bounceIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes bounceIn {
+  0% { transform: translateY(-50%) scale(0); }
+  70% { transform: translateY(-50%) scale(1.1); }
+  100% { transform: translateY(-50%) scale(1); }
 }
 
 .selected-mark .icon {
-  color: white;
-  font-size: 20px;
+  color: var(--accent-cream, #fff8dc);
+  font-size: 24px;
   font-weight: bold;
 }
 
@@ -402,19 +585,38 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 100px 0;
+  padding: 120px 0;
 }
 
 .empty-icon {
-  width: 100px;
-  height: 100px;
-  margin-bottom: 20px;
-  opacity: 0.3;
+  width: 140px;
+  height: 140px;
+  margin-bottom: 28px;
+  opacity: 0.5;
+  filter: drop-shadow(0 8px 16px rgba(160, 82, 45, 0.1));
 }
 
 .empty-text {
-  font-size: 14px;
-  color: #999;
+  font-size: 16px;
+  color: var(--primary-color, #a0522d);
+  font-family: 'Nunito', sans-serif;
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary-color, #a0522d);
+  padding: 16px 24px;
+  font-family: 'Nunito', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+.address-item.history {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 20px 24px;
+  margin-bottom: 16px;
 }
 
 .footer {
@@ -422,24 +624,90 @@ onMounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
-  padding: 10px 15px;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  background: rgba(245, 240, 225, 0.95);
+  padding: 20px 24px;
+  box-shadow: 0 -6px 20px rgba(160, 82, 45, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 30px 30px 0 0;
 }
 
 .add-btn {
   width: 100%;
-  background: linear-gradient(135deg, #D4A574, #B08968);
-  color: white;
-  border-radius: 25px;
-  padding: 12px;
-  font-size: 16px;
-  font-weight: bold;
+  background: linear-gradient(135deg, var(--primary-color, #a0522d), var(--primary-dark, #8b4513));
+  color: var(--accent-cream, #fff8dc);
+  border-radius: 30px;
+  padding: 20px;
+  font-size: 18px;
+  font-weight: 600;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 12px;
   cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  letter-spacing: 0.5px;
+  box-shadow: 0 8px 20px rgba(160, 82, 45, 0.25);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.add-btn:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 25px rgba(160, 82, 45, 0.35);
+}
+
+.add-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .address-tabs {
+    padding: 10px 16px;
+    margin-bottom: 12px;
+  }
+
+  .tab-item {
+    padding: 12px 0;
+    font-size: 15px;
+    margin: 0 4px;
+  }
+
+  .address-list {
+    padding: 16px;
+  }
+
+  .address-item {
+    padding: 20px;
+    border-radius: 22px;
+    margin-bottom: 16px;
+  }
+
+  .name {
+    font-size: 18px;
+  }
+
+  .phone {
+    font-size: 15px;
+  }
+
+  .action-right {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .action-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .footer {
+    padding: 16px 20px;
+  }
+
+  .add-btn {
+    padding: 18px;
+    font-size: 16px;
+  }
 }
 </style>

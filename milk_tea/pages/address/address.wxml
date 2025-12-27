@@ -1,5 +1,16 @@
 <!--pages/address/address.wxml-->
 <view class="address-page">
+  <!-- 历史记录 -->
+  <view class="history-section" wx:if="{{historyList.length > 0}}">
+    <view class="section-title">历史记录</view>
+    <view class="history-list">
+      <view class="history-item" wx:for="{{historyList}}" wx:key="index" bindtap="selectAddress" data-id="{{item.id}}">
+        <text class="history-tag" wx:if="{{item.tag}}">{{item.tag}}</text>
+        <text class="history-address">{{item.address}} {{item.detail}}</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 地址列表 -->
   <view class="address-list" wx:if="{{addressList.length > 0}}">
     <view class="address-item {{mode === 'select' ? 'selectable' : ''}}" 

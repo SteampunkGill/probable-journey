@@ -10,7 +10,9 @@ Page({
     
     // 订单状态流程
     statusSteps: [],
-    currentStep: 0
+    currentStep: 0,
+    progressVisual: null,
+    estimatedTime: null
   },
 
   onLoad(options) {
@@ -238,6 +240,53 @@ Page({
         icon: 'none'
       });
     }
+  },
+
+  // 申请退款
+  applyRefund() {
+    wx.showModal({
+      title: '申请退款',
+      content: '确定要申请退款吗？',
+      editable: true,
+      placeholderText: '请输入退款原因',
+      success: async (res) => {
+        if (res.confirm) {
+          const reason = res.content || '用户申请退款';
+          try {
+            wx.showLoading({ title: '提交中...' });
+            const { orderApi } = require('../../utils/api.js');
+            const response = await orderApi.applyRefund(this.data.order.orderNo, reason);
+            
+            wx.hideLoading();
+            if (response.code === 200) {
+              wx.showToast({
+                title: '退款申请已提交',
+                icon: 'success'
+              });
+              this.loadOrderDetail();
+            } else {
+              wx.showToast({
+                title: response.message || '提交失败',
+                icon: 'none'
+              });
+            }
+          } catch (error) {
+            wx.hideLoading();
+            wx.showToast({
+              title: '提交失败',
+              icon: 'none'
+            });
+          }
+        }
+      }
+    });
+  },
+
+  // 投诉建议
+  goToComplaint() {
+    wx.navigateTo({
+      url: `/pages/complaint/complaint?orderNo=${this.data.order.orderNo}`
+    });
   },
 
   // 确认收货

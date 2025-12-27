@@ -15,8 +15,37 @@
         <text class="status-hint" wx:if="{{order.deliveryType === 'pickup'}}">请凭取餐码取餐</text>
       </view>
 
-      <!-- 状态流程 -->
-      <view class="status-steps">
+      <!-- 预计取餐时间 & 排队信息 -->
+      <view class="estimated-section" wx:if="{{estimatedTime}}">
+        <view class="wait-info">
+          <text class="wait-label">预计等待</text>
+          <text class="wait-time">{{estimatedTime.estimatedWaitTime}}分钟</text>
+        </view>
+        <view class="queue-info">
+          <text>前面还有 </text>
+          <text class="queue-num">{{estimatedTime.queuePosition}}</text>
+          <text> 单正在制作</text>
+        </view>
+      </view>
+
+      <!-- 制作进度可视化 -->
+      <view class="progress-visual" wx:if="{{progressVisual}}">
+        <view class="progress-bar">
+          <view class="progress-inner" style="width: {{progressVisual.progressPercentage}}%"></view>
+        </view>
+        <view class="progress-steps">
+          <view class="p-step {{item.completed ? 'completed' : ''}} {{item.current ? 'current' : ''}}" wx:for="{{progressVisual.steps}}" wx:key="step">
+            <view class="p-icon">
+              <text class="iconfont icon-{{item.icon}}"></text>
+            </view>
+            <text class="p-name">{{item.name}}</text>
+            <text class="p-time" wx:if="{{item.time}}">{{item.time}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 状态流程 (备用) -->
+      <view class="status-steps" wx:if="{{!progressVisual}}">
         <view class="step {{index <= currentStep ? 'active' : ''}}" wx:for="{{statusSteps}}" wx:key="key">
           <view class="step-dot"></view>
           <text class="step-title">{{item.title}}</text>
@@ -169,9 +198,17 @@
     </block>
 
     <!-- 已完成 -->
-    <block wx:elif="{{order.canReview}}">
-      <button class="footer-btn secondary" bindtap="reorder">再来一单</button>
-      <button class="footer-btn primary" bindtap="reviewOrder">去评价</button>
+    <block wx:elif="{{order.status === 'COMPLETED'}}">
+      <button class="footer-btn secondary" bindtap="goToComplaint">投诉建议</button>
+      <button class="footer-btn secondary" wx:if="{{!order.isCommented}}" bindtap="reviewOrder">去评价</button>
+      <button class="footer-btn primary" bindtap="reorder">再来一单</button>
+    </block>
+
+    <!-- 制作中/待取餐 (支持退款申请) -->
+    <block wx:elif="{{order.status === 'PAID' || order.status === 'MAKING' || order.status === 'READY'}}">
+      <button class="footer-btn secondary" bindtap="applyRefund">申请退款</button>
+      <button class="footer-btn primary" bindtap="remindOrder" wx:if="{{order.status === 'MAKING'}}">催单</button>
+      <button class="footer-btn primary" bindtap="confirmOrder" wx:if="{{order.status === 'READY' || order.status === 'DELIVERED'}}">确认收货</button>
     </block>
 
     <!-- 其他状态 -->

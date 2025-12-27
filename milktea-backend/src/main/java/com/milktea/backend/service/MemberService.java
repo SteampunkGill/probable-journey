@@ -32,6 +32,7 @@ public class MemberService {
     private final UserService userService;
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
+    private final NotificationService notificationService;
 
     public MemberService(MemberLevelRepository memberLevelRepository,
                          PointTransactionRepository pointTransactionRepository,
@@ -41,7 +42,8 @@ public class MemberService {
                          UserTagRelationRepository userTagRelationRepository,
                          UserService userService,
                          ProductRepository productRepository,
-                         OrderRepository orderRepository) {
+                         OrderRepository orderRepository,
+                         NotificationService notificationService) {
         this.memberLevelRepository = memberLevelRepository;
         this.pointTransactionRepository = pointTransactionRepository;
         this.systemConfigRepository = systemConfigRepository;
@@ -51,6 +53,7 @@ public class MemberService {
         this.userService = userService;
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -145,9 +148,28 @@ public class MemberService {
 
     public Page<MemberDTO> queryMembers(MemberQueryDTO query) {
         Pageable pageable = PageRequest.of(query.getPage() - 1, query.getSize());
-        Page<User> userPage = userRepository.findAll(pageable);
+        Page<User> userPage;
+        if (query.getKeyword() != null && !query.getKeyword().isEmpty()) {
+            // 简单实现关键字搜索
+            List<User> users = userRepository.findByNicknameContaining(query.getKeyword());
+            userPage = new PageImpl<>(users, pageable, users.size());
+        } else if (query.getMemberLevelId() != null) {
+            List<User> users = userRepository.findByMemberLevelId(query.getMemberLevelId());
+            userPage = new PageImpl<>(users, pageable, users.size());
+        } else {
+            userPage = userRepository.findAll(pageable);
+        }
+        
         List<MemberDTO> dtos = userPage.getContent().stream()
-                .map(this::convertToDTO)
+                .map(user -> {
+                    MemberDTO dto = convertToDTO(user);
+                    // 填充标签
+                    List<String> tags = userTagRelationRepository.findByUserId(user.getId()).stream()
+                            .map(r -> r.getTag().getName())
+                            .collect(Collectors.toList());
+                    dto.setTags(tags);
+                    return dto;
+                })
                 .collect(Collectors.toList());
         return new PageImpl<>(dtos, pageable, userPage.getTotalElements());
     }
@@ -155,7 +177,15 @@ public class MemberService {
     public MemberDTO getMemberDetail(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ServiceException("用户不存在"));
-        return convertToDTO(user);
+        MemberDTO dto = convertToDTO(user);
+        
+        // 获取用户标签
+        List<String> tags = userTagRelationRepository.findByUserId(id).stream()
+                .map(r -> r.getTag().getName())
+                .collect(Collectors.toList());
+        dto.setTags(tags);
+        
+        return dto;
     }
 
     @Transactional
@@ -166,6 +196,16 @@ public class MemberService {
                 .orElseThrow(() -> new ServiceException("等级不存在"));
         user.setMemberLevel(level);
         userRepository.save(user);
+        
+        // 触发等级变更通知
+        Map<String, Object> notice = new HashMap<>();
+        notice.put("title", "会员等级变更");
+        notice.put("content", "恭喜您升级为 " + level.getName() + "！");
+        notice.put("targetType", "USER");
+        notice.put("targetValue", user.getId().toString());
+        notice.put("triggerType", "BEHAVIOR_TRIGGER");
+        notice.put("behavior", "LEVEL_UP");
+        notificationService.sendActivityNotice(notice);
     }
 
     @Transactional
@@ -244,14 +284,43 @@ public class MemberService {
     }
 
     public List<Map<String, Object>> getSegmentation() {
-        // 使用数据库聚合查询代替内存循环
-        Map<String, Long> counts = orderRepository.countUserSegmentation();
+        // 增强的 RFM 模型分层
+        // R (Recency): 最近一次消费时间
+        // F (Frequency): 消费频率
+        // M (Monetary): 消费金额
         
+        long totalUsers = userRepository.count();
+        if (totalUsers == 0) return Collections.emptyList();
+
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        LocalDateTime ninetyDaysAgo = LocalDateTime.now().minusDays(90);
+
+        // 1. 核心客户 (R < 30天, F > 5次, M > 500)
+        long coreCount = orderRepository.countCoreUsers(thirtyDaysAgo, 5L, new BigDecimal("500"));
+        
+        // 2. 潜力客户 (R < 60天, M > 100)
+        long potentialCount = orderRepository.countPotentialUsers(LocalDateTime.now().minusDays(60), new BigDecimal("100"));
+        
+        // 3. 需挽留客户 (R > 90天)
+        long riskCount = orderRepository.countChurnedUsers(ninetyDaysAgo);
+        
+        // 4. 新客户 (注册 < 30天)
+        long newCount = userRepository.countByCreatedAtAfter(thirtyDaysAgo);
+
         List<Map<String, Object>> result = new ArrayList<>();
-        result.add(Map.of("name", "高价值客户", "count", counts.getOrDefault("highValue", 0L)));
-        result.add(Map.of("name", "潜力客户", "count", counts.getOrDefault("potential", 0L)));
-        result.add(Map.of("name", "流失风险客户", "count", counts.getOrDefault("risk", 0L)));
+        result.add(createSegmentMap("核心客户", coreCount, totalUsers));
+        result.add(createSegmentMap("潜力客户", potentialCount, totalUsers));
+        result.add(createSegmentMap("流失风险", riskCount, totalUsers));
+        result.add(createSegmentMap("新晋客户", newCount, totalUsers));
         return result;
+    }
+
+    private Map<String, Object> createSegmentMap(String name, long count, long total) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", name);
+        map.put("count", count);
+        map.put("percentage", total > 0 ? (double) count / total * 100 : 0);
+        return map;
     }
 
     @Transactional

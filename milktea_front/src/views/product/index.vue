@@ -298,27 +298,23 @@ const customizations = ref({
   quantity: 1
 })
 
-const sweetnessOptions = [
+const sweetnessOptions = ref([
   { value: 'no_sugar', label: '无糖', hint: '0%' },
   { value: 'low_sugar', label: '三分糖', hint: '30%' },
   { value: 'half_sugar', label: '五分糖', hint: '50%' },
   { value: 'less_sugar', label: '七分糖', hint: '70%' },
   { value: 'normal', label: '正常糖', hint: '100%' }
-]
+])
 
-const temperatureOptions = [
+const temperatureOptions = ref([
   { value: 'hot', label: '热' },
   { value: 'warm', label: '温' },
   { value: 'no_ice', label: '去冰' },
   { value: 'less_ice', label: '少冰' },
   { value: 'normal', label: '正常冰' }
-]
-
-// 加料选项暂时使用模拟数据，后续可从后端获取
-const toppingOptions = ref([
-  { id: 'pearl', name: '珍珠', price: 2.00, icon: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=50' },
-  { id: 'coconut', name: '椰果', price: 2.00, icon: 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=50' }
 ])
+
+const toppingOptions = ref([])
 
 const maxToppings = 5
 
@@ -326,7 +322,7 @@ const comments = ref([])
 
 const toppingsCost = computed(() => {
   return customizations.value.toppings.reduce((total, toppingId) => {
-    const topping = toppingOptions.value.find(t => t.id === toppingId)
+    const topping = toppingOptions.value.find(t => t.id === toppingId || t.name === toppingId)
     return total + (topping ? topping.price : 0)
   }, 0)
 })
@@ -377,25 +373,56 @@ const buyNow = () => {
 const fetchProductDetail = async (id) => {
   loading.value = true
   try {
-    const res = await productApi.getProductDetail(id)
-    // 假设后端返回的数据结构与前端匹配
+    const [detailRes, customRes] = await Promise.all([
+      productApi.getProductDetail(id),
+      productApi.getProductCustomizations(id)
+    ])
+    
+    const res = detailRes.data || detailRes
     product.value = {
       id: res.id,
       name: res.name,
-      images: res.images || [res.image].filter(Boolean),
+      images: res.images || [res.mainImageUrl].filter(Boolean),
       price: res.price,
       originalPrice: res.originalPrice || res.price,
       description: res.description,
-      rating: res.rating || 0,
+      rating: res.rating || 5.0,
       sales: res.sales || 0,
       stock: res.stock || 0,
-      detailHtml: res.detailHtml || '',
+      detailHtml: res.detailHtml || res.description,
       ingredients: res.ingredients || [],
       nutrition: res.nutrition || [],
       commentCount: res.commentCount || 0,
       isHot: res.isHot || false,
       isNew: res.isNew || false,
       isRecommend: res.isRecommend || false
+    }
+
+    if (customRes && customRes.data) {
+      const { specs, options } = customRes.data
+      // 处理规格 (糖度、温度)
+      if (specs && specs.length > 0) {
+        const sweetness = specs.filter(s => s.type === 'SWEETNESS')
+        if (sweetness.length > 0) {
+          sweetnessOptions.value = sweetness.map(s => ({ value: s.name, label: s.name }))
+          customizations.value.sweetness = sweetness.find(s => s.isDefault)?.name || sweetness[0].name
+        }
+        
+        const temperature = specs.filter(s => s.type === 'TEMPERATURE')
+        if (temperature.length > 0) {
+          temperatureOptions.value = temperature.map(s => ({ value: s.name, label: s.name }))
+          customizations.value.temperature = temperature.find(s => s.isDefault)?.name || temperature[0].name
+        }
+      }
+      // 处理加料
+      if (options && options.length > 0) {
+        toppingOptions.value = options.filter(o => o.type === 'TOPPING').map(o => ({
+          id: o.id,
+          name: o.name,
+          price: o.price,
+          icon: o.iconUrl || 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=50'
+        }))
+      }
     }
   } catch (error) {
     console.error('获取商品详情失败', error)
@@ -412,334 +439,1116 @@ onMounted(() => {
   }
 })
 </script>
-
 <style scoped>
+/* ============================================
+“饮饮茶(SipSipTea)” 商品详情页样式优化
+基于奶茶主题设计指南
+============================================ */
+
+/* ========== 页面容器 ========== */
 .product-detail-page {
   min-height: 100vh;
-  background: #F5F5F5;
-  padding-bottom: 80px;
+  background: var(--background-color);
+  padding-bottom: 90px;
+  position: relative;
+  overflow-x: hidden;
 }
 
+/* 奶茶主题背景装饰 */
+.product-detail-page::before {
+  content: '';
+  position: absolute;
+  top: -12%;
+  right: -6%;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, var(--accent-cream) 0%, transparent 70%);
+  opacity: 0.15;
+  border-radius: var(--border-radius-circle);
+  z-index: 0;
+}
+
+.product-detail-page::after {
+  content: '';
+  position: absolute;
+  bottom: 8%;
+  left: -4%;
+  width: 90px;
+  height: 90px;
+  background: radial-gradient(circle, var(--accent-pink) 0%, transparent 70%);
+  opacity: 0.1;
+  border-radius: var(--border-radius-circle);
+  z-index: 0;
+}
+
+/* ========== 商品图片区域 ========== */
 .product-images {
   position: relative;
-  height: 375px;
+  height: 420px;
   background: white;
+  border-bottom-left-radius: var(--border-radius-xl);
+  border-bottom-right-radius: var(--border-radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
 }
 
 .swiper-container {
   height: 100%;
   overflow: hidden;
   position: relative;
+  background: var(--surface-color);
 }
 
 .swiper-wrapper {
   display: flex;
   height: 100%;
-  transition: transform 0.3s ease-out;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .swiper-item {
   flex-shrink: 0;
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 .product-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.6s ease-out;
 }
 
+.swiper-item:hover .product-image {
+  transform: scale(1.05);
+}
+
+/* 图片指示器 */
 .image-indicator {
   position: absolute;
-  bottom: 15px;
-  right: 15px;
-  background: rgba(0,0,0,0.4);
+  bottom: var(--spacing-lg);
+  right: var(--spacing-lg);
+  background: rgba(0, 0, 0, 0.4);
   color: white;
-  padding: 2px 10px;
-  border-radius: 10px;
-  font-size: 12px;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-lg);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 2;
+  animation: fadeIn 0.5s ease-out;
 }
 
+/* 收藏按钮 */
 .favorite-btn {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  width: 36px;
-  height: 36px;
-  background: white;
-  border-radius: 50%;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--border-radius-circle);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-lg);
   cursor: pointer;
+  transition: all var(--transition-bounce);
+  z-index: 2;
+  border: 2px solid rgba(160, 82, 45, 0.1);
 }
 
-.favorite-icon { width: 20px; height: 20px; }
+.favorite-btn:hover {
+  transform: scale(1.15) rotate(5deg);
+  box-shadow: 0 8px 24px rgba(160, 82, 45, 0.2);
+  border-color: rgba(160, 82, 45, 0.2);
+}
 
+.favorite-btn.active {
+  background: linear-gradient(135deg, #FF6B6B, var(--primary-color));
+  border-color: transparent;
+  animation: heartBeat 0.6s ease-out;
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.2); }
+  50% { transform: scale(0.95); }
+  75% { transform: scale(1.1); }
+}
+
+.favorite-icon {
+  width: 24px;
+  height: 24px;
+  transition: all var(--transition-normal);
+}
+
+.favorite-btn.active .favorite-icon {
+  filter: brightness(0) invert(1);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* ========== 卡片基础样式 ========== */
 .card {
   background: white;
-  margin: 10px;
-  padding: 15px;
-  border-radius: 12px;
+  margin: var(--spacing-md);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-normal);
+  position: relative;
+  z-index: 1;
+  animation: fadeInUp 0.6s ease-out var(--delay, 0.2s) both;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+/* 商品基本信息卡片 */
+.product-basic-info {
+  --delay: 0.3s;
 }
 
 .product-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 10px;
+  margin-bottom: var(--spacing-md);
 }
 
 .product-name {
-  font-size: 20px;
-  font-weight: bold;
-  color: #333;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color-dark);
+  line-height: var(--line-height-tight);
+  flex: 1;
 }
 
 .product-tags {
   display: flex;
-  gap: 5px;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
 }
 
 .tag {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.3px;
+  transition: all var(--transition-normal);
 }
 
-.tag-hot { background: #FFF0F0; color: #FF6B6B; }
-.tag-new { background: #F0F9FF; color: #0095FF; }
+.tag:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.tag-hot {
+  background: linear-gradient(135deg, #FFF1F0, #FFE8E6);
+  color: #FF4D4F;
+  border: 1px solid rgba(255, 77, 79, 0.2);
+}
+
+.tag-new {
+  background: linear-gradient(135deg, #F6FFED, #F0FFE6);
+  color: #52C41A;
+  border: 1px solid rgba(82, 196, 26, 0.2);
+}
+
+.tag-recommend {
+  background: linear-gradient(135deg, var(--accent-cream), #FFF8E6);
+  color: var(--primary-color);
+  border: 1px solid rgba(160, 82, 45, 0.2);
+}
+
+/* 价格区域 */
+.product-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
 
 .price-section {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: var(--spacing-sm);
 }
 
 .current-price {
-  font-size: 24px;
-  font-weight: bold;
-  color: #D4A574;
+  font-family: 'Prompt', sans-serif;
+  font-size: 2.2rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--primary-color);
+  text-shadow: 0 2px 4px rgba(160, 82, 45, 0.1);
 }
 
 .original-price {
-  font-size: 14px;
-  color: #999;
+  font-size: var(--font-size-sm);
+  color: var(--text-color-light);
   text-decoration: line-through;
+  font-weight: var(--font-weight-normal);
 }
 
+.discount {
+  font-size: var(--font-size-xs);
+  color: white;
+  background: linear-gradient(135deg, #FF6B6B, var(--primary-color));
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-weight: var(--font-weight-bold);
+  box-shadow: 0 2px 6px rgba(255, 107, 107, 0.3);
+}
+
+/* 评分区域 */
 .rating-section {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: #666;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-color-medium);
 }
 
-.rating-stars { color: #FFB800; }
+.rating-stars {
+  display: flex;
+  gap: 2px;
+}
 
+.rating-stars .iconfont {
+  font-size: var(--font-size-base);
+  color: #FFD700;
+  transition: transform var(--transition-normal);
+}
+
+.rating-stars:hover .iconfont {
+  transform: scale(1.1);
+}
+
+.rating-text {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color-dark);
+}
+
+.sales-text {
+  background: var(--surface-color);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-color-medium);
+  transition: all var(--transition-normal);
+}
+
+.sales-text:hover {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+/* 商品描述 */
 .product-desc {
-  margin-top: 15px;
-  font-size: 14px;
-  color: #666;
-  line-height: 1.6;
+  margin-top: var(--spacing-md);
+  font-size: var(--font-size-base);
+  color: var(--text-color-medium);
+  line-height: var(--line-height-relaxed);
+  padding: var(--spacing-md);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-md);
+  border-left: 4px solid var(--primary-light);
+}
+
+/* ========== 定制化选项 ========== */
+.customization-section {
+  --delay: 0.4s;
 }
 
 .section-title {
-  font-size: 15px;
-  font-weight: bold;
-  margin-bottom: 15px;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color-dark);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.section-title::before {
+  content: '⚙';
+  font-size: var(--font-size-base);
+  color: var(--primary-color);
 }
 
 .customization-item {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.customization-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .item-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
 }
 
-.item-label { font-size: 14px; font-weight: bold; }
-.item-required { font-size: 11px; color: #FF6B6B; }
+.item-label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color-dark);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
 
+.item-label::before {
+  content: '•';
+  color: var(--primary-color);
+  font-size: var(--font-size-lg);
+}
+
+.item-required {
+  font-size: var(--font-size-xs);
+  color: #FF4D4F;
+  background: rgba(255, 77, 79, 0.1);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.item-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-color-light);
+  font-weight: var(--font-weight-normal);
+}
+
+/* 选项组 */
 .option-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--spacing-sm);
 }
 
 .option-item {
-  padding: 8px 15px;
-  background: #F5F5F5;
-  border-radius: 6px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-md);
   text-align: center;
   cursor: pointer;
-  min-width: 60px;
+  border: 2px solid transparent;
+  transition: all var(--transition-normal);
+  flex: 1;
+  min-width: 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.option-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(160, 82, 45, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.option-item:hover {
+  border-color: var(--primary-light);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-sm);
+}
+
+.option-item:hover::before {
+  left: 100%;
 }
 
 .option-item.selected {
-  background: #FFF9F0;
-  color: #D4A574;
-  border: 1px solid #D4A574;
+  background: linear-gradient(135deg, var(--primary-light), var(--accent-cream));
+  border-color: var(--primary-color);
+  color: var(--primary-dark);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.15);
 }
 
-.option-label { font-size: 13px; display: block; }
-.option-hint { font-size: 10px; opacity: 0.6; }
+.option-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
 
+.option-hint {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-color-light);
+  margin-top: var(--spacing-xs);
+}
+
+/* 加料网格 */
 .toppings-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-sm);
 }
 
 .topping-item {
+  padding: var(--spacing-md);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
-  background: #F5F5F5;
-  border-radius: 8px;
   cursor: pointer;
+  border: 2px solid transparent;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.topping-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(160, 82, 45, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.topping-item:hover {
+  border-color: var(--primary-light);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-sm);
+}
+
+.topping-item:hover::before {
+  left: 100%;
 }
 
 .topping-item.selected {
-  background: #FFF9F0;
-  border: 1px solid #D4A574;
+  background: linear-gradient(135deg, var(--primary-light), var(--accent-cream));
+  border-color: var(--primary-color);
+  color: var(--primary-dark);
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.15);
 }
 
 .topping-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
-.topping-icon { width: 30px; height: 30px; border-radius: 4px; }
-.topping-name { font-size: 13px; display: block; }
-.topping-price { font-size: 11px; color: #999; }
+.topping-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--border-radius-sm);
+  object-fit: cover;
+  border: 2px solid var(--border-color);
+  transition: all var(--transition-normal);
+}
 
+.topping-item.selected .topping-icon {
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+}
+
+.topping-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.topping-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.topping-price {
+  font-size: var(--font-size-xs);
+  color: var(--primary-color);
+  font-weight: var(--font-weight-semibold);
+}
+
+.topping-quantity {
+  font-size: var(--font-size-base);
+  color: var(--primary-color);
+  font-weight: var(--font-weight-bold);
+  animation: checkIn 0.3s ease-out;
+}
+
+@keyframes checkIn {
+  from {
+    opacity: 0;
+    transform: scale(0) rotate(-180deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* 加料总价 */
 .toppings-total {
   text-align: right;
-  font-size: 13px;
-  color: #666;
-  padding-top: 10px;
-  border-top: 1px solid #F5F5F5;
+  font-size: var(--font-size-base);
+  color: var(--text-color-dark);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--spacing-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.toppings-price {
+  color: var(--primary-color);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  margin-left: var(--spacing-xs);
+}
+
+/* ========== 商品详情标签页 ========== */
+.product-detail-section {
+  --delay: 0.5s;
 }
 
 .detail-tabs {
   display: flex;
-  border-bottom: 1px solid #F5F5F5;
-  margin-bottom: 15px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--spacing-lg);
+  position: relative;
 }
 
 .tab-item {
   flex: 1;
   text-align: center;
-  padding: 12px 0;
-  font-size: 14px;
-  color: #666;
-  position: relative;
+  padding: var(--spacing-md) 0;
+  font-size: var(--font-size-base);
+  color: var(--text-color-medium);
   cursor: pointer;
+  transition: all var(--transition-normal);
+  font-weight: var(--font-weight-medium);
+  position: relative;
+}
+
+.tab-item:hover {
+  color: var(--primary-color);
+  transform: translateY(-2px);
 }
 
 .tab-item.active {
-  color: #D4A574;
-  font-weight: bold;
+  color: var(--primary-color);
+  font-weight: var(--font-weight-semibold);
 }
 
 .tab-item.active::after {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 25%;
-  width: 50%;
-  height: 2px;
-  background: #D4A574;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  border-radius: var(--border-radius-sm);
+  animation: slideIn 0.3s ease-out;
 }
 
 .tab-content {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.8;
+  font-size: var(--font-size-base);
+  color: var(--text-color-medium);
+  line-height: var(--line-height-relaxed);
+  animation: fadeIn 0.5s ease-out;
 }
 
+/* 原料成分 */
+.ingredients {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-md);
+  border-left: 4px solid var(--accent-brown);
+}
+
+.ingredients-title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color-dark);
+  display: block;
+  margin-bottom: var(--spacing-sm);
+}
+
+.ingredients-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.ingredients-list span {
+  background: white;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--text-color-medium);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-normal);
+}
+
+.ingredients-list span:hover {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+/* 营养成分表 */
+.nutrition-table {
+  background: var(--surface-color);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.nutrition-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  transition: all var(--transition-normal);
+}
+
+.nutrition-row:hover {
+  background: rgba(160, 82, 45, 0.05);
+}
+
+.nutrition-row:last-child {
+  border-bottom: none;
+}
+
+.nutrition-row.header {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-weight: var(--font-weight-semibold);
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.nutrition-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-color-dark);
+}
+
+.nutrition-value {
+  color: var(--primary-color);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 用户评价 */
+.comment-item {
+  padding: var(--spacing-lg) 0;
+  border-bottom: 1px solid var(--border-color);
+  transition: all var(--transition-normal);
+}
+
+.comment-item:hover {
+  background: rgba(160, 82, 45, 0.03);
+  padding-left: var(--spacing-sm);
+  padding-right: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--border-radius-circle);
+  border: 2px solid var(--border-color);
+  transition: all var(--transition-normal);
+}
+
+.comment-item:hover .user-avatar {
+  border-color: var(--primary-light);
+  transform: scale(1.05);
+}
+
+.user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.user-name {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color-dark);
+}
+
+.comment-rating {
+  display: flex;
+  gap: 2px;
+}
+
+.comment-rating .iconfont {
+  font-size: var(--font-size-sm);
+  color: #FFD700;
+}
+
+.comment-time {
+  font-size: var(--font-size-xs);
+  color: var(--text-color-light);
+  font-weight: var(--font-weight-normal);
+}
+
+.comment-content {
+  font-size: var(--font-size-base);
+  color: var(--text-color-medium);
+  line-height: var(--line-height-relaxed);
+  margin: 0;
+}
+
+/* ========== 底部操作栏 ========== */
 .bottom-action-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  height: 90px;
   background: white;
   display: flex;
-  padding: 10px 15px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  align-items: center;
+  padding: 0 var(--spacing-lg);
+  box-shadow: var(--shadow-xl);
   z-index: 100;
+  border-top: 1px solid var(--border-color);
 }
 
 .bottom-left {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-right: 15px;
+  gap: var(--spacing-lg);
+  flex: 1;
 }
 
 .cart-icon {
   position: relative;
   cursor: pointer;
+  transition: all var(--transition-normal);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--border-radius-circle);
+  background: var(--surface-color);
+  border: 2px solid transparent;
 }
 
-.cart-icon-img { width: 28px; height: 28px; }
+.cart-icon:hover {
+  background: var(--primary-light);
+  border-color: var(--primary-color);
+  transform: scale(1.1);
+}
+
+.cart-icon-img {
+  width: 28px;
+  height: 28px;
+  transition: transform var(--transition-normal);
+}
+
+.cart-icon:hover .cart-icon-img {
+  transform: scale(1.1);
+}
 
 .cart-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  background: #FF6B6B;
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #FF6B6B, var(--primary-color));
   color: white;
-  font-size: 10px;
-  padding: 0 4px;
-  border-radius: 8px;
-  min-width: 16px;
+  font-size: var(--font-size-xs);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-circle);
+  font-weight: var(--font-weight-bold);
+  min-width: 20px;
   text-align: center;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+  animation: bounce 0.5s ease-out;
 }
 
 .price-info {
   display: flex;
   flex-direction: column;
+  gap: var(--spacing-xs);
 }
 
-.total-label { font-size: 11px; color: #999; }
-.total-price { font-size: 18px; font-weight: bold; color: #D4A574; }
+.total-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-color-medium);
+  font-weight: var(--font-weight-medium);
+}
+
+.total-price {
+  font-family: 'Prompt', sans-serif;
+  font-size: 2rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--primary-color);
+  text-shadow: 0 2px 4px rgba(160, 82, 45, 0.1);
+}
 
 .bottom-right {
   flex: 1;
   display: flex;
-  gap: 10px;
+  gap: var(--spacing-md);
 }
 
 .btn {
   flex: 1;
   border: none;
-  border-radius: 25px;
-  font-size: 14px;
-  font-weight: bold;
+  border-radius: var(--border-radius-xl);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
+  transition: all var(--transition-bounce);
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+  padding: var(--spacing-md) 0;
 }
 
-.btn-secondary { background: #FFF9F0; color: #D4A574; border: 1px solid #D4A574; }
-.btn-primary { background: #D4A574; color: white; }
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.2);
+}
+
+.btn:hover::before {
+  left: 100%;
+}
+
+.btn:active {
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--primary-color);
+  border: 2px solid var(--primary-color);
+}
+
+.btn-secondary:hover {
+  background: var(--surface-color);
+}
+
+.btn-primary {
+  background: var(--gradient-primary);
+  color: white;
+  box-shadow: 0 4px 16px rgba(160, 82, 45, 0.2);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 8px 24px rgba(160, 82, 45, 0.3);
+}
 
 .sold-out-btn {
   flex: 1;
-  background: #EEE;
-  color: #999;
+  background: var(--border-color);
+  color: var(--text-color-light);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 25px;
-  font-size: 14px;
+  border-radius: var(--border-radius-xl);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--spacing-md) 0;
+  cursor: not-allowed;
+}
+
+/* ========== 响应式设计 ========== */
+@media (max-width: 480px) {
+  .product-detail-page {
+    padding-bottom: 80px;
+  }
+
+  .product-images {
+    height: 350px;
+  }
+
+  .product-name {
+    font-size: var(--font-size-lg);
+  }
+
+  .current-price {
+    font-size: 1.8rem;
+  }
+
+  .toppings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .option-item {
+    min-width: 70px;
+  }
+
+  .bottom-action-bar {
+    height: 80px;
+    padding: 0 var(--spacing-md);
+  }
+
+  .btn {
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-sm) 0;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .product-images {
+    height: 380px;
+  }
+
+  .toppings-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 769px) {
+  .product-detail-page {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .product-images {
+    height: 450px;
+    border-radius: var(--border-radius-lg);
+    margin: var(--spacing-lg) var(--spacing-lg) 0;
+  }
+
+  .card {
+    margin: var(--spacing-lg);
+  }
+
+  .toppings-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 动画定义 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+/* 富文本内容样式 */
+.rich-text {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-relaxed);
+}
+
+.rich-text :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--border-radius-md);
+  margin: var(--spacing-md) 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.rich-text :deep(p) {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-color-medium);
+}
+
+.rich-text :deep(h2) {
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color-dark);
+  margin: var(--spacing-lg) 0 var(--spacing-md);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.rich-text :deep(ul) {
+  padding-left: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.rich-text :deep(li) {
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-color-medium);
+  position: relative;
+}
+
+.rich-text :deep(li)::before {
+  content: '•';
+  color: var(--primary-color);
+  position: absolute;
+  left: -15px;
+  font-size: var(--font-size-lg);
 }
 </style>

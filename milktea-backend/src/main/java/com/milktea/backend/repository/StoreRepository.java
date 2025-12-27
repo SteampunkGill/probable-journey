@@ -246,4 +246,28 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
      * @return 门店列表
      */
     List<Store> findByAddressContainingAndStatus(String address, String status);
+
+    /**
+     * 根据省份和状态查找门店
+     * @param province 省份
+     * @param status 状态
+     * @return 门店列表
+     */
+    List<Store> findByProvinceAndStatus(String province, String status);
+
+    /**
+     * 根据城市和状态查找门店
+     * @param city 城市
+     * @param status 状态
+     * @return 门店列表
+     */
+    List<Store> findByCityAndStatus(String city, String status);
+
+    /**
+     * 根据区县和状态查找门店
+     * @param district 区县
+     * @param status 状态
+     * @return 门店列表
+     */
+    List<Store> findByDistrictAndStatus(String district, String status);
 }

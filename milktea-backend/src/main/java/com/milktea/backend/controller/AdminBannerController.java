@@ -35,4 +35,10 @@ public class AdminBannerController {
     public ApiResponse<Map<String, Object>> updateAdPosition(@PathVariable Long id, @RequestBody Map<String, Object> positionData) {
         return ApiResponse.success(bannerService.updatePosition(id, positionData));
     }
+
+    @DeleteMapping("/banners/{id}")
+    public ApiResponse<Void> deleteBanner(@PathVariable Long id) {
+        bannerService.delete(id);
+        return ApiResponse.success(null);
+    }
 }

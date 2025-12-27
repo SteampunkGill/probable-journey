@@ -13,11 +13,20 @@ export const useCartStore = defineStore('cart', {
     async fetchCart() {
       try {
         const res = await cartApi.getCart()
-        this.items = res.map(item => ({
-          ...item,
-          selected: true,
-          cartItemId: item.id
-        }))
+        const data = res.data || res
+        this.items = (Array.isArray(data) ? data : []).map(item => {
+          let imageUrl = item.image || item.product?.mainImageUrl || item.product?.imageUrl
+          if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+            const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+            imageUrl = `http://localhost:8081${path}`
+          }
+          return {
+            ...item,
+            image: imageUrl,
+            selected: true,
+            cartItemId: item.id
+          }
+        })
       } catch (error) {
         console.error('获取购物车失败', error)
         this.items = []
@@ -27,6 +36,7 @@ export const useCartStore = defineStore('cart', {
       try {
         // 构建后端需要的参数
         const requestData = {
+          storeId: product.storeId,
           productId: product.id,
           quantity: product.quantity || 1,
           sweetness: product.sweetness,

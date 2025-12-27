@@ -104,10 +104,22 @@ const routes = [
     meta: { title: '订单详情' }
   },
   {
+    path: '/review/:id',
+    name: 'review',
+    component: () => import('../views/review/review.vue'),
+    meta: { title: '评价订单', requiresAuth: true }
+  },
+  {
     path: '/coupon',
     name: 'coupon',
     component: () => import('../views/coupon/coupon.vue'),
     meta: { title: '优惠券' }
+  },
+  {
+    path: '/share',
+    name: 'share',
+    component: () => import('../views/share/share.vue'),
+    meta: { title: '分享有礼', requiresAuth: true }
   },
   {
     path: '/wallet',
@@ -220,7 +232,9 @@ router.beforeEach((to, from, next) => {
     document.title = to.meta.title
   }
 
-  const token = localStorage.getItem('token')
+  const rawToken = localStorage.getItem('token')
+  const token = (rawToken && rawToken !== 'undefined' && rawToken !== 'null') ? rawToken : null
+  
   let userInfo = {}
   try {
     const storedUserInfo = localStorage.getItem('userInfo')
@@ -233,6 +247,10 @@ router.beforeEach((to, from, next) => {
 
   // 检查是否需要登录
   if (to.meta.requiresAuth && !token) {
+    // 如果已经在登录页，不要重复跳转
+    if (to.path === '/login') {
+      return next()
+    }
     return next({
       path: '/login',
       query: { redirect: to.fullPath }

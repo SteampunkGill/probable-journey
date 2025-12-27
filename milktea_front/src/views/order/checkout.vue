@@ -53,10 +53,10 @@
       </div>
 
       <!-- 自提门店 -->
-      <div 
-        class="section store-section" 
-        v-if="deliveryType === 'pickup'" 
-        @click="router.push('/store/list?mode=select')"
+      <div
+        class="section store-section"
+        v-if="deliveryType === 'pickup'"
+        @click="router.push('/order?mode=select')"
       >
         <div class="store-card" v-if="selectedStore">
           <div class="store-name">{{ selectedStore.name }}</div>
@@ -182,7 +182,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
-import { addressApi, couponApi, pointsApi, orderApi, cartApi } from '../../utils/api'
+import { addressApi, couponApi, pointsApi, orderApi, cartApi, userApi, storeApi } from '../../utils/api'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -238,7 +238,14 @@ const loadOrderData = async () => {
   try {
     const items = localStorage.getItem('checkoutItems')
     if (items) {
-      orderItems.value = JSON.parse(items)
+      orderItems.value = JSON.parse(items).map(item => {
+        let imageUrl = item.image || item.product?.mainImageUrl || item.product?.imageUrl
+        if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+          const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+          imageUrl = `http://localhost:8081${path}`
+        }
+        return { ...item, image: imageUrl }
+      })
     }
     const savedRemark = localStorage.getItem('orderRemark')
     if (savedRemark) {
@@ -249,15 +256,43 @@ const loadOrderData = async () => {
     const [addressRes, couponRes, profileRes] = await Promise.all([
       addressApi.getAddressList(),
       couponApi.getMyCoupons(),
-      authApi.getUserProfile()
+      userApi.getUserProfile()
     ])
     
     if (addressRes.code === 200 && addressRes.data.length > 0) {
       selectedAddress.value = addressRes.data.find(a => a.isDefault) || addressRes.data[0]
     }
+
+    // 获取默认门店（用于外卖配送）
+    const storeRes = await storeApi.getNearbyStores({ limit: 1 })
+    if (storeRes.code === 200 && storeRes.data?.length > 0) {
+      selectedStore.value = storeRes.data[0]
+    }
     
     if (couponRes.code === 200) {
       availableCoupons.value = couponRes.data.filter(c => c.status === 'UNUSED')
+      // 自动匹配最佳优惠券
+      if (availableCoupons.value.length > 0) {
+        const amount = parseFloat(subtotal.value)
+        let best = null
+        let maxDiscount = 0
+        
+        availableCoupons.value.forEach(coupon => {
+          if (amount >= coupon.minAmount) {
+            let discount = 0
+            if (coupon.type === 'REDUCTION') {
+              discount = coupon.value
+            } else if (coupon.type === 'DISCOUNT') {
+              discount = amount * (1 - coupon.value)
+            }
+            if (discount > maxDiscount) {
+              maxDiscount = discount
+              best = coupon
+            }
+          }
+        })
+        selectedCoupon.value = best
+      }
     }
     
     if (profileRes.code === 200) {
@@ -292,17 +327,18 @@ const submitOrder = async () => {
   try {
     const orderData = {
       items: orderItems.value.map(item => ({
-        productId: item.id,
+        // 确保获取的是商品ID而不是购物车项ID
+        productId: item.productId || item.product?.id || item.id,
         quantity: item.quantity,
+        price: item.price,
         specId: item.specId,
         customizations: item.customizations
       })),
-      deliveryType: deliveryType.value,
+      deliveryType: deliveryType.value.toUpperCase(),
       addressId: selectedAddress.value?.id,
       storeId: selectedStore.value?.id,
       couponId: selectedCoupon.value?.id,
-      usePoints: usePoints.value,
-      pointsToUse: pointsToUse.value,
+      usePoints: usePoints.value ? pointsToUse.value : 0,
       remark: remark.value,
       totalAmount: parseFloat(totalAmount.value)
     }
@@ -338,12 +374,12 @@ watch(usePoints, (val) => {
   }
 })
 </script>
-
 <style scoped>
 .checkout-page {
   min-height: 100vh;
-  background: #F5F5F5;
-  padding-bottom: 80px;
+  background: var(--background-color);
+  font-family: 'Noto Sans KR', sans-serif;
+  padding-bottom: 100px;
 }
 
 .loading {
@@ -352,44 +388,112 @@ watch(usePoints, (val) => {
   align-items: center;
   justify-content: center;
   height: 100vh;
+  color: var(--text-color-medium);
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid var(--border-color);
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  margin-bottom: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.content {
+  padding-bottom: 30px;
 }
 
 .section {
-  background: white;
-  margin: 10px;
-  padding: 15px;
-  border-radius: 8px;
+  background: var(--surface-color);
+  margin: 20px 24px;
+  padding: 24px;
+  border-radius: 25px;
+  box-shadow: 0 4px 15px rgba(139, 69, 19, 0.08);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
 }
 
+.section:hover {
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.12);
+}
+
+/* 配送方式 */
 .delivery-type {
   padding: 0;
   overflow: hidden;
+  border: 2px solid var(--accent-cream);
 }
 
 .type-tabs {
   display: flex;
+  height: 100%;
 }
 
 .tab {
   flex: 1;
-  padding: 15px;
+  padding: 24px 20px;
   text-align: center;
-  font-size: 14px;
-  background: #F8F8F8;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.5);
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-family: 'Prompt', sans-serif;
+}
+
+.tab:hover {
+  background: white;
+  transform: translateY(-3px);
 }
 
 .tab.active {
   background: white;
-  color: #D4A574;
-  font-weight: bold;
+  color: var(--primary-dark);
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.1);
+  position: relative;
 }
 
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-light) 100%);
+}
+
+.tab .icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+/* 地址/门店选择 */
 .address-section, .store-section {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
   cursor: pointer;
+  position: relative;
+  padding-right: 60px;
+  min-height: 120px;
+}
+
+.address-section:hover, .store-section:hover {
+  border-color: var(--primary-light);
+  transform: translateY(-3px);
 }
 
 .address-card, .store-card {
@@ -397,195 +501,534 @@ watch(usePoints, (val) => {
 }
 
 .address-header {
-  margin-bottom: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .name {
-  font-size: 16px;
-  font-weight: bold;
-  margin-right: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-color-dark);
+  font-family: 'Prompt', sans-serif;
 }
 
 .phone {
-  font-size: 14px;
-  color: #666;
+  font-size: 15px;
+  color: var(--primary-color);
+  font-weight: 500;
 }
 
 .address-detail {
-  font-size: 13px;
-  color: #333;
+  font-size: 14px;
+  color: var(--text-color-medium);
+  line-height: 1.6;
   display: flex;
-  gap: 5px;
+  align-items: flex-start;
+  gap: 10px;
 }
 
-.section-title {
+.address-detail .icon {
+  font-size: 16px;
+  color: var(--primary-light);
+  margin-top: 2px;
+}
+
+.store-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-color-dark);
+  font-family: 'Prompt', sans-serif;
+  margin-bottom: 8px;
+}
+
+.store-address {
   font-size: 14px;
+  color: var(--text-color-medium);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.store-time {
+  font-size: 13px;
+  color: var(--text-color-light);
+}
+
+.address-empty, .store-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-color-medium);
+  padding: 20px 0;
+}
+
+.address-empty .icon, .store-empty .icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+.arrow {
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 24px;
+  color: var(--text-color-light);
   font-weight: bold;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #F5F5F5;
+  opacity: 0.7;
+}
+
+/* 预计送达时间 */
+.time-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, var(--accent-cream) 0%, rgba(255, 248, 220, 0.3) 100%);
+  border: 2px solid var(--primary-light);
+}
+
+.time-section .label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+}
+
+.time-section .time {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-color);
+  font-family: 'Prompt', sans-serif;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.2);
+}
+
+/* 商品列表 */
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  padding-left: 12px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.goods-list {
+  margin-top: 10px;
 }
 
 .goods-item {
   display: flex;
-  gap: 12px;
-  margin-bottom: 15px;
+  gap: 20px;
+  padding: 20px;
+  background: white;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.goods-item:hover {
+  border-color: var(--primary-light);
+  transform: translateX(5px);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.1);
 }
 
 .goods-image {
-  width: 60px;
-  height: 60px;
-  border-radius: 4px;
+  width: 100px;
+  height: 100px;
+  border-radius: 16px;
   object-fit: cover;
+  border: 3px solid var(--accent-cream);
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.2);
 }
 
 .goods-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .goods-name {
-  font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-color-dark);
+  font-family: 'Prompt', sans-serif;
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 .goods-specs {
-  font-size: 11px;
-  color: #999;
-  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-color-medium);
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.goods-specs span {
+  background: var(--accent-cream);
+  padding: 4px 12px;
+  border-radius: 12px;
+  margin-right: 8px;
+  display: inline-block;
+  margin-bottom: 4px;
 }
 
 .goods-price {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: auto;
 }
 
-.price {
+.goods-price .price {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+}
+
+.goods-price .quantity {
   font-size: 14px;
-  color: #333;
+  color: var(--text-color-medium);
+  font-weight: 500;
+  background: var(--accent-cream);
+  padding: 6px 16px;
+  border-radius: 15px;
 }
 
-.quantity {
-  font-size: 12px;
-  color: #999;
-}
-
+/* 优惠券 */
 .coupon-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
+  padding: 20px 24px;
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 248, 220, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%);
 }
 
-.label {
-  font-size: 14px;
+.coupon-section:hover {
+  background: linear-gradient(135deg, var(--accent-cream) 0%, white 100%);
+  border-color: var(--primary-light);
 }
 
-.value {
+.coupon-section .label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.placeholder {
-  color: #999;
-  font-size: 13px;
+.coupon-section .value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.count {
-  background: #FF6B6B;
+.coupon-section .placeholder {
+  color: var(--text-color-light);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.coupon-section .count {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
   color: white;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 10px;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-family: 'Prompt', sans-serif;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+/* 积分抵扣 */
+.points-section {
+  padding: 20px 24px;
 }
 
 .points-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 15px;
+}
+
+.points-header .label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.points-header input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid var(--primary-light);
+  appearance: none;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.points-header input[type="checkbox"]:checked {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.points-header input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
 }
 
 .points-input {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #F5F5F5;
-  font-size: 13px;
-  color: #666;
+  margin-top: 15px;
+  padding: 20px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.1);
+  border: 2px solid var(--border-color);
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-color-medium);
+  font-weight: 500;
 }
 
-.points-input input {
-  width: 60px;
-  border: 1px solid #DDD;
-  border-radius: 4px;
-  padding: 2px 5px;
+.points-input input[type="number"] {
+  width: 80px;
+  padding: 8px 12px;
+  border: 2px solid var(--primary-light);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  text-align: center;
+  font-family: 'Prompt', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.points-input input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(160, 82, 45, 0.15);
+}
+
+/* 备注 */
+.remark-section {
+  padding: 20px 24px;
+}
+
+.remark-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .remark-input {
   width: 100%;
-  height: 60px;
-  background: #F8F8F8;
-  border: none;
-  border-radius: 4px;
-  padding: 10px;
-  margin-top: 10px;
-  font-size: 13px;
+  height: 100px;
+  background: white;
+  border: 2px solid var(--border-color);
+  border-radius: 20px;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-color-dark);
+  font-family: 'Noto Sans KR', sans-serif;
   resize: none;
   box-sizing: border-box;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.remark-input:focus {
+  outline: none;
+  border-color: var(--primary-light);
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.1);
+}
+
+.remark-input::placeholder {
+  color: var(--text-color-light);
+  opacity: 0.7;
+}
+
+/* 费用明细 */
+.amount-list {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(210, 180, 140, 0.1);
+  border: 2px solid var(--accent-cream);
 }
 
 .amount-item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: #666;
+  align-items: center;
+  padding: 18px 24px;
+  border-bottom: 2px dashed var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.amount-item:hover {
+  background: rgba(245, 240, 225, 0.3);
+}
+
+.amount-item:last-child {
+  border-bottom: none;
+}
+
+.amount-item .label {
+  font-size: 15px;
+  color: var(--text-color-medium);
+  font-weight: 500;
+}
+
+.amount-item .value {
+  font-size: 15px;
+  color: var(--text-color-dark);
+  font-weight: 600;
+  font-family: 'Prompt', sans-serif;
 }
 
 .amount-item.discount .value {
-  color: #FF6B6B;
+  color: #ff6b6b;
+  font-weight: 700;
 }
 
+/* 底部提交栏 */
 .footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
+  height: 90px;
+  background: var(--surface-color);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  justify-content: space-between;
+  padding: 0 24px;
+  box-shadow: 0 -4px 20px rgba(139, 69, 19, 0.1);
+  border-top: 1px solid var(--border-color);
+  border-radius: 30px 30px 0 0;
+  z-index: 10;
+}
+
+.total-amount {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .total-amount .label {
   font-size: 14px;
-  color: #333;
+  color: var(--text-color-medium);
+  font-weight: 500;
 }
 
 .total-amount .amount {
-  font-size: 20px;
-  font-weight: bold;
-  color: #D4A574;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  text-shadow: 0 2px 4px rgba(139, 69, 19, 0.1);
 }
 
 .submit-btn {
-  background: #D4A574;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   color: white;
   border: none;
-  padding: 12px 30px;
+  padding: 16px 48px;
   border-radius: 25px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Prompt', sans-serif;
+  box-shadow: 0 4px 15px rgba(160, 82, 45, 0.3);
+  min-width: 180px;
+}
+
+.submit-btn:hover:not(.disabled) {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.4);
+}
+
+.submit-btn:active:not(.disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .submit-btn.disabled {
-  background: #CCC;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 375px) {
+  .section {
+    margin: 16px 20px;
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .tab {
+    padding: 20px 16px;
+    font-size: 14px;
+  }
+
+  .address-section, .store-section {
+    padding-right: 50px;
+    min-height: 100px;
+  }
+
+  .goods-image {
+    width: 80px;
+    height: 80px;
+  }
+
+  .footer {
+    height: 80px;
+    padding: 0 20px;
+  }
+
+  .total-amount .amount {
+    font-size: 24px;
+  }
+
+  .submit-btn {
+    padding: 14px 36px;
+    font-size: 16px;
+    min-width: 150px;
+  }
 }
 </style>

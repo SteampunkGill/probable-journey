@@ -50,7 +50,7 @@ const tabs = [
   { key: 'used', name: '已使用' },
   { key: 'expired', name: '已过期' }
 ]
-const activeTab = ref('available')
+const activeTab = ref('center')
 const coupons = ref([])
 const loading = ref(false)
 
@@ -87,128 +87,157 @@ const useCoupon = (id) => {
   router.push('/order')
 }
 </script>
-
 <style scoped>
 .coupon-page {
   min-height: 100vh;
-  background: #F8F8F8;
+  background: linear-gradient(135deg, #f8f4e6 0%, #f0f0f0 100%);
 }
 
 .tabs {
   display: flex;
-  background: white;
+  background: rgba(255, 255, 255, 0.9);
   position: sticky;
   top: 0;
   z-index: 10;
+  backdrop-filter: blur(5px);
+  border-bottom: 1px solid rgba(46, 92, 138, 0.1);
 }
 
 .tab {
   flex: 1;
   text-align: center;
-  padding: 15px 0;
-  font-size: 14px;
-  color: #666;
+  padding: 20px 0;
+  font-size: 15px;
+  color: #2e5c8a;
   position: relative;
   cursor: pointer;
+  font-family: "STKaiti", "KaiTi", "楷体", cursive;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+  transition: all 0.3s ease;
 }
 
 .tab.active {
-  color: #D4A574;
+  color: #1687a7;
   font-weight: bold;
+  opacity: 1;
 }
 
 .tab.active::after {
   content: '';
   position: absolute;
   bottom: 0;
-  left: 20%;
-  right: 20%;
-  height: 3px;
-  background: #D4A574;
-  border-radius: 3px;
+  left: 25%;
+  right: 25%;
+  height: 2px;
+  background: linear-gradient(90deg, #1687a7 0%, #2e5c8a 100%);
+  border-radius: 2px;
 }
 
 .coupon-list {
-  padding: 15px;
+  padding: 20px;
 }
 
 .coupon-item {
-  background: white;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 2px;
   display: flex;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px rgba(22, 135, 167, 0.05);
+  border: 1px solid rgba(46, 92, 138, 0.08);
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
 }
 
 .coupon-left {
-  width: 100px;
-  background: #D4A574;
-  color: white;
+  width: 120px;
+  background: linear-gradient(135deg, #1687a7 0%, #2e5c8a 100%);
+  color: #f8f4e6;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 15px 0;
+  padding: 20px 0;
 }
 
 .value {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: bold;
+  font-family: "STKaiti", "KaiTi", "楷体", cursive;
+  letter-spacing: 0.05em;
 }
 
 .condition {
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.9;
-  margin-top: 4px;
+  margin-top: 6px;
+  font-family: "Microsoft YaHei", "SimSun", "宋体", serif;
+  letter-spacing: 0.03em;
 }
 
 .coupon-right {
   flex: 1;
-  padding: 15px;
+  padding: 20px;
   position: relative;
 }
 
 .name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: bold;
-  color: #333;
-  margin-bottom: 5px;
+  color: #3a3a3a;
+  margin-bottom: 8px;
+  font-family: "STKaiti", "KaiTi", "楷体", cursive;
+  letter-spacing: 0.05em;
 }
 
 .desc {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 10px;
+  font-size: 13px;
+  color: #2c9678;
+  margin-bottom: 12px;
+  font-family: "Microsoft YaHei", "SimSun", "宋体", serif;
+  letter-spacing: 0.03em;
+  opacity: 0.8;
 }
 
 .expire {
-  font-size: 11px;
-  color: #CCC;
+  font-size: 12px;
+  color: #d6b85a;
+  font-family: "Microsoft YaHei", "SimSun", "宋体", serif;
+  letter-spacing: 0.03em;
+  opacity: 0.7;
 }
 
 .use-btn {
   position: absolute;
-  right: 15px;
-  bottom: 15px;
-  background: #D4A574;
-  color: white;
+  right: 20px;
+  bottom: 20px;
+  background: linear-gradient(135deg, #1687a7 0%, #2e5c8a 100%);
+  color: #f8f4e6;
   border: none;
-  padding: 5px 15px;
-  border-radius: 15px;
-  font-size: 12px;
+  padding: 6px 20px;
+  border-radius: 2px;
+  font-size: 13px;
   cursor: pointer;
+  font-family: "STKaiti", "KaiTi", "楷体", cursive;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 8px rgba(22, 135, 167, 0.2);
+  transition: all 0.3s ease;
 }
 
 .empty-state {
-  padding-top: 100px;
+  padding-top: 120px;
   text-align: center;
-  color: #999;
+  color: #2c9678;
+  font-family: "STKaiti", "KaiTi", "楷体", cursive;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
 }
 
 .empty-icon {
-  font-size: 60px;
-  margin-bottom: 20px;
-  opacity: 0.2;
+  font-size: 72px;
+  margin-bottom: 24px;
+  opacity: 0.3;
+  filter: grayscale(0.8);
 }
 </style>

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import java.util.Optional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -43,14 +44,14 @@ public class AddressService {
      * 获取当前用户地址列表
      */
     public List<UserAddress> listAddresses() {
-        return userAddressRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userService.getCurrentUser().getId());
+        return userAddressRepository.findByUserIdAndIsHistoryFalseOrderByIsDefaultDescCreatedAtDesc(userService.getCurrentUser().getId());
     }
 
     /**
      * 获取用户地址列表
      */
     public List<UserAddress> getUserAddresses(Long userId) {
-        return userAddressRepository.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId);
+        return userAddressRepository.findByUserIdAndIsHistoryFalseOrderByIsDefaultDescCreatedAtDesc(userId);
     }
 
     /**
@@ -172,10 +173,65 @@ public class AddressService {
     }
 
     /**
-     * 获取地址历史记录（常用地址）
+     * 获取地址历史记录
      */
     public List<UserAddress> getAddressHistory(Long userId, int limit) {
-        return userAddressRepository.findTopNByUserIdOrderByUsedCountDesc(userId, PageRequest.of(0, limit));
+        return userAddressRepository.findByUserIdAndIsHistoryTrueOrderByLastUsedAtDesc(userId);
+    }
+
+    /**
+     * 保存地址到历史记录
+     */
+    @Transactional
+    public void saveToHistory(com.milktea.milktea_backend.model.entity.User user, String addressJson) {
+        try {
+            if (addressJson == null || addressJson.isEmpty()) return;
+            
+            // 解析地址JSON
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> addrMap = mapper.readValue(addressJson, Map.class);
+            
+            String province = (String) addrMap.get("province");
+            String city = (String) addrMap.get("city");
+            String district = (String) addrMap.get("district");
+            String detail = (String) addrMap.get("detail");
+            String name = (String) addrMap.get("name");
+            String phone = (String) addrMap.get("phone");
+
+            if (province == null || city == null || detail == null) return;
+
+            // 查找是否存在相同的历史地址
+            List<UserAddress> histories = userAddressRepository.findByUserIdAndIsHistoryTrueOrderByLastUsedAtDesc(user.getId());
+            Optional<UserAddress> existing = histories.stream()
+                    .filter(a -> province.equals(a.getProvince()) &&
+                                city.equals(a.getCity()) &&
+                                district.equals(a.getDistrict()) &&
+                                detail.equals(a.getDetail()))
+                    .findFirst();
+
+            if (existing.isPresent()) {
+                UserAddress addr = existing.get();
+                addr.setUsedCount((addr.getUsedCount() == null ? 0 : addr.getUsedCount()) + 1);
+                addr.setLastUsedAt(java.time.LocalDateTime.now());
+                userAddressRepository.save(addr);
+            } else {
+                UserAddress addr = new UserAddress();
+                addr.setUser(user);
+                addr.setName(name != null ? name : "历史地址");
+                addr.setPhone(phone != null ? phone : "");
+                addr.setProvince(province);
+                addr.setCity(city);
+                addr.setDistrict(district);
+                addr.setDetail(detail);
+                addr.setIsHistory(true);
+                addr.setIsDefault(false);
+                addr.setUsedCount(1);
+                addr.setLastUsedAt(java.time.LocalDateTime.now());
+                userAddressRepository.save(addr);
+            }
+        } catch (Exception e) {
+            log.error("保存地址历史记录失败", e);
+        }
     }
 
     @Transactional

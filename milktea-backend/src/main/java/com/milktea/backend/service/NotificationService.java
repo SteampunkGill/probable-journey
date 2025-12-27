@@ -51,8 +51,19 @@ public class NotificationService {
         notification.setContent(taskDTO.getContent());
         notification.setTargetType(taskDTO.getTargetType());
         notification.setTargetValue(taskDTO.getTargetValue());
-        notification.setSentTime(LocalDateTime.now());
-        notification.setStatus("SENT");
+        notification.setPushType(taskDTO.getPushType());
+        notification.setTriggerType(taskDTO.getTriggerType());
+        notification.setTriggerCondition(taskDTO.getTriggerCondition());
+        notification.setImageUrl(taskDTO.getImageUrl());
+        notification.setLinkUrl(taskDTO.getLinkUrl());
+        notification.setScheduledTime(taskDTO.getScheduledTime());
+        
+        if ("IMMEDIATE".equals(taskDTO.getTriggerType()) || taskDTO.getTriggerType() == null) {
+            notification.setSentTime(LocalDateTime.now());
+            notification.setStatus("SENT");
+        } else {
+            notification.setStatus("PENDING");
+        }
         
         notification = notificationRepository.save(notification);
         return convertToPushTaskDTO(notification);
@@ -67,11 +78,22 @@ public class NotificationService {
     }
 
     public Map<String, Object> getPushStatistics(Long id) {
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("推送任务不存在"));
+        
         Map<String, Object> stats = new HashMap<>();
-        stats.put("sentCount", 1000);
-        stats.put("reachCount", 950);
-        stats.put("readCount", 450);
-        stats.put("clickCount", 120);
+        // 真实场景下应从埋点系统或日志系统统计，这里根据状态模拟一些合理数据
+        if ("SENT".equals(notification.getStatus())) {
+            stats.put("sentCount", 1000);
+            stats.put("reachCount", 950);
+            stats.put("readCount", 450);
+            stats.put("clickCount", 120);
+        } else {
+            stats.put("sentCount", 0);
+            stats.put("reachCount", 0);
+            stats.put("readCount", 0);
+            stats.put("clickCount", 0);
+        }
         return stats;
     }
 
@@ -80,10 +102,31 @@ public class NotificationService {
         Notification notification = new Notification();
         notification.setTitle((String) notice.get("title"));
         notification.setContent((String) notice.get("content"));
-        notification.setTargetType("ALL");
-        notification.setSentTime(LocalDateTime.now());
-        notification.setStatus("SENT");
+        
+        String targetType = (String) notice.getOrDefault("targetType", "ALL");
+        notification.setTargetType(targetType);
+        notification.setTargetValue((String) notice.get("targetValue"));
+        notification.setPushType("ACTIVITY");
+        
+        String triggerType = (String) notice.getOrDefault("triggerType", "IMMEDIATE");
+        notification.setTriggerType(triggerType);
+        notification.setTriggerCondition((String) notice.get("behavior"));
+        notification.setImageUrl((String) notice.get("imageUrl"));
+        notification.setLinkUrl((String) notice.get("linkUrl"));
+        
+        if ("IMMEDIATE".equals(triggerType)) {
+            notification.setSentTime(LocalDateTime.now());
+            notification.setStatus("SENT");
+        } else {
+            notification.setStatus("PENDING");
+        }
+        
         notificationRepository.save(notification);
+        
+        // 模拟行为触发逻辑
+        if ("BEHAVIOR_TRIGGER".equals(triggerType)) {
+            System.out.println("触发行为推送: " + notice.get("behavior"));
+        }
     }
 
     private NotificationDTO convertToDTO(Notification notification) {
@@ -94,6 +137,9 @@ public class NotificationService {
                 .type(notification.getTargetType())
                 .createdAt(notification.getSentTime())
                 .isRead(false)
+                .pushType(notification.getPushType())
+                .imageUrl(notification.getImageUrl())
+                .linkUrl(notification.getLinkUrl())
                 .build();
     }
 
@@ -106,6 +152,12 @@ public class NotificationService {
         dto.setTargetValue(notification.getTargetValue());
         dto.setSentTime(notification.getSentTime());
         dto.setStatus(notification.getStatus());
+        dto.setPushType(notification.getPushType());
+        dto.setTriggerType(notification.getTriggerType());
+        dto.setTriggerCondition(notification.getTriggerCondition());
+        dto.setImageUrl(notification.getImageUrl());
+        dto.setLinkUrl(notification.getLinkUrl());
+        dto.setScheduledTime(notification.getScheduledTime());
         return dto;
     }
 }

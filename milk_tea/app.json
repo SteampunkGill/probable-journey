@@ -21,7 +21,9 @@
     "pages/favorite/favorite",
     "pages/member/level",
     "pages/share/share",
-    "pages/settings/settings"
+    "pages/settings/settings",
+    "pages/complaint/complaint",
+    "pages/review/review"
   ],
   "window": {
     "backgroundTextStyle": "light",

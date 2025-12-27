@@ -223,11 +223,11 @@ CREATE TABLE `user_coupons` (
   KEY `idx_user_status` (`user_id`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户优惠券实例';
 
--- 促销活动 
+-- 促销活动
 CREATE TABLE `promotions` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) NOT NULL,
-  `type` VARCHAR(50) NOT NULL COMMENT 'FULL_REDUCE, SECOND_HALF, FLASH_SALE',
+  `type` VARCHAR(50) NOT NULL COMMENT 'FULL_REDUCE, SECOND_HALF, LIMITED_DISCOUNT, FLASH_SALE',
   `start_time` DATETIME NOT NULL,
   `end_time` DATETIME NOT NULL,
   `rules_json` JSON NOT NULL COMMENT '存储具体规则参数',
@@ -377,6 +377,9 @@ CREATE TABLE `stores` (
   `current_wait_time` INT DEFAULT 0 COMMENT '当前预估等待(分钟)',
   `is_active` BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否激活',
   `code` VARCHAR(20) UNIQUE COMMENT '门店编码',
+  `province` VARCHAR(50) DEFAULT NULL COMMENT '省份',
+  `city` VARCHAR(50) DEFAULT NULL COMMENT '城市',
+  `district` VARCHAR(50) DEFAULT NULL COMMENT '区县',
   `address_json` JSON COMMENT '地址详情JSON',
   `manager_name` VARCHAR(50) COMMENT '负责人姓名',
   `manager_phone` VARCHAR(20) COMMENT '负责人电话',
@@ -477,6 +480,18 @@ CREATE TABLE `system_configs` (
   PRIMARY KEY (`config_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置KV表';
 
+-- 系统备份记录表
+CREATE TABLE `sys_backups` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `file_name` VARCHAR(255) NOT NULL,
+  `file_path` VARCHAR(500) NOT NULL,
+  `file_size` BIGINT,
+  `status` VARCHAR(20) DEFAULT 'COMPLETED' COMMENT 'COMPLETED, FAILED, IN_PROGRESS',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统备份记录表';
+
+
 -- 消息通知与推送记录
 CREATE TABLE `notifications` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
@@ -486,6 +501,12 @@ CREATE TABLE `notifications` (
   `target_value` VARCHAR(100),
   `sent_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `status` VARCHAR(20) DEFAULT 'SENT',
+  `push_type` VARCHAR(20) DEFAULT NULL COMMENT '推送类型: MARKETING(营销), ACTIVITY(活动)',
+  `trigger_type` VARCHAR(20) DEFAULT NULL COMMENT '触发类型: IMMEDIATE(立即), SCHEDULED(定时), BEHAVIOR_TRIGGER(行为触发)',
+  `trigger_condition` VARCHAR(255) DEFAULT NULL COMMENT '触发条件/行为标识',
+  `image_url` VARCHAR(255) DEFAULT NULL COMMENT '推送配图URL',
+  `link_url` VARCHAR(255) DEFAULT NULL COMMENT '跳转链接URL',
+  `scheduled_time` DATETIME DEFAULT NULL COMMENT '计划发送时间',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='推送任务记录';
 
@@ -598,11 +619,17 @@ CREATE TABLE `store_business_hours` (
 CREATE TABLE `cart_items` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `user_id` BIGINT NOT NULL,
+  `store_id` BIGINT DEFAULT NULL,
   `product_id` BIGINT NOT NULL,
   `spec_id` BIGINT,
   `sweetness` VARCHAR(20),
   `temperature` VARCHAR(20),
   `quantity` INT NOT NULL DEFAULT 1,
+  `is_selected` BIT(1) NOT NULL DEFAULT 1 COMMENT '是否选中',
+  `is_valid` BIT(1) NOT NULL DEFAULT 1 COMMENT '是否有效',
+  `price_at_add` DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT '加入时的价格',
+  `original_price_at_add` DECIMAL(10, 2) DEFAULT NULL COMMENT '加入时的原价',
+  `invalid_reason` VARCHAR(255) DEFAULT NULL COMMENT '失效原因',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

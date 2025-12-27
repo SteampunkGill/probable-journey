@@ -74,74 +74,109 @@
 
     <!-- 搜索结果 -->
     <div class="search-results" v-if="showResults">
-      <!-- 搜索结果头部 -->
-      <div class="results-header">
-        <span class="results-count">
-          找到{{ searchResults.length }}个相关商品
-        </span>
-        <div class="sort-options">
-          <span 
-            class="sort-option" 
-            :class="{ active: sortBy === 'default' }" 
-            @click="changeSort('default')"
-          >综合</span>
-          <span 
-            class="sort-option" 
-            :class="{ active: sortBy === 'sales' }" 
-            @click="changeSort('sales')"
-          >销量</span>
-          <span 
-            class="sort-option" 
-            :class="{ active: sortBy === 'price_asc' }" 
-            @click="changeSort('price_asc')"
-          >价格 ↑</span>
-          <span 
-            class="sort-option" 
-            :class="{ active: sortBy === 'price_desc' }" 
-            @click="changeSort('price_desc')"
-          >价格 ↓</span>
-        </div>
+      <!-- 结果类型切换 -->
+      <div class="search-tabs">
+        <div
+          class="tab-item"
+          :class="{ active: searchType === 'product' }"
+          @click="searchType = 'product'"
+        >商品 ({{ filteredProducts.length }})</div>
+        <div
+          class="tab-item"
+          :class="{ active: searchType === 'store' }"
+          @click="searchType = 'store'"
+        >门店 ({{ filteredStores.length }})</div>
       </div>
 
-      <!-- 筛选条件 -->
-      <div class="filter-options">
-        <div class="filter-tags">
-          <span 
-            class="filter-tag" 
-            :class="{ active: activeCategory === '' }" 
-            @click="activeCategory = ''"
-          >全部</span>
-          <span 
-            class="filter-tag" 
-            :class="{ active: activeCategory === category.id }" 
-            v-for="category in categories" 
-            :key="category.id"
-            @click="activeCategory = category.id"
+      <!-- 商品搜索结果 -->
+      <template v-if="searchType === 'product'">
+        <div class="results-header">
+          <div class="sort-options">
+            <span
+              class="sort-option"
+              :class="{ active: sortBy === 'default' }"
+              @click="changeSort('default')"
+            >综合</span>
+            <span
+              class="sort-option"
+              :class="{ active: sortBy === 'sales' }"
+              @click="changeSort('sales')"
+            >销量</span>
+            <span
+              class="sort-option"
+              :class="{ active: sortBy === 'price_asc' }"
+              @click="changeSort('price_asc')"
+            >价格 ↑</span>
+            <span
+              class="sort-option"
+              :class="{ active: sortBy === 'price_desc' }"
+              @click="changeSort('price_desc')"
+            >价格 ↓</span>
+          </div>
+        </div>
+
+        <div class="filter-options">
+          <div class="filter-tags">
+            <span
+              class="filter-tag"
+              :class="{ active: activeCategory === '' }"
+              @click="activeCategory = ''"
+            >全部</span>
+            <span
+              class="filter-tag"
+              :class="{ active: activeCategory === category.id }"
+              v-for="category in categories"
+              :key="category.id"
+              @click="activeCategory = category.id"
+            >
+              {{ category.name }}
+            </span>
+          </div>
+        </div>
+
+        <div class="product-list" v-if="filteredProducts.length > 0">
+          <div class="product-grid">
+            <ProductCard
+              v-for="item in filteredProducts"
+              :key="item.id"
+              :product="item"
+              @click="onProductTap(item.id)"
+            />
+          </div>
+        </div>
+        <div class="empty-results" v-else>
+          <div class="empty-icon">🔍</div>
+          <p class="empty-text">没有找到相关商品</p>
+        </div>
+      </template>
+
+      <!-- 门店搜索结果 -->
+      <template v-else>
+        <div class="store-list" v-if="filteredStores.length > 0">
+          <div
+            class="store-item"
+            v-for="store in filteredStores"
+            :key="store.id"
+            @click="onStoreTap(store.id)"
           >
-            {{ category.name }}
-          </span>
+            <div class="store-info">
+              <div class="store-name">{{ store.name }}</div>
+              <div class="store-address">{{ store.address }}</div>
+              <div class="store-status">
+                <span class="status-tag" :class="store.status">{{ store.status === 'OPEN' ? '营业中' : '休息中' }}</span>
+                <span class="distance" v-if="store.distance">{{ store.distance }}km</span>
+              </div>
+            </div>
+            <div class="store-action">
+              <span class="go-btn">去下单</span>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <!-- 商品列表 -->
-      <div class="product-list" v-if="filteredResults.length > 0">
-        <div class="product-grid">
-          <ProductCard 
-            v-for="item in filteredResults" 
-            :key="item.id"
-            :product="item"
-            @click="onProductTap(item.id)"
-          />
+        <div class="empty-results" v-else>
+          <div class="empty-icon">🏪</div>
+          <p class="empty-text">没有找到相关门店</p>
         </div>
-      </div>
-
-      <!-- 空结果提示 -->
-      <div class="empty-results" v-else>
-        <div class="empty-icon">🔍</div>
-        <p class="empty-text">没有找到相关商品</p>
-        <p class="empty-hint">换个关键词试试吧</p>
-        <button class="reset-btn" @click="resetSearch">重新搜索</button>
-      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -289,219 +324,730 @@ const resetSearch = () => {
   showResults.value = false
 }
 </script>
-
 <style scoped>
+/* 奶茶主题 CSS 变量定义 */
 .search-page {
-  min-height: 100vh;
-  background: #F8F8F8;
+  --background-color: #f5f0e1; /* 奶油色背景 */
+  --surface-color: #e8dccb;    /* 表面元素色 - 浅卡其 */
+  --primary-color: #a0522d;    /* 焦糖色 - 主色调 */
+  --primary-dark: #8b4513;     /* 深咖啡色 */
+  --primary-light: #d2b48c;    /* 浅驼色 */
+  --accent-cream: #fff8dc;     /* 奶油强调色 */
+  --accent-pink: #ffc0cb;      /* 淡粉色 */
+  --accent-brown: #deb887;     /* 沙棕色 */
+  --text-color-dark: #4a3b30;  /* 深棕色文本 */
+  --text-color-medium: #7a6a5b; /* 中棕色文本 */
+  --text-color-light: #a09080;  /* 浅咖色文本 */
+  --border-color: #d4c7b5;      /* 边框色 */
+  --hot-color: #ff6b6b;        /* 热门标签颜色 */
+
+  --border-radius-sm: 8px;
+  --border-radius-md: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-xl: 50%;      /* 用于圆形元素 */
+
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  --shadow-soft: 0 4px 12px rgba(160, 82, 45, 0.08);
+  --shadow-medium: 0 6px 20px rgba(160, 82, 45, 0.12);
+  --shadow-hover: 0 8px 24px rgba(160, 82, 45, 0.16);
+
+  --transition-smooth: all 0.25s ease-out;
+  --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
+.search-page {
+  min-height: 100vh;
+  background: var(--background-color);
+  font-family: 'Noto Sans KR', 'Nunito', 'Quicksand', sans-serif;
+  color: var(--text-color-dark);
+}
+
+/* 搜索头部 */
 .search-header {
-  background: white;
-  padding: 10px 15px;
+  background: linear-gradient(135deg,
+  var(--primary-color) 0%,
+  var(--primary-dark) 100%);
+  padding: var(--spacing-md) var(--spacing-lg);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: var(--shadow-medium);
 }
 
 .search-input-wrapper {
   flex: 1;
-  height: 36px;
-  background: #F5F5F5;
-  border-radius: 18px;
+  height: 44px;
+  background: var(--accent-cream);
+  border-radius: var(--border-radius-xl);
   display: flex;
   align-items: center;
-  padding: 0 15px;
+  padding: 0 var(--spacing-md);
   position: relative;
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.15);
+  transition: var(--transition-smooth);
+}
+
+.search-input-wrapper:focus-within {
+  box-shadow: 0 4px 16px rgba(139, 69, 19, 0.25);
+  transform: translateY(-1px);
 }
 
 .search-input-wrapper input {
   flex: 1;
   background: transparent;
   border: none;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
+  color: var(--text-color-dark);
+  font-family: 'Noto Sans KR', sans-serif;
+  padding-right: var(--spacing-sm);
+}
+
+.search-input-wrapper input::placeholder {
+  color: var(--text-color-light);
+  opacity: 0.7;
 }
 
 .close-icon {
-  font-size: 12px;
-  color: #999;
+  font-size: 14px;
+  color: var(--text-color-medium);
   cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  transition: var(--transition-smooth);
+}
+
+.close-icon:hover {
+  background: white;
+  color: var(--primary-color);
+  transform: scale(1.1);
 }
 
 .search-action {
-  font-size: 20px;
+  width: 44px;
+  height: 44px;
+  background: var(--accent-cream);
+  border-radius: var(--border-radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.15);
+  transition: var(--transition-bounce);
 }
 
-.search-history, .hot-search {
+.search-action:hover {
   background: white;
-  padding: 20px 15px;
-  margin-bottom: 10px;
+  transform: scale(1.05) rotate(5deg);
+  box-shadow: 0 4px 16px rgba(139, 69, 19, 0.25);
+}
+
+.search-icon {
+  font-size: 18px;
+  color: var(--primary-color);
+}
+
+/* 搜索历史和热门搜索 */
+.search-history, .hot-search {
+  background: var(--surface-color);
+  padding: var(--spacing-lg);
+  margin: var(--spacing-md);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.search-history::before, .hot-search::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg,
+  var(--primary-color) 0%,
+  var(--accent-pink) 50%,
+  var(--accent-cream) 100%);
+  opacity: 0.6;
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
 .history-header, .hot-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .history-title, .hot-title {
-  font-size: 15px;
-  font-weight: bold;
-  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-family: 'Prompt', sans-serif;
+  position: relative;
+  padding-left: var(--spacing-sm);
+}
+
+.history-title::before, .hot-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 16px;
+  background: var(--primary-color);
+  border-radius: 2px;
 }
 
 .delete-icon {
-  font-size: 16px;
-  color: #999;
+  font-size: 18px;
+  color: var(--text-color-medium);
   cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition-smooth);
 }
 
+.delete-icon:hover {
+  color: var(--primary-color);
+  background: rgba(160, 82, 45, 0.1);
+  transform: rotate(15deg) scale(1.1);
+}
+
+/* 标签样式 */
 .history-tags, .hot-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--spacing-sm);
 }
 
 .history-tag, .hot-tag {
-  background: #F5F5F5;
-  padding: 6px 15px;
-  border-radius: 15px;
+  background: var(--accent-cream);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-xl);
   font-size: 13px;
-  color: #666;
+  color: var(--text-color-medium);
   cursor: pointer;
+  border: 1px solid var(--border-color);
+  transition: var(--transition-bounce);
+  position: relative;
+  overflow: hidden;
+}
+
+.history-tag:hover, .hot-tag:hover {
+  background: white;
+  color: var(--primary-color);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--primary-light);
+}
+
+.history-tag::before, .hot-tag::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+  transparent,
+  rgba(255, 255, 255, 0.4),
+  transparent);
+  transition: 0.5s;
+}
+
+.history-tag:hover::before, .hot-tag:hover::before {
+  left: 100%;
+}
+
+/* 热门标签特殊样式 */
+.hot-tag {
+  position: relative;
 }
 
 .hot-tag.hot {
-  color: #D4A574;
-  background: #FDF8F3;
+  color: var(--hot-color);
+  background: rgba(255, 107, 107, 0.1);
+  border-color: rgba(255, 107, 107, 0.3);
+  font-weight: 500;
 }
 
+.hot-tag.hot::after {
+  content: '🔥';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.hot-tag:nth-child(1).hot::after {
+  content: '🥇';
+  font-size: 12px;
+}
+
+.hot-tag:nth-child(2).hot::after {
+  content: '🥈';
+  font-size: 12px;
+}
+
+.hot-tag:nth-child(3).hot::after {
+  content: '🥉';
+  font-size: 12px;
+}
+
+/* 搜索建议 */
 .search-suggest {
   position: absolute;
-  top: 56px;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: white;
+  top: 72px;
+  left: var(--spacing-md);
+  right: var(--spacing-md);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-medium);
+  border: 1px solid var(--border-color);
   z-index: 90;
+  overflow: hidden;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.suggest-list {
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .suggest-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 15px;
-  border-bottom: 1px solid #F5F5F5;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.suggest-item:hover {
+  background: var(--accent-cream);
+  padding-left: var(--spacing-xl);
+}
+
+.suggest-item:last-child {
+  border-bottom: none;
 }
 
 .suggest-icon {
   font-size: 14px;
-  color: #CCC;
+  color: var(--text-color-light);
+  transition: var(--transition-smooth);
+}
+
+.suggest-item:hover .suggest-icon {
+  color: var(--primary-color);
+  transform: scale(1.2);
 }
 
 .suggest-text {
   font-size: 14px;
-  color: #333;
+  color: var(--text-color-dark);
+  flex: 1;
 }
 
-.results-header {
-  background: white;
-  padding: 15px;
+/* 搜索结果区域 */
+.search-results {
+  padding: var(--spacing-md);
+}
+
+/* 搜索标签页 */
+.search-tabs {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #F5F5F5;
+  background: var(--surface-color);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xs);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-color);
 }
 
-.results-count {
-  font-size: 12px;
-  color: #999;
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-color-medium);
+  cursor: pointer;
+  border-radius: var(--border-radius-md);
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-item:hover {
+  color: var(--primary-color);
+  background: rgba(160, 82, 45, 0.05);
+}
+
+.tab-item.active {
+  color: white;
+  background: linear-gradient(135deg,
+  var(--primary-color) 0%,
+  var(--primary-dark) 100%);
+  box-shadow: var(--shadow-soft);
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  background: var(--accent-cream);
+  border-radius: 2px;
+}
+
+/* 排序选项 */
+.results-header {
+  background: var(--surface-color);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-lg);
+  margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-color);
 }
 
 .sort-options {
   display: flex;
-  gap: 15px;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
 }
 
 .sort-option {
   font-size: 13px;
-  color: #666;
+  color: var(--text-color-medium);
   cursor: pointer;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition-smooth);
+  position: relative;
+}
+
+.sort-option:hover {
+  color: var(--primary-color);
+  background: rgba(160, 82, 45, 0.1);
 }
 
 .sort-option.active {
-  color: #D4A574;
-  font-weight: bold;
+  color: var(--primary-color);
+  font-weight: 600;
+  background: var(--accent-cream);
+  padding-right: var(--spacing-md);
 }
 
+.sort-option.active::after {
+  content: '✓';
+  position: absolute;
+  right: var(--spacing-xs);
+  font-size: 10px;
+}
+
+/* 分类筛选 */
 .filter-options {
-  background: white;
-  padding: 10px 15px;
+  background: var(--surface-color);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-lg);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-color);
   overflow-x: auto;
+  white-space: nowrap;
 }
 
 .filter-tags {
   display: flex;
-  gap: 10px;
-  white-space: nowrap;
+  gap: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
 }
 
 .filter-tag {
-  padding: 4px 12px;
-  border-radius: 12px;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-xl);
   font-size: 12px;
-  background: #F5F5F5;
-  color: #666;
+  background: var(--accent-cream);
+  color: var(--text-color-medium);
   cursor: pointer;
+  border: 1px solid var(--border-color);
+  transition: var(--transition-bounce);
+  flex-shrink: 0;
+}
+
+.filter-tag:hover {
+  background: white;
+  color: var(--primary-color);
+  transform: translateY(-2px);
+  border-color: var(--primary-light);
 }
 
 .filter-tag.active {
-  background: #D4A574;
+  background: linear-gradient(135deg,
+  var(--primary-color) 0%,
+  var(--primary-dark) 100%);
   color: white;
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-2px);
 }
 
+/* 商品列表 */
 .product-list {
-  padding: 15px;
+  padding: var(--spacing-sm);
 }
 
 .product-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--spacing-md);
 }
 
+/* 门店列表 */
+.store-list {
+  background: var(--surface-color);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-color);
+}
+
+.store-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.store-item:hover {
+  background: var(--accent-cream);
+  transform: translateX(4px);
+}
+
+.store-item:last-child {
+  border-bottom: none;
+}
+
+.store-info {
+  flex: 1;
+}
+
+.store-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-color-dark);
+  margin-bottom: var(--spacing-xs);
+  font-family: 'Prompt', sans-serif;
+}
+
+.store-address {
+  font-size: 13px;
+  color: var(--text-color-medium);
+  margin-bottom: var(--spacing-sm);
+}
+
+.store-status {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.status-tag {
+  font-size: 11px;
+  padding: 2px var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+}
+
+.status-tag.OPEN {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4CAF50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-tag.CLOSED {
+  background: rgba(244, 67, 54, 0.1);
+  color: #F44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.distance {
+  font-size: 12px;
+  color: var(--text-color-light);
+}
+
+.store-action {
+  margin-left: var(--spacing-md);
+}
+
+.go-btn {
+  background: linear-gradient(135deg,
+  var(--primary-color) 0%,
+  var(--primary-dark) 100%);
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-lg);
+  border-radius: var(--border-radius-xl);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-bounce);
+  display: inline-block;
+  box-shadow: var(--shadow-soft);
+}
+
+.go-btn:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-hover);
+}
+
+/* 空状态 */
 .empty-results {
-  padding-top: 100px;
+  padding: var(--spacing-xl) var(--spacing-md);
   text-align: center;
-  color: #999;
+  color: var(--text-color-medium);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-lg);
+  margin-top: var(--spacing-lg);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-color);
 }
 
 .empty-icon {
-  font-size: 60px;
-  margin-bottom: 20px;
-  opacity: 0.2;
+  font-size: 64px;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.3;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.empty-text {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: var(--spacing-md);
+  font-family: 'Prompt', sans-serif;
 }
 
 .empty-hint {
-  font-size: 12px;
-  margin-top: 5px;
+  font-size: 13px;
+  color: var(--text-color-light);
+  margin-top: var(--spacing-sm);
 }
 
 .reset-btn {
-  margin-top: 20px;
-  background: #D4A574;
+  margin-top: var(--spacing-lg);
+  background: linear-gradient(135deg,
+  var(--primary-color) 0%,
+  var(--primary-dark) 100%);
   color: white;
   border: none;
-  padding: 8px 25px;
-  border-radius: 20px;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border-radius: var(--border-radius-xl);
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: var(--transition-bounce);
+  box-shadow: var(--shadow-medium);
+  font-family: 'Prompt', sans-serif;
+}
+
+.reset-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: var(--shadow-hover);
+}
+
+/* 响应式调整 */
+@media (max-width: 480px) {
+  .search-header {
+    padding: var(--spacing-sm);
+  }
+
+  .search-input-wrapper {
+    height: 40px;
+  }
+
+  .search-action {
+    width: 40px;
+    height: 40px;
+  }
+
+  .search-history, .hot-search {
+    margin: var(--spacing-sm);
+    padding: var(--spacing-md);
+  }
+
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--spacing-sm);
+  }
+
+  .store-item {
+    padding: var(--spacing-md);
+  }
+
+  .empty-icon {
+    font-size: 56px;
+  }
+}
+
+/* 奶茶主题装饰 */
+.search-history::after {
+  content: '📝';
+  position: absolute;
+  bottom: -10px;
+  right: -10px;
+  font-size: 24px;
+  opacity: 0.1;
+  transform: rotate(-15deg);
+}
+
+.hot-search::after {
+  content: '🔥';
+  position: absolute;
+  bottom: -10px;
+  right: -10px;
+  font-size: 24px;
+  opacity: 0.1;
+  transform: rotate(15deg);
 }
 </style>

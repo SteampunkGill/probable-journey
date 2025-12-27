@@ -97,29 +97,17 @@ public class AdminSystemController {
 
     @GetMapping("/backups")
     public ApiResponse<List<BackupDTO>> getBackups() {
-        List<BackupDTO> backups = new ArrayList<>();
-        BackupDTO b1 = new BackupDTO();
-        b1.setId(UUID.randomUUID().toString());
-        b1.setFileName("backup_20231027.sql");
-        b1.setFileSize(1024L * 1024 * 5);
-        b1.setStatus("COMPLETED");
-        b1.setCreatedAt(LocalDateTime.now().minusDays(1));
-        backups.add(b1);
-        return ApiResponse.success(backups);
+        return ApiResponse.success(systemService.getBackups());
     }
 
     @PostMapping("/backups")
     public ApiResponse<BackupDTO> createBackup() {
-        BackupDTO b = new BackupDTO();
-        b.setId(UUID.randomUUID().toString());
-        b.setFileName("backup_" + System.currentTimeMillis() + ".sql");
-        b.setStatus("IN_PROGRESS");
-        b.setCreatedAt(LocalDateTime.now());
-        return ApiResponse.success(b);
+        return ApiResponse.success(systemService.createBackup());
     }
 
     @PostMapping("/backups/{id}/restore")
-    public ApiResponse<Void> restoreBackup(@PathVariable String id) {
+    public ApiResponse<Void> restoreBackup(@PathVariable Long id) {
+        systemService.restoreBackup(id);
         return ApiResponse.success(null);
     }
 

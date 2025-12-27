@@ -22,6 +22,14 @@
       </view>
       <view class="radio {{paymentMethod === 'wechat' ? 'checked' : ''}}"></view>
     </view>
+
+    <view class="method-item {{paymentMethod === 'alipay' ? 'active' : ''}}" bindtap="switchPaymentMethod" data-method="alipay">
+      <view class="method-info">
+        <image class="method-icon" src="/images/icons/alipay.png" mode="aspectFit"></image>
+        <text class="method-name">支付宝支付</text>
+      </view>
+      <view class="radio {{paymentMethod === 'alipay' ? 'checked' : ''}}"></view>
+    </view>
     
     <view class="method-item {{paymentMethod === 'balance' ? 'active' : ''}}" bindtap="switchPaymentMethod" data-method="balance">
       <view class="method-info">

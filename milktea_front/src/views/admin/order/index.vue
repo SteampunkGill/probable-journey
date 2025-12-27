@@ -49,7 +49,7 @@
             <td>¥{{ o.payAmount }}</td>
             <td>{{ o.deliveryType === 'PICKUP' ? '自提' : '外送' }}</td>
             <td>
-              <span :class="'status-' + o.status.toLowerCase()">{{ getStatusName(o.status) }}</span>
+              <span :class="'status-' + (o.status ? o.status.toLowerCase() : '')">{{ getStatusName(o.status) }}</span>
             </td>
             <td class="ops">
               <button v-if="o.status === 'PAID'" @click="handleOrder(o, 'accept')">接单</button>
@@ -91,10 +91,10 @@
     <!-- 退款审核弹窗 -->
     <div v-if="refundModal.show" class="modal-mask">
       <div class="modal-container">
-        <h3>退款审核 - {{ refundModal.order.orderNo }}</h3>
+        <h3>退款审核 - {{ refundModal.order?.orderNo }}</h3>
         <div class="modal-body">
-          <p>退款金额：<span class="text-danger">¥{{ refundModal.order.payAmount }}</span></p>
-          <p>退款原因：{{ refundModal.order.refundReason || '无' }}</p>
+          <p>退款金额：<span class="text-danger">¥{{ refundModal.order?.payAmount }}</span></p>
+          <p>退款原因：{{ refundModal.order?.refundReason || '无' }}</p>
           <div class="form-item">
             <label>审核意见：</label>
             <textarea v-model="refundModal.reply" class="admin-textarea"></textarea>
@@ -112,7 +112,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { get, post, put } from '../../../utils/request'
+import request from '../../../utils/request'
 
 const orders = ref([])
 const complaints = ref([])
@@ -131,15 +131,25 @@ const isAllSelected = computed(() => orders.value.length > 0 && selectedNos.valu
 const loadOrders = async () => {
   let url = '/api/admin/orders'
   if (activeTab.value === 'pending') url = '/api/admin/orders/pending'
-  if (activeTab.value === 'refund') query.value.status = 'REFUNDING'
   
-  const res = await get(url, query.value)
-  orders.value = res.data || []
+  const params = { ...query.value }
+  if (activeTab.value === 'refund') params.status = 'REFUNDING'
+  
+  try {
+    const res = await request.get(url, { params })
+    orders.value = res.data || []
+  } catch (error) {
+    console.error('加载订单失败:', error)
+  }
 }
 
 const loadComplaints = async () => {
-  const res = await get('/api/admin/complaints')
-  complaints.value = res.data || []
+  try {
+    const res = await request.get('/api/admin/complaints')
+    complaints.value = res.data || []
+  } catch (error) {
+    console.error('加载投诉失败:', error)
+  }
 }
 
 watch(activeTab, (val) => {
@@ -155,28 +165,43 @@ const toggleAll = (e) => {
 }
 
 const handleOrder = async (o, action) => {
-  await post(`/api/admin/orders/${o.orderNo}/${action}`)
-  loadOrders()
+  try {
+    await request.post(`/api/admin/orders/${o.orderNo}/${action}`)
+    loadOrders()
+  } catch (error) {
+    console.error('处理订单失败:', error)
+  }
 }
 
 const batchAccept = async () => {
-  await post('/api/admin/orders/batch-accept', selectedNos.value)
-  loadOrders()
+  try {
+    await request.post('/api/admin/orders/batch-accept', selectedNos.value)
+    loadOrders()
+  } catch (error) {
+    console.error('批量接单失败:', error)
+  }
 }
 
 const printOrder = async (o) => {
-  await post(`/api/admin/orders/${o.orderNo}/print`)
-  alert('打印指令已发送')
+  try {
+    await request.post(`/api/admin/orders/${o.orderNo}/print`)
+    alert('打印指令已发送')
+  } catch (error) {
+    console.error('打印失败:', error)
+  }
 }
 
 const exportOrders = async () => {
-  // 模拟导出
   alert('订单导出中...')
 }
 
 const testVoice = async () => {
-  const res = await post('/api/admin/notifications/voice-test')
-  alert(res.data)
+  try {
+    const res = await request.post('/api/admin/notifications/voice-test')
+    alert(res.data)
+  } catch (error) {
+    console.error('语音测试失败:', error)
+  }
 }
 
 const showRefundModal = (o) => {
@@ -185,19 +210,27 @@ const showRefundModal = (o) => {
 }
 
 const submitRefund = async (approved) => {
-  await post(`/api/admin/refunds/${refundModal.value.order.id}/review`, {
-    status: approved ? 'APPROVED' : 'REJECTED',
-    reply: refundModal.value.reply
-  })
-  refundModal.value.show = false
-  loadOrders()
+  try {
+    await request.post(`/api/admin/refunds/${refundModal.value.order.id}/review`, {
+      status: approved ? 'APPROVED' : 'REJECTED',
+      reply: refundModal.value.reply
+    })
+    refundModal.value.show = false
+    loadOrders()
+  } catch (error) {
+    console.error('审核退款失败:', error)
+  }
 }
 
 const handleComplaint = async (c) => {
   const reply = prompt('请输入处理意见：')
   if (reply) {
-    await post(`/api/admin/complaints/${c.id}/handle`, { status: 'RESOLVED', reply })
-    loadComplaints()
+    try {
+      await request.post(`/api/admin/complaints/${c.id}/handle`, { status: 'RESOLVED', reply })
+      loadComplaints()
+    } catch (error) {
+      console.error('处理投诉失败:', error)
+    }
   }
 }
 
@@ -225,39 +258,157 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.order-manage { display: flex; flex-direction: column; gap: 20px; }
-.card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-.action-bar { display: flex; justify-content: space-between; align-items: center; }
-.search-form { display: flex; gap: 12px; }
-.batch-actions { display: flex; gap: 12px; }
+.order-manage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  background: var(--background-color);
+  min-height: 100vh;
+  padding: var(--spacing-xl);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  color: var(--text-color-dark);
+}
 
-.order-tabs { display: flex; gap: 32px; padding: 0 20px; height: 50px; align-items: center; }
-.tab-item { cursor: pointer; color: #595959; position: relative; height: 100%; display: flex; align-items: center; }
-.tab-item.active { color: #1890ff; font-weight: bold; }
-.tab-item.active::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: #1890ff; }
+.card {
+  background: var(--surface-color);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.08);
+  border: 1px solid var(--border-color);
+}
 
-.admin-table { width: 100%; border-collapse: collapse; }
-.admin-table th, .admin-table td { padding: 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
 
-.status-paid { color: #faad14; }
-.status-making { color: #1890ff; }
-.status-ready { color: #52c41a; }
-.status-refunding { color: #f5222d; }
+.search-form {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  flex-wrap: wrap;
+}
 
-.ops button { margin-right: 8px; color: #1890ff; background: none; border: none; cursor: pointer; }
-.ops button:hover { text-decoration: underline; }
+.batch-actions {
+  display: flex;
+  gap: var(--spacing-md);
+}
 
-.modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal-container { background: white; padding: 24px; border-radius: 8px; width: 500px; }
-.modal-body { margin: 20px 0; }
-.admin-textarea { width: 100%; height: 80px; padding: 8px; border: 1px solid #d9d9d9; border-radius: 4px; margin-top: 8px; }
-.modal-footer { display: flex; justify-content: flex-end; gap: 12px; }
+.order-tabs {
+  display: flex;
+  gap: var(--spacing-lg);
+  padding: 0 var(--spacing-lg);
+  height: 60px;
+  align-items: center;
+  border-bottom: 2px solid var(--border-color);
+}
 
-.admin-input, .admin-select { padding: 6px 12px; border: 1px solid #d9d9d9; border-radius: 4px; }
-.btn-primary { background: #1890ff; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
-.btn-success { background: #52c41a; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
-.btn-warning { background: #faad14; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
-.btn-danger { background: #f5222d; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
-.btn-info { background: #13c2c2; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; }
-.text-ellipsis { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-item {
+  cursor: pointer;
+  color: var(--text-color-medium);
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-size: 1.1em;
+  font-weight: 500;
+  padding: 0 var(--spacing-sm);
+}
+
+.tab-item.active {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--primary-color);
+}
+
+.table-container {
+  overflow: hidden;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.admin-table th {
+  color: var(--primary-dark);
+  font-weight: 600;
+  background: rgba(255, 248, 220, 0.3);
+}
+
+.ops {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.ops button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #f0f0f0;
+}
+
+.ops button:hover {
+  background: #e0e0e0;
+}
+
+.modal-mask {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 500px;
+}
+
+.admin-input, .admin-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.btn-primary { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+.btn-success { background: #2c9678; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+.btn-warning { background: #f39c12; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+.btn-danger { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+.btn-info { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+
+:root {
+  --background-color: #f5f0e1;
+  --surface-color: #ffffff;
+  --primary-color: #a0522d;
+  --primary-dark: #8b4513;
+  --border-color: #e0e0e0;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --border-radius-lg: 12px;
+}
 </style>

@@ -501,3 +501,167 @@
   font-weight: bold;
   border: 3rpx solid white;
 }
+/* 筛选面板样式 */
+.filter-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1100;
+  visibility: hidden;
+  transition: all 0.3s;
+}
+
+.filter-panel.show {
+  visibility: visible;
+}
+
+.filter-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.filter-panel.show .filter-mask {
+  opacity: 1;
+}
+
+.filter-content {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 80%;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s;
+}
+
+.filter-panel.show .filter-content {
+  transform: translateX(0);
+}
+
+.filter-header {
+  padding: 40rpx 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.filter-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.filter-reset {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.filter-body {
+  flex: 1;
+  padding: 30rpx;
+}
+
+.filter-group {
+  margin-bottom: 40rpx;
+}
+
+.group-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20rpx;
+}
+
+.option-item {
+  height: 70rpx;
+  background: #F5F5F5;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #666;
+  border: 2rpx solid transparent;
+}
+
+.option-item.active {
+  background: #FFF9E6;
+  color: #D4A574;
+  border-color: #D4A574;
+  font-weight: bold;
+}
+
+.filter-footer {
+  padding: 30rpx;
+  display: flex;
+  gap: 20rpx;
+  border-top: 1rpx solid #F0F0F0;
+}
+
+.filter-footer button {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+.cancel-btn {
+  background: #F5F5F5;
+  color: #666;
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, #D4A574, #B08968);
+  color: white;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 20rpx;
+  background: #F5F5F5;
+  border-radius: 30rpx;
+  margin-left: 20rpx;
+}
+
+.filter-icon {
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.filter-btn text {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+}

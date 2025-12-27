@@ -62,6 +62,15 @@
       </div>
     </div>
 
+    <!-- 地区选择器 -->
+    <RegionPicker
+      v-model="regionPickerVisible"
+      :province="formData.province"
+      :city="formData.city"
+      :district="formData.district"
+      @confirm="onRegionConfirm"
+    />
+
     <!-- 底部按钮 -->
     <div class="footer">
       <button class="delete-btn" v-if="isEditMode" @click="deleteAddress">删除地址</button>
@@ -84,6 +93,7 @@ const route = useRoute()
 const addressId = ref(route.query.id || '')
 const isEditMode = ref(!!addressId.value)
 const submitting = ref(false)
+const regionPickerVisible = ref(false)
 const labelOptions = ['家', '公司', '学校']
 
 const formData = ref({
@@ -101,10 +111,9 @@ const formData = ref({
 const loadAddressDetail = async () => {
   try {
     const res = await addressApi.getAddressList()
-    // 拦截器已处理 code，res 直接就是数据列表
-    if (res && Array.isArray(res)) {
-      // 使用 == 兼容字符串和数字的比较
-      const address = res.find(addr => addr.id == addressId.value)
+    const list = (res.data || res) || []
+    if (list && Array.isArray(list)) {
+      const address = list.find(addr => addr.id == addressId.value)
       if (address) {
         formData.value = {
           ...address,
@@ -118,16 +127,13 @@ const loadAddressDetail = async () => {
 }
 
 const chooseRegion = () => {
-  // 模拟地区选择
-  const region = prompt('请输入省市区 (例如: 广东省 深圳市 南山区)', '广东省 深圳市 南山区')
-  if (region) {
-    const parts = region.split(' ')
-    if (parts.length >= 3) {
-      formData.value.province = parts[0]
-      formData.value.city = parts[1]
-      formData.value.district = parts[2]
-    }
-  }
+  regionPickerVisible.value = true
+}
+
+const onRegionConfirm = (data) => {
+  formData.value.province = data.province
+  formData.value.city = data.city
+  formData.value.district = data.district
 }
 
 const validateForm = () => {
@@ -156,19 +162,16 @@ const saveAddress = async () => {
   
   submitting.value = true
   try {
-    // 确保 tag 字段被正确填充
     if (formData.value.label) {
       formData.value.tag = formData.value.label
     }
 
-    let res
     if (isEditMode.value) {
-      res = await addressApi.updateAddress(addressId.value, formData.value)
+      await addressApi.updateAddress(addressId.value, formData.value)
     } else {
-      res = await addressApi.addAddress(formData.value)
+      await addressApi.addAddress(formData.value)
     }
     
-    // 拦截器在 code 不为 200 时会抛出异常，能执行到这里说明成功
     alert('保存成功')
     router.back()
   } catch (error) {
@@ -199,37 +202,47 @@ onMounted(() => {
   }
 })
 </script>
-
 <style scoped>
 .edit-page {
   min-height: 100vh;
-  background: #F5F5F5;
-  padding-bottom: 80px;
+  background: linear-gradient(135deg, #f5f0e1 0%, #f8f4e6 100%);
+  padding-bottom: 100px;
 }
 
 .form {
-  padding: 10px;
+  padding: 24px 16px;
 }
 
 .form-section {
-  background: white;
-  border-radius: 8px;
-  padding: 0 15px;
-  margin-bottom: 10px;
+  background: #fff8dc;
+  border-radius: 24px;
+  padding: 0 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.08);
+  border: 2px solid #e8dccb;
+  transition: all 0.3s ease-out;
+}
+
+.form-section:hover {
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.12);
+  transform: translateY(-2px);
 }
 
 .section-title {
   display: block;
-  padding: 15px 0 10px;
-  font-size: 14px;
-  color: #666;
+  padding: 20px 0 16px;
+  font-size: 17px;
+  color: #a0522d;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .form-item {
   display: flex;
   align-items: center;
-  padding: 15px 0;
-  border-bottom: 1px solid #F0F0F0;
+  padding: 22px 0;
+  border-bottom: 2px dashed #d4c7b5;
 }
 
 .form-item:last-child {
@@ -238,6 +251,15 @@ onMounted(() => {
 
 .form-item.clickable {
   cursor: pointer;
+  transition: all 0.25s ease-out;
+}
+
+.form-item.clickable:hover {
+  background: rgba(255, 248, 220, 0.5);
+  border-radius: 16px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0 -12px;
 }
 
 .form-item.textarea-item {
@@ -246,34 +268,57 @@ onMounted(() => {
 
 .label {
   flex-shrink: 0;
-  width: 80px;
-  font-size: 14px;
-  color: #333;
+  width: 100px;
+  font-size: 16px;
+  color: #4a3b30;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .label.required::before {
-  content: '*';
-  color: #FF6B6B;
-  margin-right: 2px;
+  content: '✦';
+  color: #ff6b6b;
+  margin-right: 6px;
+  font-size: 14px;
 }
 
 .input {
   flex: 1;
-  font-size: 14px;
-  color: #333;
+  font-size: 16px;
+  color: #4a3b30;
   border: none;
   outline: none;
+  background: transparent;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  padding: 8px 0;
+  letter-spacing: 0.02em;
+}
+
+.input::placeholder {
+  color: #a09080;
+  opacity: 0.7;
 }
 
 .textarea {
   flex: 1;
   width: 100%;
-  min-height: 60px;
-  font-size: 14px;
-  color: #333;
+  min-height: 100px;
+  font-size: 16px;
+  color: #4a3b30;
   border: none;
   outline: none;
   resize: none;
+  background: transparent;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  padding: 12px 0;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+}
+
+.textarea::placeholder {
+  color: #a09080;
+  opacity: 0.7;
 }
 
 .region-display {
@@ -284,43 +329,69 @@ onMounted(() => {
 }
 
 .region-text {
-  font-size: 14px;
-  color: #333;
+  font-size: 16px;
+  color: #4a3b30;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .placeholder {
-  font-size: 14px;
-  color: #CCC;
+  font-size: 16px;
+  color: #a09080;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.02em;
+  opacity: 0.7;
 }
 
 .arrow {
-  font-size: 24px;
-  color: #CCC;
-  margin-left: 10px;
+  font-size: 28px;
+  color: #d2b48c;
+  margin-left: 12px;
+  opacity: 0.8;
+  transform: scale(1.2);
+  transition: transform 0.25s ease-out;
+}
+
+.form-item.clickable:hover .arrow {
+  transform: scale(1.4) translateX(4px);
+  color: #a0522d;
 }
 
 .label-options {
   display: flex;
-  gap: 10px;
-  padding-bottom: 15px;
+  gap: 16px;
+  padding-bottom: 24px;
 }
 
 .label-item {
   flex: 1;
   text-align: center;
-  padding: 8px 0;
-  border: 1px solid #E0E0E0;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #666;
+  padding: 14px 0;
+  border: 2px solid #deb887;
+  border-radius: 20px;
+  font-size: 15px;
+  color: #7a6a5b;
   cursor: pointer;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease-out;
+}
+
+.label-item:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 6px 15px rgba(222, 184, 135, 0.3);
 }
 
 .label-item.active {
-  border-color: #D4A574;
-  background: #FFF9E6;
-  color: #D4A574;
-  font-weight: bold;
+  border-color: #a0522d;
+  background: linear-gradient(135deg, #ffc0cb, #fff8dc);
+  color: #a0522d;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(160, 82, 45, 0.2);
+  transform: translateY(-3px) scale(1.03);
 }
 
 .footer {
@@ -328,39 +399,82 @@ onMounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
-  padding: 10px 15px;
+  background: rgba(245, 240, 225, 0.95);
+  padding: 20px 24px;
   display: flex;
-  gap: 10px;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  gap: 16px;
+  box-shadow: 0 -8px 30px rgba(160, 82, 45, 0.1);
+  backdrop-filter: blur(10px);
+  border-top: 2px solid #e8dccb;
 }
 
 .delete-btn {
   flex: 1;
-  padding: 12px;
-  background: white;
-  color: #FF6B6B;
-  border: 1px solid #FF6B6B;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #ff6b6b;
+  border: 2px solid rgba(255, 107, 107, 0.3);
   border-radius: 25px;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 17px;
+  font-weight: 600;
   cursor: pointer;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.03em;
+  transition: all 0.3s ease-out;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 107, 107, 0.1);
+  border-color: #ff6b6b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(255, 107, 107, 0.2);
 }
 
 .save-btn {
   flex: 2;
-  padding: 12px;
-  background: linear-gradient(135deg, #D4A574, #B08968);
-  color: white;
+  padding: 18px;
+  background: linear-gradient(135deg, #a0522d, #8b4513);
+  color: #fff8dc;
   border-radius: 25px;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
   border: none;
   cursor: pointer;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.04em;
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.3);
+  transition: all 0.3s ease-out;
+}
+
+.save-btn:hover:not(.disabled) {
+  background: linear-gradient(135deg, #8b4513, #a0522d);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(160, 82, 45, 0.4);
+}
+
+.save-btn:active:not(.disabled) {
+  transform: translateY(0) scale(0.98);
 }
 
 .save-btn.disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  background: linear-gradient(135deg, #d2b48c, #deb887);
+  transform: none;
+  box-shadow: none;
+}
+
+/* 输入框聚焦效果 */
+.input:focus,
+.textarea:focus {
+  background: rgba(255, 248, 220, 0.5);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin: -8px -12px;
+  box-shadow: 0 0 0 4px rgba(160, 82, 45, 0.15);
+}
+
+.textarea:focus {
+  margin: -12px -12px;
 }
 </style>

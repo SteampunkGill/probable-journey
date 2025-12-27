@@ -61,7 +61,13 @@
             <input v-model="form.code" required />
           </div>
           <div class="form-group">
-            <label>地址</label>
+            <label>所在地区</label>
+            <div class="region-select-trigger" @click="regionPickerVisible = true">
+              {{ form.province ? `${form.province} ${form.city} ${form.district}` : '请选择省市区' }}
+            </div>
+          </div>
+          <div class="form-group">
+            <label>详细地址</label>
             <input v-model="form.address" required />
           </div>
           <div class="form-group">
@@ -93,35 +99,46 @@
         </form>
       </div>
     </div>
+
+    <RegionPicker 
+      v-model="regionPickerVisible"
+      :province="form.province"
+      :city="form.city"
+      :district="form.district"
+      @confirm="onRegionConfirm"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import request from '../../../utils/request'
+import RegionPicker from '../../../components/RegionPicker.vue'
 
 const stores = ref([])
 const searchQuery = ref('')
 const statusFilter = ref('')
 const dialogVisible = ref(false)
+const regionPickerVisible = ref(false)
 const isEdit = ref(false)
 const form = ref({
   id: null,
   name: '',
   code: '',
+  province: '',
+  city: '',
+  district: '',
   address: '',
   phone: '',
   status: 'OPEN',
-  latitude: 0,
-  longitude: 0
+  latitude: 23.129162,
+  longitude: 113.264434
 })
 
 const fetchStores = async () => {
   try {
     const res = await request.get('/api/admin/stores')
     if (res.code === 200) {
-      stores.ref = res.data
-      // 修正：Vue 3 setup 中 ref 的赋值应该是 .value
       stores.value = res.data
     }
   } catch (error) {
@@ -129,9 +146,21 @@ const fetchStores = async () => {
   }
 }
 
+const handleSearch = () => {
+  // 搜索逻辑已通过 computed 实现
+}
+
+const onRegionConfirm = (data) => {
+  form.value.province = data.province
+  form.value.city = data.city
+  form.value.district = data.district
+}
+
 const filteredStores = computed(() => {
   return stores.value.filter(store => {
-    const matchesSearch = store.name.includes(searchQuery.value) || store.address.includes(searchQuery.value)
+    const name = store.name || ''
+    const address = store.address || ''
+    const matchesSearch = name.includes(searchQuery.value) || address.includes(searchQuery.value)
     const matchesStatus = !statusFilter.value || store.status === statusFilter.value
     return matchesSearch && matchesStatus
   })
@@ -152,17 +181,15 @@ const showCreateDialog = () => {
     id: null,
     name: '',
     code: '',
+    province: '',
+    city: '',
+    district: '',
     address: '',
     phone: '',
     status: 'OPEN',
-    latitude: 113.264434, // 默认经度
-    latitude: 23.129162, // 默认纬度
     longitude: 113.264434,
     latitude: 23.129162
   }
-  // 修正经纬度赋值
-  form.value.longitude = 113.264434
-  form.value.latitude = 23.129162
   dialogVisible.value = true
 }
 
@@ -215,95 +242,123 @@ onMounted(() => {
 
 <style scoped>
 .store-management {
-  padding: 20px;
+  padding: var(--spacing-xl);
+  background: var(--background-color);
+  min-height: 100vh;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  color: var(--text-color-dark);
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.08);
+  border: 2px solid var(--border-color);
+}
+
+.page-header h2 {
+  font-size: 1.8em;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin: 0;
 }
 
 .filter-section {
   display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
+  gap: var(--spacing-lg);
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.08);
+  border: 2px solid var(--border-color);
 }
 
 .filter-section input {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  width: 250px;
+  padding: 14px 24px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius-xl);
+  background: rgba(255, 255, 255, 0.9);
+  flex: 1;
 }
 
 .filter-section select {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 14px 24px;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius-xl);
+  background: rgba(255, 255, 255, 0.9);
+  min-width: 180px;
 }
 
 .store-table {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  background: var(--surface-color);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 8px 25px rgba(160, 82, 45, 0.08);
+  border: 2px solid var(--border-color);
+  overflow: hidden;
+  padding: var(--spacing-lg);
 }
 
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 th, td {
-  padding: 12px 15px;
+  padding: var(--spacing-lg);
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 th {
-  background: #fafafa;
+  background: rgba(255, 248, 220, 0.8);
+  color: var(--primary-dark);
   font-weight: 600;
 }
 
 .status-tag {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 8px 20px;
+  border-radius: var(--border-radius-xl);
+  font-size: 0.9em;
+  font-weight: 600;
 }
 
-.status-tag.open { background: #e6f7ff; color: #1890ff; }
-.status-tag.closed { background: #fff1f0; color: #f5222d; }
-.status-tag.maintenance { background: #fff7e6; color: #fa8c16; }
+.status-tag.open { background: #e6f4ea; color: #1e8e3e; }
+.status-tag.closed { background: #fce8e6; color: #d93025; }
+.status-tag.maintenance { background: #fef7e0; color: #f9ab00; }
 
 .btn-primary {
-  background: #1890ff;
+  padding: 12px 28px;
+  background: var(--primary-color);
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: var(--border-radius-xl);
   cursor: pointer;
+  font-weight: 600;
 }
 
 .btn-text {
   background: none;
   border: none;
-  color: #1890ff;
+  color: var(--primary-color);
   cursor: pointer;
   margin-right: 10px;
+  font-weight: 600;
 }
 
-.btn-danger {
-  color: #f5222d;
-}
+.btn-danger { color: #d93025; }
 
 .dialog-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -312,41 +367,54 @@ th {
 
 .dialog {
   background: white;
-  padding: 24px;
-  border-radius: 8px;
+  padding: 30px;
+  border-radius: 20px;
   width: 500px;
+  max-width: 90vw;
 }
 
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-}
-
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; margin-bottom: 8px; font-weight: 600; }
 .form-group input, .form-group select {
   width: 100%;
-  padding: 8px;
+  padding: 12px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
-.form-row {
-  display: flex;
-  gap: 15px;
+.region-select-trigger {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f9f9f9;
 }
 
-.form-row .form-group {
-  flex: 1;
-}
+.form-row { display: flex; gap: 20px; }
+.form-row .form-group { flex: 1; }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 30px;
+}
+
+.dialog-footer button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+:root {
+  --background-color: #f5f0e1;
+  --surface-color: #ffffff;
+  --primary-color: #a0522d;
+  --primary-dark: #8b4513;
+  --border-color: #e0e0e0;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --border-radius-xl: 12px;
 }
 </style>
