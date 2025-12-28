@@ -1,0 +1,149 @@
+<view class="order-list-page">
+  <!-- 标签页 -->
+  <view class="tabs">
+    <view
+      class="tab {{activeTab === item.key ? 'active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="key"
+      bindtap="switchTab"
+      data-key="{{item.key}}"
+    >
+      {{item.name}}
+    </view>
+  </view>
+
+  <!-- 筛选与排序栏 -->
+  <view class="filter-bar">
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input
+        value="{{searchKeyword}}"
+        placeholder="搜索订单号"
+        class="search-input"
+        bindinput="onSearchInput"
+      />
+    </view>
+    <view class="sort-box">
+      <picker bindchange="onSortChange" value="{{sortIndex}}" range="{{sortOptions}}" range-key="name">
+        <view class="sort-select">
+          {{sortOptions[sortIndex].name}}
+        </view>
+      </picker>
+    </view>
+  </view>
+
+  <!-- 订单列表 -->
+  <view class="orders" wx:if="{{filteredOrders.length > 0}}">
+    <view
+      class="order-item"
+      wx:for="{{filteredOrders}}"
+      wx:key="id"
+      bindtap="goToOrderDetail"
+      data-no="{{item.orderNo}}"
+    >
+      <!-- 订单头部 -->
+      <view class="order-header">
+        <text class="order-no">订单号：{{item.orderNo}}</text>
+        <text class="order-status {{item.status}}">{{item.statusText}}</text>
+      </view>
+
+      <!-- 订单进度条 -->
+      <view class="order-progress-container">
+        <view class="progress-bar">
+          <view class="progress-inner" style="width: {{item.progressWidth}}"></view>
+        </view>
+        <view class="progress-steps">
+          <view class="step {{item.step >= 1 ? 'active' : ''}}">
+            <view class="step-dot"></view>
+            <text class="step-text">下单</text>
+          </view>
+          <view class="step {{item.step >= 2 ? 'active' : ''}}">
+            <view class="step-dot"></view>
+            <text class="step-text">支付</text>
+          </view>
+          <view class="step {{item.step >= 3 ? 'active' : ''}}">
+            <view class="step-dot"></view>
+            <text class="step-text">制作</text>
+          </view>
+          <view class="step {{item.step >= 4 ? 'active' : ''}}">
+            <view class="step-dot"></view>
+            <text class="step-text">待取</text>
+          </view>
+          <view class="step {{item.step >= 5 ? 'active' : ''}}">
+            <view class="step-dot"></view>
+            <text class="step-text">完成</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 商品列表 -->
+      <view class="goods-list">
+        <view class="goods-item" wx:for="{{item.items}}" wx:for-item="goods" wx:key="id">
+          <image class="goods-image" src="{{goods.image}}" mode="aspectFill" />
+          <view class="goods-info">
+            <text class="goods-name">{{goods.name}}</text>
+            <view class="goods-bottom">
+              <text class="goods-price">¥{{goods.price}}</text>
+              <text class="goods-quantity">×{{goods.quantity}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 订单信息 -->
+      <view class="order-info">
+        <view class="info-row">
+          <text class="label">下单时间</text>
+          <text class="value">{{item.createTime}}</text>
+        </view>
+        <view class="info-row" wx:if="{{item.pickupCode}}">
+          <text class="label">取餐码</text>
+          <text class="pickup-code">{{item.pickupCode}}</text>
+        </view>
+        <view class="info-row total">
+          <text class="label">实付款</text>
+          <text class="amount">¥{{item.totalAmount}}</text>
+        </view>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="order-actions">
+        <!-- 待支付 -->
+        <block wx:if="{{item.status === 'PENDING_PAYMENT'}}">
+          <button class="action-btn secondary" catchtap="cancelOrder" data-no="{{item.orderNo}}">取消订单</button>
+          <button class="action-btn primary" catchtap="payOrder" data-item="{{item}}">立即付款</button>
+        </block>
+
+        <!-- 制作中 -->
+        <block wx:elif="{{item.status === 'PAID' || item.status === 'MAKING'}}">
+          <button class="action-btn secondary" catchtap="contactService">联系客服</button>
+          <button class="action-btn primary" catchtap="remindOrder" data-no="{{item.orderNo}}">催单</button>
+        </block>
+
+        <!-- 待取餐 -->
+        <block wx:elif="{{item.status === 'READY'}}">
+          <button class="action-btn secondary" catchtap="contactService">联系客服</button>
+          <button class="action-btn primary" catchtap="confirmOrder" data-no="{{item.orderNo}}">立即取餐</button>
+        </block>
+
+        <!-- 已完成 -->
+        <block wx:elif="{{item.status === 'COMPLETED' || item.status === 'FINISHED' || item.status === 'REVIEWED'}}">
+          <button class="action-btn secondary" catchtap="reorder" data-item="{{item}}">再来一单</button>
+          <button class="action-btn primary" wx:if="{{item.status !== 'REVIEWED'}}" catchtap="reviewOrder" data-no="{{item.orderNo}}">立即评价</button>
+        </block>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading}}">
+    <view class="empty-icon">📋</view>
+    <view class="empty-text">暂无订单</view>
+    <button class="go-shopping-btn" bindtap="goToIndex">去逛逛</button>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-more" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+</view>

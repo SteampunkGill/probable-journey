@@ -1,15 +1,15 @@
 <view class="dashboard-container">
   <!-- 今日关键指标 -->
   <view class="metrics-grid">
-    <view class="metric-card" wx:for="{{metricsConfig}}" wx:for-index="key" wx:for-item="val" wx:key="key">
+    <view class="metric-card" wx:for="{{metricsConfig}}" wx:for-index="key" wx:for-item="config" wx:key="key">
       <view class="metric-header">
-        <text class="metric-label">{{val.label}}</text>
-        <text class="metric-unit">{{val.unit}}</text>
+        <text class="metric-label">{{config.label}}</text>
+        <text class="metric-unit">{{config.unit}}</text>
       </view>
       <view class="metric-value">{{metrics[key] || 0}}</view>
       <view class="metric-footer">
         <text class="compare-label">较昨日</text>
-        <text class="compare-value {{trends[key].class}}">
+        <text class="compare-value {{metrics.comparedToYesterday[key][0] === '+' ? 'up' : 'down'}}">
           {{metrics.comparedToYesterday[key] || '0%'}}
         </text>
       </view>
@@ -70,12 +70,14 @@
           暂无预警信息
         </view>
         <view wx:for="{{inventoryAlerts}}" wx:key="productId" class="alert-item warning">
+          <text class="iconfont icon-inventory"></text>
           <view class="alert-content">
             <view class="alert-title">库存预警</view>
             <view class="alert-desc">{{item.productName}}({{item.specName}}) 当前库存 {{item.currentStock}}，低于阈值 {{item.threshold}}</view>
           </view>
         </view>
         <view wx:for="{{orderAlerts}}" wx:key="orderId" class="alert-item danger">
+          <text class="iconfont icon-order"></text>
           <view class="alert-content">
             <view class="alert-title">异常订单</view>
             <view class="alert-desc">订单 {{item.orderNo}} 制作超时，请尽快处理</view>

@@ -6,6 +6,8 @@
     "pages/order/order",
     "pages/cart/index",
     "pages/user/user",
+    "pages/login/login",
+    "pages/coupon/coupon",
     "pages/admin/index",
     "pages/admin/dashboard/index",
     "pages/admin/store/index",

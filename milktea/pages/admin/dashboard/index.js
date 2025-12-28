@@ -1,65 +1,53 @@
-import { get } from '../../../utils/request'
+const request = require('../../../utils/request');
 
 Page({
   data: {
     metrics: {},
-    trends: {},
     realtimeSales: { timeLabels: [], salesData: [], orderData: [] },
     salesTrend: { dates: [], sales: [], orders: [] },
     productRanking: [],
     inventoryAlerts: [],
     orderAlerts: [],
-    maxSales: 100,
-    maxTrendSales: 100,
     metricsConfig: {
       orderCount: { label: '今日订单数', unit: '单' },
       salesAmount: { label: '今日销售额', unit: '元' },
       customerUnitPrice: { label: '客单价', unit: '元' },
       newUsers: { label: '新增用户', unit: '人' }
-    }
+    },
+    maxSales: 100,
+    maxTrendSales: 100
   },
 
   onLoad() {
-    this.loadData()
-    // 每分钟刷新一次
-    this.timer = setInterval(() => {
-      this.loadData()
-    }, 60000)
+    this.loadData();
+    // 每分钟刷新一次实时数据
+    this.refreshTimer = setInterval(() => {
+      this.loadData();
+    }, 60000);
   },
 
   onUnload() {
-    if (this.timer) clearInterval(this.timer)
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+    }
   },
 
   async loadData() {
     try {
       const [metricsRes, realtimeRes, trendRes, rankingRes, invAlertRes, orderAlertRes] = await Promise.all([
-        get('/api/admin/dashboard/today-metrics'),
-        get('/api/admin/dashboard/realtime-sales'),
-        get('/api/admin/dashboard/sales-trend'),
-        get('/api/admin/dashboard/product-ranking'),
-        get('/api/admin/dashboard/inventory-alerts'),
-        get('/api/admin/dashboard/order-alerts')
-      ])
+        request({ url: '/api/admin/dashboard/today-metrics' }),
+        request({ url: '/api/admin/dashboard/realtime-sales' }),
+        request({ url: '/api/admin/dashboard/sales-trend' }),
+        request({ url: '/api/admin/dashboard/product-ranking' }),
+        request({ url: '/api/admin/dashboard/inventory-alerts' }),
+        request({ url: '/api/admin/dashboard/order-alerts' })
+      ]);
 
-      const metrics = metricsRes.data || {}
-      const realtimeSales = realtimeRes.data || { timeLabels: [], salesData: [], orderData: [] }
-      const salesTrend = trendRes.data || { dates: [], sales: [], orders: [] }
-      
-      // 处理趋势样式
-      const trends = {}
-      if (metrics.comparedToYesterday) {
-        Object.keys(metrics.comparedToYesterday).forEach(key => {
-          const val = metrics.comparedToYesterday[key]
-          trends[key] = {
-            class: val && val.startsWith('+') ? 'up' : 'down'
-          }
-        })
-      }
+      const realtimeSales = realtimeRes.data || { timeLabels: [], salesData: [], orderData: [] };
+      const salesTrend = trendRes.data || { dates: [], sales: [], orders: [] };
 
       this.setData({
-        metrics,
-        trends,
+        metrics: metricsRes.data || {},
         realtimeSales,
         salesTrend,
         productRanking: rankingRes.data || [],
@@ -67,15 +55,15 @@ Page({
         orderAlerts: orderAlertRes.data || [],
         maxSales: Math.max(...(realtimeSales.salesData || []), 100),
         maxTrendSales: Math.max(...(salesTrend.sales || []), 100)
-      })
+      });
     } catch (error) {
-      console.error('加载仪表盘数据失败:', error)
+      console.error('加载仪表盘数据失败:', error);
     }
   },
 
   onPullDownRefresh() {
     this.loadData().then(() => {
-      wx.stopPullDownRefresh()
-    })
+      wx.stopPullDownRefresh();
+    });
   }
-})
+});

@@ -1,18 +1,16 @@
 <view class="admin-index">
-  <view class="header">
-    <text class="title">管理后台</text>
+  <view class="admin-header">
+    <view class="logo">奶茶店管理系统</view>
     <view class="user-info">
-      <text class="role">管理员</text>
-      <view class="logout-btn" bindtap="logout">退出</view>
+      <text>管理员</text>
+      <button size="mini" bindtap="logout">退出</button>
     </view>
   </view>
 
   <view class="menu-grid">
-    <view class="menu-item" wx:for="{{menuItems}}" wx:key="path" bindtap="navigateTo" data-path="{{item.path}}">
-      <view class="icon-wrapper">
-        <text class="icon">{{item.emoji}}</text>
-      </view>
-      <text class="name">{{item.name}}</text>
+    <view wx:for="{{menuItems}}" wx:key="path" class="menu-card" bindtap="navigateTo" data-path="{{item.path}}">
+      <view class="menu-icon {{item.icon}}"></view>
+      <view class="menu-name">{{item.name}}</view>
     </view>
   </view>
 </view>

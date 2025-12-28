@@ -1,0 +1,195 @@
+<view class="product-detail-page">
+  <!-- 商品图片区域 -->
+  <view class="product-images">
+    <swiper class="swiper-container" indicator-dots circular bindchange="onImageChange">
+      <swiper-item wx:for="{{product.images}}" wx:key="*this">
+        <image src="{{item}}" class="product-image" mode="aspectFill" />
+      </swiper-item>
+    </swiper>
+    <view class="image-indicator">
+      {{currentImageIndex + 1}}/{{product.images.length || 0}}
+    </view>
+    
+    <!-- 收藏按钮 -->
+    <view 
+      class="favorite-btn {{isFavorite ? 'active' : ''}}" 
+      bindtap="toggleFavorite"
+    >
+      <text class="favorite-icon">{{isFavorite ? '❤️' : '🤍'}}</text>
+    </view>
+  </view>
+
+  <!-- 商品基本信息 -->
+  <view class="product-basic-info card">
+    <view class="product-header">
+      <view class="product-name">{{product.name}}</view>
+      <view class="product-tags">
+        <text class="tag tag-hot" wx:if="{{product.isHot}}">🔥 热销</text>
+        <text class="tag tag-new" wx:if="{{product.isNew}}">✨ 新品</text>
+        <text class="tag tag-recommend" wx:if="{{product.isRecommend}}">👍 推荐</text>
+      </view>
+    </view>
+    
+    <view class="product-meta">
+      <view class="price-section">
+        <text class="current-price">¥{{product.price}}</text>
+        <text class="original-price" wx:if="{{product.originalPrice > product.price}}">
+          ¥{{product.originalPrice}}
+        </text>
+      </view>
+      
+      <view class="rating-section">
+        <view class="rating-stars">
+          <text wx:for="{{5}}" wx:key="*this" class="star">⭐</text>
+        </view>
+        <text class="rating-text">{{product.rating}}分</text>
+        <text class="sales-text">已售{{product.sales}}件</text>
+      </view>
+    </view>
+    
+    <view class="product-desc">{{product.description}}</view>
+  </view>
+
+  <!-- 定制化选项 -->
+  <view class="customization-section card">
+    <view class="section-title">⚙ 定制你的专属饮品</view>
+    
+    <!-- 甜度选择 -->
+    <view class="customization-item">
+      <view class="item-header">
+        <text class="item-label">甜度</text>
+        <text class="item-required">必选</text>
+      </view>
+      <view class="option-group">
+        <view 
+          class="option-item {{customizations.sweetness === item.value ? 'selected' : ''}}" 
+          wx:for="{{sweetnessOptions}}" 
+          wx:key="value"
+          bindtap="selectSweetness"
+          data-value="{{item.value}}"
+        >
+          <text class="option-label">{{item.label}}</text>
+          <text class="option-hint">{{item.hint}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 温度选择 -->
+    <view class="customization-item">
+      <view class="item-header">
+        <text class="item-label">温度</text>
+        <text class="item-required">必选</text>
+      </view>
+      <view class="option-group">
+        <view 
+          class="option-item {{customizations.temperature === item.value ? 'selected' : ''}}" 
+          wx:for="{{temperatureOptions}}" 
+          wx:key="value"
+          bindtap="selectTemperature"
+          data-value="{{item.value}}"
+        >
+          <text class="option-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加料选择 -->
+    <view class="customization-item">
+      <view class="item-header">
+        <text class="item-label">加料</text>
+        <text class="item-hint">可选，最多选择{{maxToppings}}种</text>
+      </view>
+      <view class="toppings-grid">
+        <view 
+          class="topping-item {{utils.includes(customizations.toppings, item.id) ? 'selected' : ''}}" 
+          wx:for="{{toppingOptions}}" 
+          wx:key="id"
+          bindtap="toggleTopping"
+          data-item="{{item}}"
+        >
+          <view class="topping-info">
+            <text class="topping-name">{{item.name}}</text>
+            <text class="topping-price">+¥{{item.price}}</text>
+          </view>
+          <view class="topping-check" wx:if="{{utils.includes(customizations.toppings, item.id)}}">✓</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 商品详情标签页 -->
+  <view class="product-detail-section card">
+    <view class="detail-tabs">
+      <view 
+        class="tab-item {{activeTab === 0 ? 'active' : ''}}" 
+        bindtap="switchTab"
+        data-index="0"
+      >商品详情</view>
+      <view 
+        class="tab-item {{activeTab === 1 ? 'active' : ''}}" 
+        bindtap="switchTab"
+        data-index="1"
+      >营养成分</view>
+      <view 
+        class="tab-item {{activeTab === 2 ? 'active' : ''}}" 
+        bindtap="switchTab"
+        data-index="2"
+      >用户评价</view>
+    </view>
+    
+    <view class="tab-content" wx:if="{{activeTab === 0}}">
+      <rich-text nodes="{{product.detailHtml}}"></rich-text>
+    </view>
+    
+    <view class="tab-content nutrition" wx:if="{{activeTab === 1}}">
+      <view class="nutrition-table">
+        <view class="nutrition-row" wx:for="{{product.nutrition}}" wx:key="name">
+          <text>{{item.name}}</text>
+          <text>{{item.value}}{{item.unit}}</text>
+        </view>
+      </view>
+    </view>
+    
+    <view class="tab-content comments" wx:if="{{activeTab === 2}}">
+      <view class="comment-list">
+        <view class="comment-item" wx:for="{{comments}}" wx:key="id">
+          <view class="comment-header">
+            <image src="{{item.userAvatar}}" class="user-avatar" mode="aspectFill" />
+            <view class="user-info">
+              <text class="user-name">{{item.userName}}</text>
+              <view class="comment-rating">⭐ {{item.rating}}</view>
+            </view>
+            <text class="comment-time">{{item.createTime}}</text>
+          </view>
+          <view class="comment-content">{{item.content}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部操作栏 -->
+  <view class="bottom-action-bar">
+    <view class="bottom-left">
+      <view class="cart-icon" bindtap="goToCart">
+        <text class="icon">🛒</text>
+        <view class="cart-badge" wx:if="{{cartCount > 0}}">{{cartCount}}</view>
+      </view>
+      <view class="price-info">
+        <text class="total-label">合计：</text>
+        <text class="total-price">¥{{totalPrice}}</text>
+      </view>
+    </view>
+    
+    <view class="bottom-right">
+      <button class="add-to-cart-btn" bindtap="addToCart">加入购物车</button>
+      <button class="buy-now-btn" bindtap="buyNow">立即购买</button>
+    </view>
+  </view>
+</view>
+
+<wxs module="utils">
+module.exports.includes = function(arr, val) {
+  if (!arr) return false;
+  return arr.indexOf(val) !== -1;
+}
+</wxs>

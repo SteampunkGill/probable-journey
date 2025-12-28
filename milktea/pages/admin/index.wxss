@@ -1,42 +1,35 @@
 .admin-index {
   min-height: 100vh;
-  background: var(--background-color);
-  padding: 40rpx;
+  background: #f5f0e1;
+  padding: 32rpx;
 }
 
-.header {
+.admin-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 60rpx;
+  margin-bottom: 48rpx;
+  padding: 24rpx;
+  background: white;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(160, 82, 45, 0.08);
 }
 
-.title {
-  font-size: 44rpx;
-  font-weight: 600;
-  color: var(--primary-dark);
+.logo {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #a0522d;
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
-.role {
+.user-info text {
   font-size: 28rpx;
-  color: var(--text-color-medium);
-  background: var(--surface-color);
-  padding: 8rpx 24rpx;
-  border-radius: 30rpx;
-}
-
-.logout-btn {
-  font-size: 28rpx;
-  color: #ff6b6b;
-  padding: 8rpx 24rpx;
-  border: 2rpx solid #ff6b6b;
-  border-radius: 30rpx;
+  color: #666;
 }
 
 .menu-grid {
@@ -45,40 +38,42 @@
   gap: 32rpx;
 }
 
-.menu-item {
-  background: var(--surface-color);
-  padding: 48rpx 32rpx;
-  border-radius: 40rpx;
+.menu-card {
+  background: white;
+  padding: 48rpx 24rpx;
+  border-radius: 30rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(160, 82, 45, 0.08);
-  transition: all 0.3s;
+  box-shadow: 0 8rpx 25rpx rgba(160, 82, 45, 0.08);
+  border: 2rpx solid #e8dccb;
 }
 
-.menu-item:active {
-  transform: scale(0.95);
-  background: #e0d4c0;
-}
-
-.icon-wrapper {
-  width: 100rpx;
-  height: 100rpx;
-  background: white;
-  border-radius: 30rpx;
+.menu-icon {
+  width: 80rpx;
+  height: 80rpx;
+  background: #f5f0e1;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 12rpx rgba(160, 82, 45, 0.1);
+  font-size: 40rpx;
+  color: #a0522d;
 }
 
-.icon {
-  font-size: 50rpx;
-}
-
-.name {
+.menu-name {
   font-size: 32rpx;
-  font-weight: 500;
-  color: var(--text-color-dark);
+  font-weight: 600;
+  color: #4a3b30;
 }
+
+/* 模拟图标 */
+.icon-dashboard::before { content: '📊'; }
+.icon-store::before { content: '🏪'; }
+.icon-product::before { content: '🥤'; }
+.icon-inventory::before { content: '📦'; }
+.icon-order::before { content: '📋'; }
+.icon-user::before { content: '👥'; }
+.icon-marketing::before { content: '📢'; }
+.icon-settings::before { content: '⚙️'; }
