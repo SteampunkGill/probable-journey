@@ -34,7 +34,7 @@ page {
     Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei',
     sans-serif;
   font-size: 28rpx;
-  line-height: 1.5;
+  line-height: 1.6;
   box-sizing: border-box;
 }
 
@@ -42,12 +42,41 @@ view, text, scroll-view, swiper, button, input, textarea, label, navigator, imag
   box-sizing: border-box;
 }
 
-.container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 200rpx 0;
-  box-sizing: border-box;
+/* 全局卡片样式 */
+.card {
+  background: #ffffff;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
 }
+
+/* 全局按钮样式 */
+button {
+  font-weight: 600;
+  border-radius: var(--border-radius-sm);
+  transition: all 0.3s ease;
+}
+
+button[type='primary'] {
+  background-color: var(--primary-color) !important;
+  color: #ffffff !important;
+}
+
+/* 全局输入框样式 */
+input, textarea {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+}
+
+/* 辅助类 */
+.text-primary { color: var(--primary-color); }
+.text-secondary { color: var(--text-color-medium); }
+.text-light { color: var(--text-color-light); }
+.text-bold { font-weight: bold; }
+.flex { display: flex; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-center { display: flex; justify-content: center; align-items: center; }
