@@ -1,6 +1,17 @@
-<view class="mall-page">
-  <!-- 积分信息卡片 -->
+<view class="points-mall-page">
+  <!-- 头部 -->
   <view class="mall-header">
+    <view class="header-top">
+      <view class="header-left">
+        <text class="header-title">积分商城</text>
+      </view>
+      <view class="header-right">
+        <text class="iconfont icon-history" bindtap="viewExchangeRecords">📜</text>
+        <text class="iconfont icon-info" bindtap="howToGetPoints">❓</text>
+      </view>
+    </view>
+    
+    <!-- 积分信息 -->
     <view class="points-info-card">
       <view class="points-main">
         <view class="points-left">
@@ -10,62 +21,142 @@
             <text class="points-unit">积分</text>
           </view>
         </view>
-        <view class="points-right" bindtap="signIn">
-          <text class="exchange-label">{{ signedIn ? '今日已签到' : '今日签到' }}</text>
+        <view class="points-right">
+          <text class="exchange-label">可兑换商品</text>
+        </view>
+      </view>
+      
+      <view class="points-actions">
+        <view class="action-item" bindtap="signIn">
+          <text class="action-label">今日签到</text>
+          <view class="action-icon">
+            <text class="iconfont icon-check">✅</text>
+          </view>
+        </view>
+        <view class="action-item" bindtap="viewTasks">
+          <text class="action-label">积分任务</text>
+          <view class="action-icon">
+            <text class="iconfont icon-gift">🎁</text>
+          </view>
+        </view>
+        <view class="action-item" bindtap="viewExchangeRecords">
+          <text class="action-label">兑换记录</text>
+          <view class="action-icon">
+            <text class="iconfont icon-list">📋</text>
+          </view>
         </view>
       </view>
     </view>
   </view>
 
+  <!-- 搜索框 -->
+  <view class="search-section">
+    <view class="search-box">
+      <text class="iconfont icon-search">🔍</text>
+      <input 
+        value="{{searchKeyword}}"
+        placeholder="搜索积分商品"
+        bindinput="onSearchInput"
+      />
+    </view>
+  </view>
+
   <!-- 分类标签 -->
-  <scroll-view class="categories-section" scroll-x="{{true}}">
-    <view class="categories-scroll">
+  <view class="categories-section">
+    <scroll-view class="categories-scroll" scroll-x enable-flex>
       <view 
         wx:for="{{categories}}"
         wx:key="id"
-        class="category-item {{activeCategoryId === item.id ? 'active' : ''}}"
+        class="category-item {{ item.active ? 'active' : '' }}"
         bindtap="selectCategory"
-        data-id="{{item.id}}"
+        data-index="{{index}}"
+      >
+        {{ item.name }}
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 排序选项 -->
+  <view class="sort-section">
+    <view class="sort-options">
+      <view 
+        wx:for="{{sortOptions}}"
+        wx:key="id"
+        class="sort-item {{ item.active ? 'active' : '' }}"
+        bindtap="selectSort"
+        data-index="{{index}}"
       >
         {{ item.name }}
       </view>
     </view>
-  </scroll-view>
+  </view>
 
   <!-- 商品列表 -->
   <view class="products-section">
-    <view class="products-grid" wx:if="{{products.length > 0}}">
+    <view wx:if="{{loading}}" class="loading-state">
+      <view class="loading-icon"></view>
+      <text>加载中...</text>
+    </view>
+    
+    <view wx:else class="products-grid">
       <view 
-        wx:for="{{products}}"
+        wx:for="{{filteredProducts}}"
         wx:key="id"
         class="product-card"
         bindtap="viewProductDetail"
         data-id="{{item.id}}"
       >
-        <view class="product-image">
-          <image src="{{item.image || '/images/default-product.jpg'}}" mode="aspectFill" />
+        <!-- 热门标签 -->
+        <view wx:if="{{item.hot}}" class="hot-tag">
+          <text class="iconfont icon-fire">🔥</text>
+          <text>热门</text>
         </view>
+        
+        <!-- 商品图片 -->
+        <view class="product-image">
+          <image src="{{ item.image || item.imageUrl || '/assets/images/icons/user.png' }}" mode="aspectFill" />
+        </view>
+        
+        <!-- 商品信息 -->
         <view class="product-info">
           <view class="product-name">{{ item.name }}</view>
+          <view class="product-desc">{{ item.description || item.desc }}</view>
+          
+          <!-- 积分信息 -->
           <view class="product-points">
-            <text class="current-points">{{ item.points }}</text>
-            <text class="points-unit">积分</text>
+            <view class="points-display">
+              <text class="current-points">{{ item.points || item.pointCost }}</text>
+              <text class="points-unit">积分</text>
+              <text wx:if="{{item.originalPoints > (item.points || item.pointCost)}}" class="original-points">
+                {{ item.originalPoints }}积分
+              </text>
+            </view>
+            
+            <!-- 库存信息 -->
+            <view class="stock-info">
+              <text>库存: {{ item.stock }}件</text>
+              <text class="limit-info">{{ item.limitInfo || item.limit || '' }}</text>
+            </view>
           </view>
-          <button 
-            class="exchange-btn" 
-            catchtap="exchangeProduct" 
-            data-product="{{item}}"
-            disabled="{{points < item.points || item.stock <= 0}}"
-          >
-            {{ item.stock > 0 ? '立即兑换' : '已兑完' }}
+          
+          <!-- 兑换按钮 -->
+          <button class="exchange-btn" catchtap="exchangeProduct" data-product="{{item}}">
+            立即兑换
           </button>
         </view>
       </view>
     </view>
     
-    <view wx:else class="empty-state">
-      <view class="empty-icon">🎁</view>
+    <!-- 空状态 -->
+    <view wx:if="{{!loading && filteredProducts.length === 0}}" class="empty-state">
+      <text class="iconfont icon-gift">🎁</text>
       <view class="empty-text">暂无商品</view>
+      <view class="empty-hint">换个分类试试吧~</view>
     </view>
+  </view>
+
+  <!-- 底部提示 -->
+  <view class="footer-hint">
+    <text>积分兑换规则：兑换成功后不可退款，优惠券类商品请在有效期内使用</text>
   </view>
 </view>

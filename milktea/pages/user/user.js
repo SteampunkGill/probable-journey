@@ -57,7 +57,7 @@ Page({
     if (!this.data.userInfo) {
       wx.navigateTo({ url: '/pages/login/login' });
     } else {
-      wx.navigateTo({ url: '/pages/profile/profile' });
+      wx.navigateTo({ url: '/pages/user/profile' });
     }
   },
 

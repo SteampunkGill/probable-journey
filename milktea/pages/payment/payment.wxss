@@ -1,0 +1,213 @@
+.payment-page {
+  min-height: 100vh;
+  background: var(--background-color);
+  padding-bottom: 120rpx;
+}
+
+.header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  padding: 80rpx 48rpx 60rpx;
+  border-radius: 0 0 80rpx 80rpx;
+  color: white;
+  text-align: center;
+  box-shadow: 0 8rpx 40rpx rgba(160, 82, 45, 0.15);
+  margin-bottom: 48rpx;
+}
+
+.amount-section {
+  margin-bottom: 40rpx;
+}
+
+.amount-section .label {
+  font-size: 28rpx;
+  color: var(--accent-cream);
+  display: block;
+  margin-bottom: 24rpx;
+  opacity: 0.9;
+}
+
+.amount-section .amount {
+  font-size: 96rpx;
+  font-weight: 700;
+  color: white;
+}
+
+.countdown {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 24rpx 40rpx;
+  border-radius: 50rpx;
+  display: inline-flex;
+  align-items: center;
+  gap: 16rpx;
+  font-size: 28rpx;
+}
+
+.countdown .time {
+  color: var(--accent-cream);
+  font-weight: 700;
+  font-size: 32rpx;
+}
+
+.payment-methods, .order-info {
+  background: white;
+  margin: 0 40rpx 40rpx;
+  padding: 48rpx;
+  border-radius: 50rpx;
+  box-shadow: 0 8rpx 30rpx rgba(139, 69, 19, 0.08);
+  border: 2rpx solid var(--border-color);
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  margin-bottom: 48rpx;
+  color: var(--primary-dark);
+  padding-left: 24rpx;
+  border-left: 8rpx solid var(--primary-color);
+}
+
+.method-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40rpx;
+  border-radius: 40rpx;
+  margin-bottom: 24rpx;
+  background: var(--background-color);
+  border: 4rpx solid transparent;
+}
+
+.method-item.active {
+  border-color: var(--primary-color);
+  background: white;
+  box-shadow: 0 8rpx 30rpx rgba(160, 82, 45, 0.15);
+}
+
+.method-info {
+  display: flex;
+  align-items: center;
+  gap: 32rpx;
+}
+
+.method-icon {
+  font-size: 64rpx;
+  width: 112rpx;
+  height: 112rpx;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(210, 180, 140, 0.3);
+}
+
+.method-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-color-dark);
+}
+
+.method-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.balance {
+  font-size: 26rpx;
+  color: var(--text-color-medium);
+}
+
+.radio {
+  width: 48rpx;
+  height: 48rpx;
+  border: 4rpx solid var(--border-color);
+  border-radius: 50%;
+  position: relative;
+  background: white;
+}
+
+.radio.checked {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+}
+
+.radio.checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  width: 16rpx;
+  height: 8rpx;
+  border-left: 4rpx solid white;
+  border-bottom: 4rpx solid white;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32rpx 0;
+  border-bottom: 2rpx dashed var(--border-color);
+  font-size: 28rpx;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-item .label {
+  color: var(--text-color-medium);
+}
+
+.info-item .value {
+  color: var(--text-color-dark);
+  font-weight: 600;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  background: white;
+  display: flex;
+  align-items: center;
+  padding: 0 48rpx;
+  gap: 32rpx;
+  box-shadow: 0 -8rpx 40rpx rgba(139, 69, 19, 0.1);
+  z-index: 10;
+}
+
+.cancel-btn {
+  flex: 1;
+  height: 88rpx;
+  background: var(--background-color) !important;
+  border: 2rpx solid var(--border-color) !important;
+  border-radius: 44rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-color-medium) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pay-btn {
+  flex: 2;
+  height: 88rpx;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: white !important;
+  border-radius: 44rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pay-btn.disabled {
+  opacity: 0.6;
+}

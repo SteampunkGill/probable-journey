@@ -2,8 +2,8 @@
   <view class="tabs-nav">
     <view 
       wx:for="{{tabs}}" 
-      wx:key="index" 
-      class="tab-item {{activeTab === index ? 'active' : ''}}" 
+      wx:key="*this" 
+      class="tab-item {{ activeTab === index ? 'active' : '' }}"
       bindtap="switchTab"
       data-index="{{index}}"
     >
@@ -15,7 +15,7 @@
     <!-- 我的礼品卡 -->
     <view wx:if="{{activeTab === 0}}" class="my-cards">
       <view wx:if="{{giftCards.length > 0}}" class="card-list">
-        <view wx:for="{{giftCards}}" wx:key="id" class="card-item {{item.status}}">
+        <view wx:for="{{giftCards}}" wx:key="id" class="card-item {{ item.statusClass }}">
           <view class="card-main">
             <view class="card-no">NO. {{ item.cardNo }}</view>
             <view class="card-balance">
@@ -24,17 +24,17 @@
             </view>
             <view class="card-face">面额: ¥{{ item.faceValue }}</view>
           </view>
-          <view class="card-badge {{item.status}}">
+          <view class="card-badge {{ item.statusClass }}">
             {{ item.statusText }}
           </view>
           <view class="card-footer">
-            有效期至: {{ item.expiryTime }}
+            有效期至: {{ item.expiryTimeText }}
           </view>
         </view>
       </view>
       <view wx:else class="empty-box">
         <view class="empty-icon">🎁</view>
-        <text>暂无礼品卡</text>
+        <view>暂无礼品卡</view>
       </view>
     </view>
 
@@ -45,7 +45,7 @@
         <view 
           wx:for="{{priceOptions}}" 
           wx:key="*this" 
-          class="price-card {{selectedPrice === item ? 'active' : ''}}" 
+          class="price-card {{ selectedPrice === item ? 'active' : '' }}"
           bindtap="selectPrice"
           data-price="{{item}}"
         >
@@ -61,12 +61,12 @@
     <view wx:if="{{activeTab === 2}}" class="activate-card">
       <view class="form-group">
         <view class="input-item">
-          <text class="label">卡号</text>
-          <input value="{{cardNo}}" bindinput="onCardNoInput" placeholder="请输入礼品卡卡号" />
+          <label>卡号</label>
+          <input value="{{activateForm.cardNo}}" placeholder="请输入礼品卡卡号" bindinput="onCardNoInput" />
         </view>
         <view class="input-item">
-          <text class="label">券码</text>
-          <input value="{{cardCode}}" bindinput="onCardCodeInput" placeholder="请输入8位激活券码" />
+          <label>券码</label>
+          <input value="{{activateForm.cardCode}}" placeholder="请输入8位激活券码" bindinput="onCardCodeInput" />
         </view>
       </view>
       <button class="primary-btn" bindtap="handleActivate" disabled="{{activating}}">
@@ -74,9 +74,11 @@
       </button>
       <view class="usage-tips">
         <view class="tips-title">温馨提示：</view>
-        <view class="tips-li">• 请输入正确的卡号和券码进行激活。</view>
-        <view class="tips-li">• 激活后礼品卡将绑定至您的账户，不可转让。</view>
-        <view class="tips-li">• 礼品卡余额可用于支付订单。</view>
+        <view class="tips-list">
+          <view>• 请输入正确的卡号和券码进行激活。</view>
+          <view>• 激活后礼品卡将绑定至您的账户，不可转让。</view>
+          <view>• 礼品卡余额可用于支付订单。</view>
+        </view>
       </view>
     </view>
   </view>

@@ -126,5 +126,36 @@ module.exports = {
   getRelativeTime,
   validatePhone,
   getDistance,
-  formatImageUrl
+  formatImageUrl,
+  generatePickupCode: () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    let code = '';
+    code += letters.charAt(Math.floor(Math.random() * letters.length));
+    for (let i = 0; i < 3; i++) {
+      code += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    }
+    return code;
+  },
+  debounce: (func, wait) => {
+    let timeout;
+    return function(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func.apply(this, args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  },
+  throttle: (func, limit) => {
+    let inThrottle;
+    return function(...args) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => (inThrottle = false), limit);
+      }
+    };
+  }
 }

@@ -106,14 +106,65 @@ const favoriteApi = {
   getFavorites: (params) => get('/favorites', params),
   addFavorite: (productId) => post('/favorites/add', { productId }),
   removeFavorite: (productId) => del(`/favorites/remove/${productId}`),
+  clearFavorites: () => del('/favorites/clear'),
   checkFavorite: (productId) => get(`/favorites/check/${productId}`)
+}
+
+// 搜索相关
+const searchApi = {
+  searchProducts: (keyword, params) => get('/search', { keyword, ...params }),
+  getHotKeywords: () => get('/search/hot'),
+  getSearchHistory: () => get('/search/history'),
+  clearSearchHistory: () => del('/search/history')
+}
+
+// 系统相关
+const systemApi = {
+  getNotificationSettings: () => get('/settings/notification'),
+  updateNotificationSettings: (settings) => put('/settings/notification', settings),
+  confirmAgreement: () => post('/settings/agreement')
+}
+
+// 社交/分享相关
+const socialApi = {
+  generateShareLink: () => post('/share/generate'),
+  getInvitations: () => get('/share/invitations'),
+  receiveShareCoupon: (shareId) => post('/share/receive-coupon', { shareId }),
+  getInviteRules: () => get('/share/invite-rules'),
+  rewardInvite: (inviteeId) => post('/share/reward-invite', { inviteeId })
+}
+
+const shareApi = {
+  getShareStats: () => get('/share/stats'),
+  getRewardRecords: () => get('/share/rewards')
+}
+
+// 售后相关
+const afterSalesApi = {
+  submitComplaint: (data) => post('/complaints', data),
+  getAfterSalesRecords: () => get('/after-sales')
+}
+
+// 礼品卡相关
+const giftCardApi = {
+  buyGiftCard: (faceValue) => post('/gift-card/buy', { faceValue }),
+  activateGiftCard: (cardNo, cardCode) => post('/gift-card/activate', { cardNo, cardCode }),
+  getMyGiftCards: () => get('/gift-card/list')
+}
+
+// 关于我们相关
+const aboutUsApi = {
+  getAboutUs: () => get('/about'),
+  updateAboutUs: (data) => put('/admin/about-us', data)
 }
 
 // 公共接口
 const commonApi = {
   getStores: () => commonGet('/stores'),
   getRegions: () => commonGet('/regions'),
-  uploadImage: (filePath) => uploadFile('/upload/image', filePath)
+  uploadImage: (filePath) => uploadFile('/upload/image', filePath),
+  getTimestamp: () => commonGet('/timestamp'),
+  checkVersion: (platform, currentVersion) => commonGet('/version', { platform, currentVersion })
 }
 
 module.exports = {
@@ -129,5 +180,12 @@ module.exports = {
   storeApi,
   paymentApi,
   favoriteApi,
+  searchApi,
+  systemApi,
+  socialApi,
+  shareApi,
+  afterSalesApi,
+  giftCardApi,
+  aboutUsApi,
   commonApi
 }

@@ -26,7 +26,12 @@
     "pages/wallet/wallet",
     "pages/wallet/gift-card",
     "pages/pickup/pickup",
-    "pages/review/review"
+    "pages/review/review",
+    "pages/payment/payment",
+    "pages/share/share",
+    "pages/user/profile",
+    "pages/settings/about",
+    "pages/user/bind-card"
   ],
   "window": {
     "backgroundTextStyle": "light",

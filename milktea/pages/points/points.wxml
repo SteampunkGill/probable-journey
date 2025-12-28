@@ -8,9 +8,9 @@
         <view class="points-value">{{ userPoints }}</view>
       </view>
       <view class="card-actions">
-        <view class="action-btn" bindtap="goToMall">
-          <text class="action-icon">🎁</text>
-          <text>积分商城</text>
+        <view class="action-btn" bindtap="toggleRecords">
+          <text class="action-icon">📜</text>
+          <text>兑换记录</text>
         </view>
         <view class="action-btn" bindtap="goToRules">
           <text class="action-icon">ℹ️</text>
@@ -20,27 +20,80 @@
     </view>
   </view>
 
-  <!-- 积分明细 -->
-  <view class="records-section">
-    <view class="section-header">
-      <text class="section-title">积分明细</text>
+  <!-- 分类标签 -->
+  <view class="category-tabs">
+    <view 
+      class="tab-item {{ activeCategoryId === item.id ? 'active' : '' }}"
+      wx:for="{{categories}}"
+      wx:key="id"
+      bindtap="selectCategory"
+      data-id="{{item.id}}"
+    >
+      {{ item.name }}
     </view>
-    <view class="records-list" wx:if="{{records.length > 0}}">
-      <view class="record-item" wx:for="{{records}}" wx:key="id">
-        <view class="record-info">
-          <text class="record-type">{{item.typeDesc || item.type}}</text>
-          <text class="record-time">{{item.createTime}}</text>
+  </view>
+
+  <!-- 商品列表 -->
+  <view class="product-list">
+    <view 
+      class="product-item"
+      wx:for="{{productList}}"
+      wx:key="id"
+    >
+      <image class="product-image" src="{{ item.image || item.imageUrl || '/assets/images/icons/user.png' }}" mode="aspectFill" />
+      <view class="product-info">
+        <view class="product-name">{{ item.name }}</view>
+        <view class="product-desc">{{ item.description || item.desc }}</view>
+        <view class="product-footer">
+          <view class="points-price">
+            <text class="points-num">{{ item.points || item.pointCost }}</text>
+            <text class="points-unit">积分</text>
+          </view>
+          <button 
+            class="exchange-btn" 
+            bindtap="exchangeProduct" 
+            data-product="{{item}}"
+            disabled="{{userPoints < (item.points || item.pointCost) || item.stock <= 0}}"
+          >
+            {{ item.stock > 0 ? '立即兑换' : '已兑完' }}
+          </button>
         </view>
-        <view class="record-amount {{item.amount > 0 ? 'plus' : 'minus'}}">
-          {{item.amount > 0 ? '+' : ''}}{{item.amount}}
+        <view class="stock-info" wx:if="{{item.stock <= 10 && item.stock > 0}}">
+          <text>仅剩{{ item.stock }}件</text>
         </view>
       </view>
-      <view class="load-more" wx:if="{{hasMore}}">正在加载...</view>
-      <view class="no-more" wx:else>没有更多了</view>
     </view>
-    <view class="empty-records" wx:else>
-      <view class="empty-icon">📜</view>
-      <text>暂无积分记录</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-tip" wx:if="{{productList.length === 0 && !loading}}">
+    <view class="empty-icon">🎁</view>
+    <view>暂无可兑换商品</view>
+  </view>
+
+  <!-- 兑换记录弹窗 -->
+  <view class="records-modal" wx:if="{{showRecords}}">
+    <view class="modal-mask" bindtap="toggleRecords"></view>
+    <view class="modal-content">
+      <view class="modal-header">
+        <view class="modal-title">兑换记录</view>
+        <view class="close-icon" bindtap="toggleRecords">✕</view>
+      </view>
+      <scroll-view class="modal-body" scroll-y>
+        <view class="empty-records" wx:if="{{exchangeRecords.length === 0}}">
+          <view class="empty-icon">📜</view>
+          <view>暂无兑换记录</view>
+        </view>
+        <view class="record-list" wx:else>
+          <view class="record-item" wx:for="{{exchangeRecords}}" wx:key="id">
+            <view class="record-info">
+              <view class="record-name">{{item.productName}}</view>
+              <view class="record-time">{{item.createTime}}</view>
+            </view>
+            <view class="record-points">-{{item.points}}积分</view>
+          </view>
+        </view>
+      </scroll-view>
     </view>
   </view>
 </view>
