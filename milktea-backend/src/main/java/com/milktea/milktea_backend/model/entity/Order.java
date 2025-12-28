@@ -98,6 +98,12 @@ public class Order {
     @Column(name = "is_commented")
     private Boolean isCommented;
 
+    @OneToOne(mappedBy = "order")
+    private OrderReview review;
+
+    @Column(name = "refund_reason", length = 500)
+    private String refundReason;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

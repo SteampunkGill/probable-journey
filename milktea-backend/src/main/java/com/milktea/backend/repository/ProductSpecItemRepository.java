@@ -6,4 +6,5 @@ import com.milktea.milktea_backend.model.entity.ProductSpecItem;
 
 @Repository
 public interface ProductSpecItemRepository extends JpaRepository<ProductSpecItem, Long> {
+    java.util.List<ProductSpecItem> findBySpecId(Long specId);
 }

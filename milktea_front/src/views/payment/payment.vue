@@ -15,9 +15,21 @@
     <div class="payment-methods">
       <h3 class="section-title">选择支付方式</h3>
       
-      <div 
-        class="method-item" 
-        :class="{ active: paymentMethod === 'wechat' }" 
+      <div
+        class="method-item"
+        :class="{ active: paymentMethod === 'alipay' }"
+        @click="paymentMethod = 'alipay'"
+      >
+        <div class="method-info">
+          <span class="method-icon">💳</span>
+          <span class="method-name">支付宝支付</span>
+        </div>
+        <div class="radio" :class="{ checked: paymentMethod === 'alipay' }"></div>
+      </div>
+
+      <div
+        class="method-item"
+        :class="{ active: paymentMethod === 'wechat' }"
         @click="paymentMethod = 'wechat'"
       >
         <div class="method-info">
@@ -27,16 +39,16 @@
         <div class="radio" :class="{ checked: paymentMethod === 'wechat' }"></div>
       </div>
       
-      <div 
-        class="method-item" 
-        :class="{ active: paymentMethod === 'balance' }" 
+      <div
+        class="method-item"
+        :class="{ active: paymentMethod === 'balance' }"
         @click="paymentMethod = 'balance'"
       >
         <div class="method-info">
           <span class="method-icon">💰</span>
           <div class="method-detail">
             <span class="method-name">余额支付</span>
-            <span class="balance">余额：¥86.50</span>
+            <span class="balance">余额：¥{{ userBalance.toFixed(2) }}</span>
           </div>
         </div>
         <div class="radio" :class="{ checked: paymentMethod === 'balance' }"></div>
@@ -72,7 +84,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { orderApi, authApi } from '@/utils/api'
+import { orderApi, authApi, paymentApi } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -143,15 +155,24 @@ const submitPayment = async () => {
   if (paying.value) return
   paying.value = true
   
-  // 模拟支付过程
-  setTimeout(() => {
+  try {
+    // 调用后端确认支付接口，同步订单状态
+    const res = await paymentApi.confirmPayment(orderNo.value, paymentMethod.value.toUpperCase())
+    if (res.code === 200) {
+      alert('支付成功！')
+      router.push({
+        path: '/order-detail/' + order.value.orderNo,
+        query: { status: 'success' }
+      })
+    } else {
+      alert(res.message || '支付失败')
+    }
+  } catch (error) {
+    console.error('支付请求失败:', error)
+    alert('支付系统繁忙，请稍后重试')
+  } finally {
     paying.value = false
-    alert('支付成功！')
-    router.push({
-      path: '/order-detail/' + order.value.orderNo,
-      query: { status: 'success' }
-    })
-  }, 1500)
+  }
 }
 
 const cancelOrder = () => {

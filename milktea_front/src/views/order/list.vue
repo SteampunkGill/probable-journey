@@ -14,20 +14,49 @@
     </div>
 
     <!-- 订单列表 -->
-    <div class="orders" v-if="orders.length > 0">
-      <div class="order-item" v-for="item in orders" :key="item.id" @click="goToOrderDetail(item.id)">
+    <div class="orders" v-if="displayOrders.length > 0">
+      <div class="order-item" v-for="item in displayOrders" :key="item.id" @click="goToOrderDetail(item.id)">
         <!-- 订单头部 -->
         <div class="order-header">
           <span class="order-no">订单号：{{ item.orderNo }}</span>
-          <span class="order-status" :class="item.status">{{ item.statusText }}</span>
+          <span class="order-status" :class="item.status?.toUpperCase()">{{ getStatusText(item.status) }}</span>
+        </div>
+
+        <!-- 订单进度条 -->
+        <div class="order-progress-container">
+          <div class="progress-bar">
+            <div class="progress-inner" :style="{ width: getProgressWidth(item.status) }"></div>
+          </div>
+          <div class="progress-steps">
+            <div class="step" :class="{ active: isStepActive(item.status, 1) }">
+              <div class="step-dot"></div>
+              <span class="step-text">下单</span>
+            </div>
+            <div class="step" :class="{ active: isStepActive(item.status, 2) }">
+              <div class="step-dot"></div>
+              <span class="step-text">支付</span>
+            </div>
+            <div class="step" :class="{ active: isStepActive(item.status, 3) }">
+              <div class="step-dot"></div>
+              <span class="step-text">制作</span>
+            </div>
+            <div class="step" :class="{ active: isStepActive(item.status, 4) }">
+              <div class="step-dot"></div>
+              <span class="step-text">待取</span>
+            </div>
+            <div class="step" :class="{ active: isStepActive(item.status, 5) }">
+              <div class="step-dot"></div>
+              <span class="step-text">完成</span>
+            </div>
+          </div>
         </div>
 
         <!-- 商品列表 -->
         <div class="goods-list">
-          <div class="goods-item" v-for="goods in item.items" :key="goods.id">
-            <img class="goods-image" :src="goods.image" />
+          <div class="goods-item" v-for="goods in (item.orderItems || item.items)" :key="goods.id">
+            <img class="goods-image" :src="formatImageUrl(goods.productImage || goods.image || goods.product?.mainImageUrl)" />
             <div class="goods-info">
-              <span class="goods-name">{{ goods.name }}</span>
+              <span class="goods-name">{{ goods.productName || goods.name }}</span>
               <div class="goods-bottom">
                 <span class="goods-price">¥{{ goods.price }}</span>
                 <span class="goods-quantity">×{{ goods.quantity }}</span>
@@ -40,7 +69,7 @@
         <div class="order-info">
           <div class="info-row">
             <span class="label">下单时间</span>
-            <span class="value">{{ item.createTime }}</span>
+            <span class="value">{{ item.orderTime }}</span>
           </div>
           <div class="info-row" v-if="item.pickupCode">
             <span class="label">取餐码</span>
@@ -48,28 +77,34 @@
           </div>
           <div class="info-row total">
             <span class="label">实付款</span>
-            <span class="amount">¥{{ item.totalAmount }}</span>
+            <span class="amount">¥{{ item.payAmount || item.actualAmount || item.totalAmount }}</span>
           </div>
         </div>
 
         <!-- 操作按钮 -->
         <div class="order-actions">
           <!-- 待支付 -->
-          <template v-if="item.status === 'pending_payment'">
+          <template v-if="item.status === 'PENDING_PAYMENT'">
             <button class="action-btn secondary" @click.stop="cancelOrder(item.id)">取消订单</button>
-            <button class="action-btn primary" @click.stop="payOrder(item.id)">去支付</button>
+            <button class="action-btn primary" @click.stop="payOrder(item.id)">立即付款</button>
           </template>
 
           <!-- 制作中 -->
-          <template v-else-if="item.status === 'processing'">
+          <template v-else-if="item.status === 'MAKING'">
             <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
             <button class="action-btn primary" @click.stop="remindOrder(item.id)">催单</button>
           </template>
 
+          <!-- 待取餐/待收货 -->
+          <template v-else-if="item.status === 'READY' || item.status === 'DELIVERING' || item.status === 'DELIVERED'">
+            <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
+            <button class="action-btn primary" @click.stop="confirmOrder(item.orderNo || item.id)">立即取餐</button>
+          </template>
+
           <!-- 已完成 -->
-          <template v-else-if="item.status === 'completed'">
+          <template v-else-if="item.status === 'COMPLETED' || item.status === 'FINISHED' || item.status === 'REVIEWED'">
             <button class="action-btn secondary" @click.stop="reorder(item)">再来一单</button>
-            <button class="action-btn primary" v-if="item.canReview" @click.stop="reviewOrder(item.id)">去评价</button>
+            <button class="action-btn primary" v-if="item.status !== 'REVIEWED' && (item.canReview || !item.isCommented)" @click.stop="reviewOrder(item.orderNo || item.id)">立即评价</button>
           </template>
         </div>
       </div>
@@ -90,9 +125,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCartStore } from '@/store/cart'
+import { formatImageUrl } from '@/utils/util'
 
 const router = useRouter()
 const route = useRoute()
@@ -100,16 +136,40 @@ const cartStore = useCartStore()
 
 const tabs = [
   { key: 'all', name: '全部' },
-  { key: 'pending', name: '待支付' },
-  { key: 'processing', name: '制作中' },
-  { key: 'completed', name: '已完成' }
+  { key: 'PENDING_PAYMENT', name: '待支付' },
+  { key: 'PAID', name: '待接单' },
+  { key: 'MAKING', name: '制作中' },
+  { key: 'READY', name: '待取餐' },
+  { key: 'DELIVERING', name: '配送中' },
+  { key: 'COMPLETED', name: '已完成' },
+  { key: 'REFUNDING', name: '退款中' },
+  { key: 'CANCELLED', name: '已取消' }
 ]
-const activeTab = ref(route.query.status || 'all')
+const activeTab = ref('all')
+
+// 兼容旧的 query 参数，并转换为大写
+onMounted(() => {
+  const queryStatus = route.query.status
+  if (queryStatus) {
+    const upperStatus = queryStatus.toUpperCase()
+    // 检查是否在有效标签中
+    if (tabs.find(t => t.key === upperStatus)) {
+      activeTab.value = upperStatus
+    } else if (upperStatus === 'PENDING') {
+      activeTab.value = 'PENDING_PAYMENT'
+    } else if (upperStatus === 'PROCESSING') {
+      activeTab.value = 'MAKING'
+    } else if (upperStatus === 'COMPLETED') {
+      activeTab.value = 'COMPLETED'
+    }
+  }
+  loadOrders()
+})
 const orders = ref([])
 const loading = ref(false)
 
-onMounted(() => {
-  loadOrders()
+const displayOrders = computed(() => {
+  return orders.value
 })
 
 const switchTab = (key) => {
@@ -117,25 +177,58 @@ const switchTab = (key) => {
   loadOrders()
 }
 
+const getStatusText = (status) => {
+  const statusMap = {
+    'PENDING_PAYMENT': '待支付',
+    'PAID': '待接单',
+    'MAKING': '制作中',
+    'READY': '待取餐',
+    'DELIVERING': '配送中',
+    'DELIVERED': '已送达',
+    'COMPLETED': '已完成',
+    'FINISHED': '已完成',
+    'REFUNDING': '退款中',
+    'REFUNDED': '已退款',
+    'CANCELLED': '已取消',
+    'REVIEWED': '已评价'
+  }
+  return statusMap[status] || status
+}
+
 import { orderApi } from '@/utils/api'
 
 const loadOrders = async () => {
   loading.value = true
   try {
-    const statusMap = {
-      'all': '',
-      'pending': 'PAID', // 根据文档映射
-      'processing': 'MAKING',
-      'completed': 'FINISHED'
-    }
-    
     const params = {
-      status: statusMap[activeTab.value]
+      status: activeTab.value === 'all' ? '' : activeTab.value
     }
     
+    console.log('正在请求订单列表, 参数:', params)
     const res = await orderApi.getOrderList(params)
-    if (res.code === 200) {
-      orders.value = res.data.list || res.data || []
+    console.log('订单列表原始响应:', res)
+    
+    if (res.code === 200 || res.status === 'success') {
+      // 兼容后端返回的各种数据结构
+      let data = res.data
+      
+      // 如果 res 本身就是数组（虽然 request.js 做了处理，但这里做二次防御）
+      if (Array.isArray(res)) {
+        data = res
+      }
+      
+      if (Array.isArray(data)) {
+        orders.value = data
+      } else if (data && Array.isArray(data.list)) {
+        orders.value = data.list
+      } else if (data && typeof data === 'object') {
+        // 尝试寻找对象中的数组字段
+        const arrayField = Object.values(data).find(val => Array.isArray(val))
+        orders.value = arrayField || []
+      } else {
+        orders.value = []
+      }
+      console.log('处理后的订单列表数据:', JSON.parse(JSON.stringify(orders.value)))
     }
   } catch (error) {
     console.error('加载订单列表失败:', error)
@@ -182,7 +275,23 @@ const remindOrder = async (id) => {
 }
 
 const reviewOrder = (id) => {
-  alert('评价功能开发中')
+  router.push(`/review/${id}`)
+}
+
+const confirmOrder = async (orderNo) => {
+  if (confirm('确认已取餐/收到商品吗？')) {
+    try {
+      const res = await orderApi.confirmOrder(orderNo)
+      if (res.code === 200) {
+        alert('操作成功')
+        loadOrders()
+      } else {
+        alert(res.message || '操作失败')
+      }
+    } catch (error) {
+      console.error('确认订单失败:', error)
+    }
+  }
 }
 
 const reorder = (order) => {
@@ -205,6 +314,37 @@ const contactService = () => {
 
 const goToIndex = () => {
   router.push('/')
+}
+
+const getProgressWidth = (status) => {
+  const statusMap = {
+    'PENDING_PAYMENT': '20%',
+    'PAID': '40%',
+    'MAKING': '60%',
+    'READY': '80%',
+    'DELIVERING': '85%',
+    'DELIVERED': '90%',
+    'COMPLETED': '100%',
+    'FINISHED': '100%',
+    'REVIEWED': '100%'
+  }
+  return statusMap[status] || '0%'
+}
+
+const isStepActive = (status, step) => {
+  const statusLevel = {
+    'PENDING_PAYMENT': 1,
+    'PAID': 2,
+    'MAKING': 3,
+    'READY': 4,
+    'DELIVERING': 4,
+    'DELIVERED': 4,
+    'COMPLETED': 5,
+    'FINISHED': 5,
+    'REVIEWED': 5
+  }
+  const currentLevel = statusLevel[status] || 0
+  return currentLevel >= step
 }
 </script>
 
@@ -306,6 +446,73 @@ const goToIndex = () => {
   border-bottom: 2px dashed var(--border-color);
 }
 
+/* 订单进度条样式 */
+.order-progress-container {
+  padding: 20px 10px;
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  position: relative;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.progress-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-light), var(--primary-color));
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  z-index: 1;
+}
+
+.step-dot {
+  width: 10px;
+  height: 10px;
+  background: #ddd;
+  border-radius: 50%;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.step.active .step-dot {
+  background: var(--primary-color);
+  transform: scale(1.3);
+  box-shadow: 0 0 8px rgba(160, 82, 45, 0.4);
+}
+
+.step-text {
+  font-size: 12px;
+  color: #999;
+  transition: all 0.3s ease;
+}
+
+.step.active .step-text {
+  color: var(--primary-dark);
+  font-weight: bold;
+}
+
 .order-no {
   font-size: 14px;
   color: var(--text-color-medium);
@@ -321,19 +528,19 @@ const goToIndex = () => {
   font-family: 'Prompt', sans-serif;
 }
 
-.order-status.pending_payment {
+.order-status.PENDING_PAYMENT {
   background: linear-gradient(135deg, #ffc0cb 0%, #ffb6c1 100%);
   color: #c71585;
   box-shadow: 0 2px 8px rgba(255, 182, 193, 0.3);
 }
 
-.order-status.processing {
+.order-status.PAID, .order-status.MAKING {
   background: linear-gradient(135deg, var(--accent-cream) 0%, #fff8e1 100%);
   color: var(--primary-dark);
   box-shadow: 0 2px 8px rgba(210, 180, 140, 0.3);
 }
 
-.order-status.completed {
+.order-status.COMPLETED, .order-status.FINISHED, .order-status.REVIEWED {
   background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
   color: #28a745;
   box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);

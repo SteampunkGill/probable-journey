@@ -44,20 +44,27 @@ public class AdminInventoryController {
         return ApiResponse.success(convertToDTO(updated));
     }
 
+    @PutMapping("/{id}/cost")
+    public ApiResponse<InventoryDTO> updateCost(@PathVariable Long id, @RequestBody Map<String, BigDecimal> body) {
+        BigDecimal cost = body.get("costPerUnit");
+        Ingredient updated = inventoryService.updateCost(id, cost);
+        return ApiResponse.success(convertToDTO(updated));
+    }
+
     @GetMapping("/{id}/records")
     public ApiResponse<List<String>> getRecords(@PathVariable Long id) {
         return ApiResponse.success(inventoryService.getInventoryRecords(id));
     }
-
-    private InventoryDTO convertToDTO(Ingredient ingredient) {
-        InventoryDTO dto = new InventoryDTO();
-        dto.setId(ingredient.getId());
-        dto.setName(ingredient.getName());
-        dto.setUnit(ingredient.getUnit());
-        dto.setStock(ingredient.getStock());
-        dto.setAlertThreshold(ingredient.getAlertThreshold());
-        
-        boolean isLow = false;
+private InventoryDTO convertToDTO(Ingredient ingredient) {
+    InventoryDTO dto = new InventoryDTO();
+    dto.setId(ingredient.getId());
+    dto.setName(ingredient.getName());
+    dto.setUnit(ingredient.getUnit());
+    dto.setStock(ingredient.getStock());
+    dto.setAlertThreshold(ingredient.getAlertThreshold());
+    dto.setCostPerUnit(ingredient.getCostPerUnit());
+    
+    boolean isLow = false;
         if (ingredient.getStock() != null && ingredient.getAlertThreshold() != null) {
             isLow = ingredient.getStock().compareTo(ingredient.getAlertThreshold()) <= 0;
         }

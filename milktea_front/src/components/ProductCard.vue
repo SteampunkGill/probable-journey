@@ -16,14 +16,14 @@
       </div>
       
       <!-- 收藏按钮 -->
-      <div 
-        class="favorite-btn" 
-        :class="{ active: isFavorite }"
+      <div
+        class="favorite-btn"
+        :class="{ active: localIsFavorite }"
         @click.stop="onFavoriteTap"
       >
-        <img 
-          class="favorite-icon" 
-          :src="isFavorite ? getIconUrl('heart-fill.png') : getIconUrl('heart.png')"
+        <img
+          class="favorite-icon"
+          :src="localIsFavorite ? getIconUrl('heart-fill.png') : getIconUrl('heart.png')"
         />
       </div>
       
@@ -78,20 +78,24 @@ const props = defineProps({
   product: {
     type: Object,
     required: true
+  },
+  isFavorite: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['click', 'add-to-cart', 'favorite-change'])
 
-const isFavorite = ref(false)
+const localIsFavorite = ref(props.isFavorite)
 
 const onTap = () => {
   emit('click', props.product.id)
 }
 
 const onFavoriteTap = () => {
-  isFavorite.value = !isFavorite.value
-  emit('favorite-change', { id: props.product.id, isFavorite: isFavorite.value })
+  localIsFavorite.value = !localIsFavorite.value
+  emit('favorite-change', { id: props.product.id, isFavorite: localIsFavorite.value })
 }
 
 const onAddToCart = () => {

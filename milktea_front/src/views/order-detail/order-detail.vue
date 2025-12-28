@@ -95,7 +95,7 @@
         <h3 class="section-title">商品清单</h3>
         <div class="goods-list">
           <div class="goods-item" v-for="item in order?.items" :key="item.id">
-            <img class="goods-image" :src="item.image || item.product?.mainImageUrl || item.product?.imageUrl" />
+            <img class="goods-image" :src="formatImageUrl(item.productImage || item.image || item.product?.mainImageUrl || item.product?.imageUrl)" />
             <div class="goods-info">
               <span class="goods-name">{{ item.name }}</span>
               <div class="goods-specs" v-if="item.customizations">
@@ -211,6 +211,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { orderApi } from '../../utils/api'
+import { formatImageUrl } from '../../utils/util'
 
 const router = useRouter()
 const route = useRoute()
@@ -226,50 +227,55 @@ onMounted(() => {
 
 const loadOrderDetail = async () => {
   loading.value = true
-  // 模拟获取数据
-  setTimeout(() => {
-    const mockOrder = {
-      id: route.params.id,
-      orderNo: 'MT20231201001',
-      status: 'processing',
-      statusText: '制作中',
-      createTime: '2023-12-01 14:30:00',
-      payTime: '2023-12-01 14:31:00',
-      deliveryType: 'pickup',
-      pickupCode: 'A123',
-      totalAmount: 68.50,
-      subtotal: 58.00,
-      deliveryFee: 5.00,
-      packagingFee: 1.50,
-      couponDiscount: 5.00,
-      pointsDiscount: 1.00,
-      items: [
-        {
-          id: 'item_001',
-          name: '经典珍珠奶茶',
-          image: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400',
-          price: 18.00,
-          quantity: 2,
-          customizations: { sweetness: '五分糖', temperature: '少冰', toppings: ['珍珠', '椰果'] }
-        }
-      ],
-      store: { name: '奶茶小屋·中山路店', address: '中山路123号', phone: '13800138000', businessHours: '9:00-22:00' },
-      paymentMethodText: '微信支付',
-      remark: '少冰,请尽快制作',
-      canRemind: true
-    }
+  try {
+    const res = await orderApi.getOrderDetail(route.params.id)
+    if (res.code === 200) {
+      const data = res.data
+      // 状态映射逻辑
+      const statusMap = {
+        'PENDING_PAYMENT': { text: '待支付', step: 0 },
+        'PAID': { text: '待接单', step: 1 },
+        'MAKING': { text: '制作中', step: 2 },
+        'READY': { text: '待取餐', step: 3 },
+        'DELIVERING': { text: '配送中', step: 3 },
+        'DELIVERED': { text: '已送达', step: 3 },
+        'COMPLETED': { text: '已完成', step: 4 },
+        'FINISHED': { text: '已完成', step: 4 },
+        'REVIEWED': { text: '已评价', step: 4 },
+        'CANCELLED': { text: '已取消', step: 0 },
+        'REFUNDING': { text: '退款中', step: 0 },
+        'REFUNDED': { text: '已退款', step: 0 }
+      }
+      
+      const s = data.status ? data.status.toUpperCase() : ''
+      const currentStatus = statusMap[s] || { text: data.status, step: 0 }
+      
+      order.value = {
+        ...data,
+        statusText: currentStatus.text,
+        paymentMethodText: data.payMethod === 'BALANCE' ? '余额支付' : '在线支付',
+        createTime: data.orderTime || data.createdAt,
+        items: data.orderItems?.map(item => ({
+          ...item,
+          name: item.productName,
+          image: item.productImage
+        }))
+      }
 
-    order.value = mockOrder
-    statusSteps.value = [
-      { key: 'created', title: '订单已提交', time: mockOrder.createTime },
-      { key: 'paid', title: '支付成功', time: mockOrder.payTime },
-      { key: 'processing', title: '商家制作中', time: '' },
-      { key: 'ready', title: '已备餐', time: '' },
-      { key: 'completed', title: '已取餐', time: '' }
-    ]
-    currentStep.value = 2
+      statusSteps.value = [
+        { key: 'PENDING_PAYMENT', title: '订单已提交', time: data.createdAt },
+        { key: 'PAID', title: '支付成功', time: data.payTime },
+        { key: 'MAKING', title: '商家制作中', time: '' },
+        { key: 'READY', title: '已备餐', time: data.actualReadyTime },
+        { key: 'COMPLETED', title: '已完成', time: '' }
+      ]
+      currentStep.value = currentStatus.step
+    }
+  } catch (error) {
+    console.error('加载订单详情失败:', error)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 const copyText = (text) => {

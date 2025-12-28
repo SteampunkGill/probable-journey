@@ -16,11 +16,14 @@ public class InventoryService {
 
     private final IngredientRepository ingredientRepository;
     private final SysOperationLogRepository sysOperationLogRepository;
+    private final RecipeService recipeService;
 
     public InventoryService(IngredientRepository ingredientRepository,
-                            SysOperationLogRepository sysOperationLogRepository) {
+                            SysOperationLogRepository sysOperationLogRepository,
+                            RecipeService recipeService) {
         this.ingredientRepository = ingredientRepository;
         this.sysOperationLogRepository = sysOperationLogRepository;
+        this.recipeService = recipeService;
     }
 
     public List<Ingredient> findAllIngredients() {
@@ -33,6 +36,19 @@ public class InventoryService {
                 .orElseThrow(() -> new ServiceException("INGREDIENT_NOT_FOUND", "原料不存在，ID: " + id));
         ingredient.setStock(stock);
         return ingredientRepository.save(ingredient);
+    }
+
+    @Transactional
+    public Ingredient updateCost(Long id, BigDecimal cost) {
+        Ingredient ingredient = ingredientRepository.findById(id)
+                .orElseThrow(() -> new ServiceException("INGREDIENT_NOT_FOUND", "原料不存在，ID: " + id));
+        ingredient.setCostPerUnit(cost);
+        Ingredient saved = ingredientRepository.save(ingredient);
+        
+        // 2. 根据后台原料成本变化时自动计算更新奶茶成本
+        recipeService.updateAllProductsCostByIngredient(id);
+        
+        return saved;
     }
 
     @Transactional

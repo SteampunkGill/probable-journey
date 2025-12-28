@@ -91,10 +91,10 @@ const uploading = ref(false)
 const fileInput = ref(null)
 
 const form = ref({
-  nickname: '',
-  avatarUrl: '',
-  gender: 0,
-  birthday: ''
+  nickname: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
+  avatarUrl: userStore.userInfo?.avatarUrl || userStore.userInfo?.avatar || '',
+  gender: userStore.userInfo?.gender !== undefined ? userStore.userInfo?.gender : 0,
+  birthday: userStore.userInfo?.birthday || ''
 })
 
 const triggerFileInput = () => {
@@ -138,35 +138,19 @@ const handleFileChange = async (event) => {
 const loadProfile = async () => {
   try {
     const res = await authApi.getUserProfile()
-    // 拦截器返回的是 res.data
-    if (res) {
-      userStore.setUserInfo(res)
-      // 优先使用 res 中的数据，如果为空则使用 store 中的数据
-      form.value = {
-        nickname: res.nickname || res.username || userStore.userInfo?.nickname || userStore.userInfo?.username || '',
-        avatarUrl: res.avatarUrl || res.avatar || userStore.userInfo?.avatarUrl || userStore.userInfo?.avatar || '',
-        gender: res.gender !== undefined ? res.gender : (userStore.userInfo?.gender || 0),
-        birthday: res.birthday || userStore.userInfo?.birthday || ''
-      }
-    } else if (userStore.userInfo) {
-      // 如果接口没返回，使用 store 中的数据
-      form.value = {
-        nickname: userStore.userInfo.nickname || userStore.userInfo.username || '',
-        avatarUrl: userStore.userInfo.avatarUrl || userStore.userInfo.avatar || '',
-        gender: userStore.userInfo.gender !== undefined ? userStore.userInfo.gender : 0,
-        birthday: userStore.userInfo.birthday || ''
-      }
+    // 拦截器返回的是 ApiResponse 对象 { code, message, data }
+    if (res && res.code === 200 && res.data) {
+      const userData = res.data
+      userStore.setUserInfo(userData)
+      // 立即同步到表单，确保渲染
+      form.value.nickname = userData.nickname || userData.username || ''
+      form.value.avatarUrl = userData.avatarUrl || userData.avatar || ''
+      form.value.gender = userData.gender !== undefined ? userData.gender : 0
+      form.value.birthday = userData.birthday || ''
     }
   } catch (error) {
     console.error('获取个人资料失败:', error)
-    if (userStore.userInfo) {
-      form.value = {
-        nickname: userStore.userInfo.nickname || userStore.userInfo.username || '',
-        avatarUrl: userStore.userInfo.avatarUrl || userStore.userInfo.avatar || '',
-        gender: userStore.userInfo.gender !== undefined ? userStore.userInfo.gender : 0,
-        birthday: userStore.userInfo.birthday || ''
-      }
-    }
+    // 如果接口失败，至少保持 store 中的数据（已在初始化时完成）
   }
 }
 

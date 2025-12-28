@@ -35,6 +35,7 @@ const menuItems = [
   { name: '仪表盘', path: '/admin/dashboard', icon: 'icon-dashboard' },
   { name: '门店管理', path: '/admin/store', icon: 'icon-store' },
   { name: '商品管理', path: '/admin/product', icon: 'icon-product' },
+  { name: '库存管理', path: '/admin/inventory', icon: 'icon-inventory' },
   { name: '订单管理', path: '/admin/order', icon: 'icon-order' },
   { name: '会员管理', path: '/admin/member', icon: 'icon-user' },
   { name: '营销管理', path: '/admin/marketing', icon: 'icon-marketing' },

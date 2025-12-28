@@ -21,6 +21,12 @@ public class Promotion {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    @Column(name = "title", length = 100)
+    private String title;
+
+    @Column(name = "subtitle", length = 255)
+    private String subtitle;
+
     @Column(name = "type", nullable = false, length = 50)
     private String type; // FULL_REDUCE, SECOND_HALF, LIMITED_DISCOUNT, FLASH_SALE
 
@@ -35,4 +41,21 @@ public class Promotion {
 
     @Column(name = "is_active")
     private Boolean isActive;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

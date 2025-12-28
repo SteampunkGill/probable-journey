@@ -54,7 +54,7 @@
     <!-- 商品信息 -->
     <div class="item-content">
       <img
-        :src="item.image || item.product?.mainImageUrl || item.product?.imageUrl"
+        :src="formatImageUrl(item.image || item.product?.mainImageUrl || item.product?.imageUrl)"
         class="item-image"
         @click="router.push(`/product/${item.id}`)"
       />
@@ -158,6 +158,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
 import { couponApi } from '../../utils/api'
+import { formatImageUrl } from '../../utils/util'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -583,7 +584,7 @@ onMounted(() => {
 
 .bottom-settlement {
   position: fixed;
-  bottom: 60px; /* 向上移动，避开底部导航栏 */
+  bottom: 80px; /* 向上移动，避开底部导航栏 */
   left: 16px;
   right: 16px;
   background: rgba(255, 255, 255, 0.95);

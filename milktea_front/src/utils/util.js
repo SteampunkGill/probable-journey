@@ -206,3 +206,19 @@ export function generatePickupCode() {
   
   return code;
 }
+
+/**
+ * 格式化图片URL
+ * @param {string} url - 原始URL
+ * @returns {string} 格式化后的完整URL
+ */
+export function formatImageUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  
+  // 统一从配置或当前域名获取后端基础路径
+  // 建议在生产环境中使用环境变量，这里先兼容本地开发
+  const baseUrl = 'http://localhost:8081';
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${baseUrl}${path}`;
+}

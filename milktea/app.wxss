@@ -1,0 +1,53 @@
+/**app.wxss**/
+page {
+  --background-color: #f5f0e1;
+  --surface-color: #e8dccb;
+  --primary-color: #a0522d;
+  --primary-dark: #8b4513;
+  --primary-light: #d2b48c;
+  --accent-cream: #fff8dc;
+  --accent-pink: #ffc0cb;
+  --accent-brown: #deb887;
+  --text-color-dark: #4a3b30;
+  --text-color-medium: #7a6a5b;
+  --text-color-light: #a09080;
+  --border-color: #d4c7b5;
+
+  --border-radius-sm: 16rpx;
+  --border-radius-md: 32rpx;
+  --border-radius-lg: 48rpx;
+  --border-radius-xl: 80rpx;
+
+  --shadow-sm: 0 4rpx 16rpx rgba(139, 69, 19, 0.08);
+  --shadow-md: 0 8rpx 32rpx rgba(139, 69, 19, 0.12);
+  --shadow-lg: 0 16rpx 64rpx rgba(139, 69, 19, 0.16);
+
+  --spacing-xs: 16rpx;
+  --spacing-sm: 24rpx;
+  --spacing-md: 32rpx;
+  --spacing-lg: 48rpx;
+  --spacing-xl: 64rpx;
+
+  background-color: var(--background-color);
+  color: var(--text-color-dark);
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica,
+    Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei',
+    sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+view, text, scroll-view, swiper, button, input, textarea, label, navigator, image {
+  box-sizing: border-box;
+}
+
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 200rpx 0;
+  box-sizing: border-box;
+}

@@ -25,23 +25,40 @@ public class AdminOrderService {
     private final ComplaintRepository complaintRepository;
     private final com.milktea.backend.repository.PrintTemplateRepository printTemplateRepository;
     private final com.milktea.backend.repository.PrintPrinterRepository printPrinterRepository;
+    private final com.milktea.backend.repository.UserRepository userRepository;
+    private final com.milktea.backend.repository.OrderAppealRepository orderAppealRepository;
 
     public AdminOrderService(OrderRepository orderRepository,
                              OrderRefundRepository orderRefundRepository,
                              ComplaintRepository complaintRepository,
                              com.milktea.backend.repository.PrintTemplateRepository printTemplateRepository,
-                             com.milktea.backend.repository.PrintPrinterRepository printPrinterRepository) {
+                             com.milktea.backend.repository.PrintPrinterRepository printPrinterRepository,
+                             com.milktea.backend.repository.UserRepository userRepository,
+                             com.milktea.backend.repository.OrderAppealRepository orderAppealRepository) {
         this.orderRepository = orderRepository;
         this.orderRefundRepository = orderRefundRepository;
         this.complaintRepository = complaintRepository;
         this.printTemplateRepository = printTemplateRepository;
         this.printPrinterRepository = printPrinterRepository;
+        this.userRepository = userRepository;
+        this.orderAppealRepository = orderAppealRepository;
     }
 
     public List<OrderDTO> getPendingOrders() {
-        return orderRepository.findByStatus("PAID").stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        try {
+            return orderRepository.findByStatus("PAID").stream()
+                    .map(o -> {
+                        try {
+                            return convertToDTO(o);
+                        } catch (Exception e) {
+                            return null;
+                        }
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     @Transactional
@@ -64,8 +81,30 @@ public class AdminOrderService {
     public void readyOrder(String orderNo) {
         Order order = orderRepository.findByOrderNo(orderNo)
                 .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
-        order.setStatus("READY");
+        
+        if ("DELIVERY".equals(order.getDeliveryType())) {
+            order.setStatus("DELIVERING");
+        } else {
+            order.setStatus("READY");
+        }
+        
         order.setActualReadyTime(LocalDateTime.now());
+        orderRepository.save(order);
+    }
+
+    @Transactional
+    public void deliverOrder(String orderNo) {
+        Order order = orderRepository.findByOrderNo(orderNo)
+                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
+        order.setStatus("DELIVERED");
+        orderRepository.save(order);
+    }
+
+    @Transactional
+    public void completeOrder(String orderNo) {
+        Order order = orderRepository.findByOrderNo(orderNo)
+                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
+        order.setStatus("COMPLETED");
         orderRepository.save(order);
     }
 
@@ -79,32 +118,68 @@ public class AdminOrderService {
     public List<OrderDTO> searchOrders(String orderNo, String status, Long storeId) {
         List<Order> orders;
         // 简化实现，实际应使用 Specification 或 QueryDSL
-        if (orderNo != null) {
-            orders = orderRepository.findByOrderNo(orderNo).map(List::of).orElse(List.of());
-        } else if (storeId != null && status != null) {
-            orders = orderRepository.findByStoreIdAndStatus(storeId, status);
-        } else if (storeId != null) {
-            orders = orderRepository.findByStoreId(storeId);
-        } else if (status != null) {
-            orders = orderRepository.findByStatus(status);
-        } else {
-            orders = orderRepository.findAll();
+        // 零回归原则：处理空字符串，确保查询逻辑正确
+        boolean hasOrderNo = orderNo != null && !orderNo.trim().isEmpty();
+        boolean hasStatus = status != null && !status.trim().isEmpty();
+        boolean hasStoreId = storeId != null;
+
+        try {
+            if (hasOrderNo) {
+                orders = orderRepository.findByOrderNo(orderNo).map(List::of).orElse(List.of());
+            } else if (hasStoreId && hasStatus) {
+                orders = orderRepository.findByStoreIdAndStatus(storeId, status);
+            } else if (hasStoreId) {
+                orders = orderRepository.findByStoreId(storeId);
+            } else if (hasStatus) {
+                orders = orderRepository.findByStatus(status);
+            } else {
+                // 默认按时间倒序排列，提升用户体验且更安全
+                orders = orderRepository.findRecentOrders();
+            }
+            
+            if (orders == null) return List.of();
+            
+            return orders.stream()
+                    .map(o -> {
+                        try {
+                            return convertToDTO(o);
+                        } catch (Exception e) {
+                            // 异常熔断：单个订单转换失败不应影响整个列表显示
+                            return null;
+                        }
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            // 顶级异常捕获，确保接口不崩溃
+            return List.of();
         }
-        return orders.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     private OrderDTO convertToDTO(Order order) {
         OrderDTO dto = new OrderDTO();
         dto.setId(order.getId());
         dto.setOrderNo(order.getOrderNo());
-        if (order.getUser() != null) {
-            dto.setUserId(order.getUser().getId());
-            dto.setNickname(order.getUser().getNickname());
+        
+        // 零回归原则：防御性编程，处理可能的关联实体缺失或加载异常
+        try {
+            if (order.getUser() != null) {
+                dto.setUserId(order.getUser().getId());
+                dto.setNickname(order.getUser().getNickname());
+            }
+        } catch (Exception e) {
+            dto.setNickname("未知用户");
         }
-        if (order.getStore() != null) {
-            dto.setStoreId(order.getStore().getId());
-            dto.setStoreName(order.getStore().getName());
+
+        try {
+            if (order.getStore() != null) {
+                dto.setStoreId(order.getStore().getId());
+                dto.setStoreName(order.getStore().getName());
+            }
+        } catch (Exception e) {
+            dto.setStoreName("未知门店");
         }
+
         dto.setStatus(order.getStatus());
         dto.setTotalAmount(order.getTotalAmount());
         dto.setPayAmount(order.getActualAmount());
@@ -167,8 +242,8 @@ public class AdminOrderService {
         StringBuilder csv = new StringBuilder("订单号,用户ID,门店ID,状态,总金额,实付金额,下单时间\n");
         for (Order order : orders) {
             csv.append(order.getOrderNo()).append(",")
-               .append(order.getUser().getId()).append(",")
-               .append(order.getStore().getId()).append(",")
+               .append(order.getUser() != null ? order.getUser().getId() : "-").append(",")
+               .append(order.getStore() != null ? order.getStore().getId() : "-").append(",")
                .append(order.getStatus()).append(",")
                .append(order.getTotalAmount()).append(",")
                .append(order.getActualAmount()).append(",")
@@ -198,8 +273,36 @@ public class AdminOrderService {
             Order order = refund.getOrder();
             order.setStatus("REFUNDED");
             orderRepository.save(order);
+
+            // 退款给用户钱包
+            com.milktea.milktea_backend.model.entity.User user = order.getUser();
+            if (user != null) {
+                // 重新从数据库加载用户以确保状态最新
+                user = userRepository.findById(user.getId()).orElse(user);
+                java.math.BigDecimal currentBalance = user.getBalance() != null ? user.getBalance() : java.math.BigDecimal.ZERO;
+                user.setBalance(currentBalance.add(order.getActualAmount()));
+                userRepository.save(user);
+            }
         }
         orderRefundRepository.save(refund);
+    }
+
+    @Transactional
+    public void approveRefundByOrderNo(String orderNo) {
+        Order order = orderRepository.findByOrderNo(orderNo)
+                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
+        
+        // 退款给用户钱包
+        com.milktea.milktea_backend.model.entity.User user = order.getUser();
+        if (user != null) {
+            user = userRepository.findById(user.getId()).orElse(user);
+            java.math.BigDecimal currentBalance = user.getBalance() != null ? user.getBalance() : java.math.BigDecimal.ZERO;
+            user.setBalance(currentBalance.add(order.getActualAmount()));
+            userRepository.save(user);
+        }
+        
+        order.setStatus("REFUNDED");
+        orderRepository.save(order);
     }
 
     public List<Complaint> getComplaints() {
@@ -225,5 +328,47 @@ public class AdminOrderService {
 
     public List<com.milktea.milktea_backend.model.entity.PrintPrinter> getPrintDevices() {
         return printPrinterRepository.findAll();
+    }
+
+    public List<com.milktea.milktea_backend.model.entity.OrderAppeal> getAppeals() {
+        return orderAppealRepository.findAll();
+    }
+
+    @Transactional
+    public void refundAppeal(Long id) {
+        com.milktea.milktea_backend.model.entity.OrderAppeal appeal = orderAppealRepository.findById(id)
+                .orElseThrow(() -> new ServiceException("APPEAL_NOT_FOUND", "申诉不存在"));
+        
+        if (!"PENDING".equals(appeal.getStatus())) {
+            throw new ServiceException("INVALID_STATUS", "申诉已处理");
+        }
+
+        Order order = appeal.getOrder();
+        com.milktea.milktea_backend.model.entity.User user = order.getUser();
+        
+        // 异常熔断：退款逻辑封装在 try-catch 中，确保申诉状态更新的安全性
+        try {
+            // 退款逻辑：退回用户钱包
+            java.math.BigDecimal refundAmount = appeal.getAmount();
+            if (refundAmount == null) {
+                refundAmount = order.getActualAmount();
+            }
+            
+            // 重新加载用户确保余额准确
+            com.milktea.milktea_backend.model.entity.User latestUser = userRepository.findById(user.getId())
+                    .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "用户不存在"));
+            
+            java.math.BigDecimal currentBalance = latestUser.getBalance() != null ? latestUser.getBalance() : java.math.BigDecimal.ZERO;
+            latestUser.setBalance(currentBalance.add(refundAmount));
+            userRepository.save(latestUser);
+
+            appeal.setStatus("APPROVED");
+            orderAppealRepository.save(appeal);
+
+            order.setStatus("REFUNDED");
+            orderRepository.save(order);
+        } catch (Exception e) {
+            throw new ServiceException("REFUND_FAILED", "退款执行失败: " + e.getMessage());
+        }
     }
 }

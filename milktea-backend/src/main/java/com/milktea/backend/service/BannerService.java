@@ -33,6 +33,12 @@ public class BannerService {
         if (banner.getClickCount() == null) {
             banner.setClickCount(0);
         }
+        if (banner.getSort() == null) {
+            banner.setSort(0);
+        }
+        if (banner.getPosition() == null) {
+            banner.setPosition("HOME");
+        }
         return bannerRepository.save(banner);
     }
 

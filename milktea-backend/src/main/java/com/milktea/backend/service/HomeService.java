@@ -21,12 +21,14 @@ public class HomeService {
     private final UserRepository userRepository;
     private final UserRecommendationFeedbackRepository feedbackRepository;
     private final OrderRepository orderRepository;
+    private final NotificationService notificationService;
 
     public HomeDataDTO getHomePageData() {
         HomeDataDTO dto = new HomeDataDTO();
         dto.setBanners(bannerRepository.findAll());
         dto.setHotProducts(productRepository.findHotProducts());
         dto.setNewProducts(productRepository.findNewProducts());
+        dto.setAnnouncements(notificationService.getActiveAnnouncements());
         
         // 获取当前用户进行个性化推荐
         try {

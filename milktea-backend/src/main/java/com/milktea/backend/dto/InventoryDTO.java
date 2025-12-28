@@ -10,5 +10,6 @@ public class InventoryDTO {
     private String unit;
     private BigDecimal stock;
     private BigDecimal alertThreshold;
+    private BigDecimal costPerUnit;
     private Boolean isLowStock;
 }

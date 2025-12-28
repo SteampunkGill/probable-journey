@@ -23,18 +23,36 @@
 
       <!-- 评分区域 -->
       <div class="rating-card card">
-        <div class="section-title">总体评价</div>
-        <div class="stars">
-          <span 
-            v-for="i in 5" 
-            :key="i" 
-            class="star" 
-            :class="{ active: i <= score }"
-            @click="score = i"
-          >
-            {{ i <= score ? '⭐' : '☆' }}
-          </span>
-          <span class="score-text">{{ scoreText }}</span>
+        <div class="rating-item">
+          <div class="section-title">商品评价</div>
+          <div class="stars">
+            <span
+              v-for="i in 5"
+              :key="i"
+              class="star"
+              :class="{ active: i <= productScore }"
+              @click="productScore = i"
+            >
+              {{ i <= productScore ? '⭐' : '☆' }}
+            </span>
+            <span class="score-text">{{ getScoreText(productScore) }}</span>
+          </div>
+        </div>
+
+        <div class="rating-item" style="margin-top: 20px;">
+          <div class="section-title">配送评价</div>
+          <div class="stars">
+            <span
+              v-for="i in 5"
+              :key="i"
+              class="star"
+              :class="{ active: i <= deliveryScore }"
+              @click="deliveryScore = i"
+            >
+              {{ i <= deliveryScore ? '⭐' : '☆' }}
+            </span>
+            <span class="score-text">{{ getScoreText(deliveryScore) }}</span>
+          </div>
         </div>
       </div>
 
@@ -75,6 +93,46 @@
       <button class="submit-btn" :disabled="submitting" @click="submitReview">
         {{ submitting ? '提交中...' : '发布评价' }}
       </button>
+
+      <!-- 申诉按钮 -->
+      <div class="appeal-section" v-if="order.status === 'REVIEWED' || order.status === 'COMPLETED'">
+        <button class="appeal-btn" @click="showAppealModal = true">申请退款/申诉</button>
+      </div>
+
+      <!-- 申诉弹窗 -->
+      <div class="modal-mask" v-if="showAppealModal">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>申请退款</h3>
+            <span class="close" @click="showAppealModal = false">×</span>
+          </div>
+          <div class="modal-body">
+            <div class="form-item">
+              <label>退款原因</label>
+              <select v-model="appealReason">
+                <option value="商品错漏">商品错漏</option>
+                <option value="质量问题">质量问题</option>
+                <option value="配送超时">配送超时</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div class="form-item">
+              <label>详细描述</label>
+              <textarea v-model="appealDescription" placeholder="请详细描述您的问题..."></textarea>
+            </div>
+            <div class="form-item">
+              <label>退款金额</label>
+              <div class="amount">¥{{ order.totalAmount }}</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="cancel-btn" @click="showAppealModal = false">取消</button>
+            <button class="confirm-btn" :disabled="appealing" @click="submitAppeal">
+              {{ appealing ? '提交中...' : '提交申请' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -90,16 +148,22 @@ const router = useRouter()
 const loading = ref(true)
 const submitting = ref(false)
 const order = ref(null)
-const score = ref(5)
+const productScore = ref(5)
+const deliveryScore = ref(5)
 const content = ref('')
 const images = ref([])
 const isAnonymous = ref(false)
 const fileInput = ref(null)
 
-const scoreText = computed(() => {
+const showAppealModal = ref(false)
+const appealing = ref(false)
+const appealReason = ref('商品错漏')
+const appealDescription = ref('')
+
+const getScoreText = (score) => {
   const texts = { 1: '极差', 2: '失望', 3: '一般', 4: '满意', 5: '超赞' }
-  return texts[score.value]
-})
+  return texts[score]
+}
 
 const loadOrderDetail = async () => {
   loading.value = true
@@ -147,14 +211,17 @@ const submitReview = async () => {
   submitting.value = true
   try {
     const res = await orderApi.rateOrder(order.value.orderNo, {
-      score: score.value,
+      productScore: productScore.value,
+      deliveryScore: deliveryScore.value,
+      score: Math.round((productScore.value + deliveryScore.value) / 2),
       content: content.value,
       images: images.value,
-      isAnonymous: isAnonymous.value
+      isAnonymous: isAnonymous.value,
+      productId: order.value.orderItems && order.value.orderItems.length > 0 ? order.value.orderItems[0].productId : null
     })
     if (res.code === 200) {
       alert('评价成功！')
-      router.back()
+      loadOrderDetail()
     } else {
       alert(res.message || '评价失败')
     }
@@ -166,10 +233,38 @@ const submitReview = async () => {
   }
 }
 
+const submitAppeal = async () => {
+  if (!appealDescription.value.trim()) {
+    alert('请填写详细描述')
+    return
+  }
+  appealing.value = true
+  try {
+    const res = await orderApi.submitAppeal(order.value.orderNo, {
+      reason: appealReason.value,
+      description: appealDescription.value,
+      amount: order.value.totalAmount
+    })
+    if (res.code === 200) {
+      alert('申诉已提交，请等待后台处理')
+      showAppealModal.value = false
+      loadOrderDetail()
+    } else {
+      alert(res.message || '提交失败')
+    }
+  } catch (error) {
+    console.error('提交申诉失败:', error)
+    alert('提交失败，请重试')
+  } finally {
+    appealing.value = false
+  }
+}
+
 onMounted(() => {
   loadOrderDetail()
 })
 </script>
+
 <style scoped>
 /* 奶茶主题 CSS 变量定义 */
 .review-page {
@@ -211,7 +306,7 @@ onMounted(() => {
   min-height: 100vh;
   background: var(--background-color);
   padding: var(--spacing-md);
-  padding-bottom: 100px;
+  padding-bottom: 120px;
   font-family: 'Noto Sans KR', 'Nunito', 'Quicksand', sans-serif;
   color: var(--text-color-dark);
 }
@@ -682,11 +777,150 @@ textarea::placeholder {
   display: none;
 }
 
+/* 申诉部分 */
+.appeal-section {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.appeal-btn {
+  background: transparent;
+  color: var(--text-color-medium);
+  border: 1px solid var(--border-color);
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.appeal-btn:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: rgba(160, 82, 45, 0.05);
+}
+
+/* 弹窗样式 */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.modal-container {
+  width: 90%;
+  max-width: 400px;
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: modalPop 0.3s ease-out;
+}
+
+@keyframes modalPop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-color-dark);
+}
+
+.close {
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.form-item {
+  margin-bottom: 16px;
+}
+
+.form-item label {
+  display: block;
+  font-size: 14px;
+  color: var(--text-color-medium);
+  margin-bottom: 8px;
+}
+
+.form-item select, .form-item textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.form-item textarea {
+  height: 100px;
+  resize: none;
+}
+
+.form-item .amount {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.modal-footer {
+  padding: 16px 20px;
+  display: flex;
+  gap: 12px;
+  border-top: 1px solid #eee;
+}
+
+.modal-footer button {
+  flex: 1;
+  height: 44px;
+  border-radius: 22px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.confirm-btn {
+  background: var(--primary-color);
+  color: white;
+}
+
+.confirm-btn:disabled {
+  opacity: 0.6;
+}
+
 /* 响应式调整 */
 @media (max-width: 480px) {
   .review-page {
     padding: var(--spacing-sm);
-    padding-bottom: 90px;
+    padding-bottom: 110px;
   }
 
   .card {

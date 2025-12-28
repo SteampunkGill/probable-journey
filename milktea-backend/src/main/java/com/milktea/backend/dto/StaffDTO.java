@@ -15,5 +15,7 @@ public class StaffDTO {
     private String status;
     private LocalDateTime lastLoginTime;
     private List<String> roles;
+    private Long storeId;
+    private String storeName;
     private LocalDateTime createdAt;
 }

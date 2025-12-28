@@ -2,12 +2,12 @@
   <div class="product-manage">
     <div class="action-bar card">
       <div class="search-form">
-        <input v-model="query.name" placeholder="商品名称" class="admin-input" />
-        <select v-model="query.categoryId" class="admin-select">
+        <input v-model="filterQuery.name" placeholder="输入商品名称实时筛选..." class="admin-input" />
+        <select v-model="filterQuery.categoryId" class="admin-select">
           <option value="">全部分类</option>
           <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
-        <button class="btn-primary" @click="loadProducts">查询</button>
+        <button class="btn-primary" @click="loadProducts">同步数据</button>
       </div>
       <div class="batch-actions">
         <button class="btn-success" @click="showEditModal()">新增商品</button>
@@ -33,7 +33,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="p in products" :key="p.id">
+          <tr v-for="p in filteredProducts" :key="p.id">
             <td><input type="checkbox" v-model="selectedIds" :value="p.id" /></td>
             <td><img :src="p.imageUrl" class="table-img" /></td>
             <td>{{ p.name }}</td>
@@ -140,17 +140,57 @@
 import { ref, onMounted, computed } from 'vue'
 import { get, post, put, uploadFile } from '../../../utils/request'
 
+// 原始数据状态
 const products = ref([])
 const categories = ref([])
 const ingredients = ref([])
 const selectedIds = ref([])
-const query = ref({ name: '', categoryId: '' })
+
+// 前端筛选条件
+const filterQuery = ref({
+  name: '',
+  categoryId: ''
+})
+
+// 核心逻辑：纯前端实时筛选
+const filteredProducts = computed(() => {
+  const nameKeyword = filterQuery.value.name.trim().toLowerCase()
+  const categoryId = filterQuery.value.categoryId
+
+  return products.value.filter(p => {
+    // 名称匹配逻辑
+    const matchName = !nameKeyword || p.name.toLowerCase().includes(nameKeyword)
+    // 分类匹配逻辑
+    const matchCategory = !categoryId || p.categoryId === categoryId
+    
+    return matchName && matchCategory
+  })
+})
+
+// 全选逻辑：仅针对筛选后的可见列表
+const isAllSelected = computed(() => {
+  return filteredProducts.value.length > 0 && 
+         filteredProducts.value.every(p => selectedIds.value.includes(p.id))
+})
+
+const toggleAll = (e) => {
+  if (e.target.checked) {
+    // 将当前筛选出的所有商品ID加入选中列表（去重）
+    const currentIds = filteredProducts.value.map(p => p.id)
+    selectedIds.value = Array.from(new Set([...selectedIds.value, ...currentIds]))
+  } else {
+    // 从选中列表中移除当前筛选出的所有商品ID
+    const currentIds = filteredProducts.value.map(p => p.id)
+    selectedIds.value = selectedIds.value.filter(id => !currentIds.includes(id))
+  }
+}
 
 const recipeModal = ref({
   show: false,
   product: null,
   list: []
 })
+
 const editModal = ref({
   show: false,
   isEdit: false,
@@ -168,9 +208,6 @@ const editModal = ref({
   }
 })
 
-
-const isAllSelected = computed(() => products.value.length > 0 && selectedIds.value.length === products.value.length)
-
 const calculatedCost = computed(() => {
   return recipeModal.value.list.reduce((total, r) => {
     const ing = ingredients.value.find(i => i.id === r.ingredientId)
@@ -178,15 +215,18 @@ const calculatedCost = computed(() => {
   }, 0).toFixed(2)
 })
 
+// 加载数据：获取全部商品，不带筛选参数
 const loadProducts = async () => {
-  const res = await get('/api/admin/products', query.value)
-  products.value = res.data || []
+  try {
+    const res = await get('/api/admin/products')
+    products.value = res.data || []
+  } catch (error) {
+    console.error('加载商品失败:', error)
+  }
 }
 
 const loadCategories = async () => {
   const res = await get('/api/admin/categories')
-  // 后端 AdminCategoryController.getCategoryList 返回的是树形结构（只有 parent == null 的）
-  // 我们需要将其平铺，或者在添加商品时只选择子分类
   const allCats = []
   const flatten = (list) => {
     list.forEach(c => {
@@ -207,12 +247,7 @@ const loadIngredients = async () => {
   ingredients.value = res.data || []
 }
 
-const toggleAll = (e) => {
-  selectedIds.value = e.target.checked ? products.value.map(p => p.id) : []
-}
-
 const batchStatus = async (status) => {
-  // 纯前端实现批量操作：循环发送单条请求
   const promises = selectedIds.value.map(id =>
     put(`/api/admin/products/${id}/status`, { status })
   )
@@ -220,17 +255,21 @@ const batchStatus = async (status) => {
     await Promise.all(promises)
     alert(`批量${status === 1 ? '上架' : '下架'}成功`)
     selectedIds.value = []
-    loadProducts()
+    await loadProducts()
   } catch (error) {
     console.error('批量操作失败:', error)
     alert('部分商品操作失败，请重试')
-    loadProducts()
+    await loadProducts()
   }
 }
 
 const toggleStatus = async (p) => {
-  await put(`/api/admin/products/${p.id}/status`, { status: p.status === 1 ? 0 : 1 })
-  loadProducts()
+  try {
+    await put(`/api/admin/products/${p.id}/status`, { status: p.status === 1 ? 0 : 1 })
+    await loadProducts()
+  } catch (error) {
+    console.error('切换状态失败:', error)
+  }
 }
 
 function showEditModal(p = null) {
@@ -258,10 +297,8 @@ function showEditModal(p = null) {
 const handleUpload = async (e) => {
   const file = e.target.files[0]
   if (!file) return
-  // 使用 uploadFile 函数，它会自动处理 FormData 和 headers
   try {
     const res = await uploadFile('/upload/image', file)
-    // uploadFile 返回的是 FileUploadDTO 对象（因为拦截器提取了 data）
     editModal.value.form.imageUrl = res.url
   } catch (error) {
     console.error('上传失败:', error)
@@ -269,20 +306,28 @@ const handleUpload = async (e) => {
 }
 
 const saveProduct = async () => {
-  if (editModal.value.isEdit) {
-    await put(`/api/admin/products/${editModal.value.form.id}`, editModal.value.form)
-  } else {
-    await post('/api/admin/products', editModal.value.form)
+  try {
+    if (editModal.value.isEdit) {
+      await put(`/api/admin/products/${editModal.value.form.id}`, editModal.value.form)
+    } else {
+      await post('/api/admin/products', editModal.value.form)
+    }
+    editModal.value.show = false
+    await loadProducts()
+  } catch (error) {
+    console.error('保存商品失败:', error)
   }
-  editModal.value.show = false
-  loadProducts()
 }
 
 const showRecipeModal = async (p) => {
   recipeModal.value.product = p
-  const res = await get(`/api/admin/recipes/product/${p.id}`)
-  recipeModal.value.list = res.data.map(r => ({ ingredientId: r.ingredientId, quantity: r.quantity }))
-  recipeModal.value.show = true
+  try {
+    const res = await get(`/api/admin/recipes/product/${p.id}`)
+    recipeModal.value.list = res.data.map(r => ({ ingredientId: r.ingredientId, quantity: r.quantity }))
+    recipeModal.value.show = true
+  } catch (error) {
+    console.error('加载配方失败:', error)
+  }
 }
 
 const addRecipeRow = () => {
@@ -294,9 +339,13 @@ const removeRecipeRow = (index) => {
 }
 
 const saveRecipe = async () => {
-  await post(`/api/admin/recipes/product/${recipeModal.value.product.id}`, recipeModal.value.list)
-  recipeModal.value.show = false
-  loadProducts()
+  try {
+    await post(`/api/admin/recipes/product/${recipeModal.value.product.id}`, recipeModal.value.list)
+    recipeModal.value.show = false
+    await loadProducts()
+  } catch (error) {
+    console.error('保存配方失败:', error)
+  }
 }
 
 onMounted(() => {
@@ -305,6 +354,7 @@ onMounted(() => {
   loadIngredients()
 })
 </script>
+
 <style scoped>
 .product-manage {
   display: flex;

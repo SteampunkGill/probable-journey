@@ -11,6 +11,7 @@ import com.milktea.milktea_backend.model.entity.Product;
 import com.milktea.milktea_backend.model.entity.OrderStatusTimeline;
 import com.milktea.milktea_backend.model.entity.PointTransaction;
 import lombok.RequiredArgsConstructor;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +41,8 @@ public class OrderService {
     private final AddressService addressService;
     private final CouponService couponService;
     private final PromotionRepository promotionRepository;
+    private final OrderAppealRepository orderAppealRepository;
+    private final org.springframework.context.ApplicationContext applicationContext;
 
     @Transactional
     public Order createOrderFromDTO(Long userId, OrderCreateDTO dto) {
@@ -202,6 +205,15 @@ public class OrderService {
     }
 
     @Transactional
+    public void payOrder(String orderNo, String payMethod) {
+        Order order = orderRepository.findByOrderNo(orderNo)
+                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
+        order.setPayMethod(payMethod);
+        orderRepository.save(order);
+        updateOrderStatusByNo(orderNo, "PAID");
+    }
+
+    @Transactional
     public void updateOrderStatusByNo(String orderNo, String status) {
         Order order = orderRepository.findByOrderNo(orderNo)
                 .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
@@ -211,27 +223,49 @@ public class OrderService {
             order.setPayTime(LocalDateTime.now());
             order.setQueueNumber(new Random().nextInt(100) + 1);
             order.setEstimatedReadyTime(LocalDateTime.now().plusMinutes(15));
-            
-            // 支付成功，增加积分 (1元 = 1积分)
+
             User user = order.getUser();
-            int earnPoints = order.getActualAmount().intValue();
-            if (earnPoints > 0) {
-                user.setPoints(user.getPoints() + earnPoints);
-                // 增加成长值
-                user.setGrowthValue(user.getGrowthValue() + earnPoints);
-                
-                // 检查是否需要升级
-                checkAndUpgradeLevel(user);
-                
-                userRepository.save(user);
-                
-                PointTransaction pt = new PointTransaction();
-                pt.setUser(user);
-                pt.setAmount(earnPoints);
-                pt.setBalanceAfter(user.getPoints());
-                pt.setType("EARN");
-                pt.setRemark("订单消费赠送: " + order.getOrderNo());
-                pointTransactionRepository.save(pt);
+            // 钱包支付扣款逻辑：仅当支付方式为 BALANCE 时扣除余额
+            if ("BALANCE".equalsIgnoreCase(order.getPayMethod())) {
+                BigDecimal actualAmount = order.getActualAmount() != null ? order.getActualAmount() : BigDecimal.ZERO;
+                if (user.getBalance() != null && user.getBalance().compareTo(actualAmount) >= 0) {
+                    user.setBalance(user.getBalance().subtract(actualAmount));
+                    userRepository.save(user);
+                } else {
+                    throw new ServiceException("BALANCE_NOT_ENOUGH", "余额不足");
+                }
+            }
+            
+            // 14. 模拟排队逻辑：零回归原则，使用独立线程异步处理
+            try {
+                simulateOrderQueue(order);
+            } catch (Exception e) {
+                // 模拟逻辑异常不影响主支付流程
+            }
+
+            // 支付成功，增加积分 (1元 = 1积分)
+            try {
+                int earnPoints = order.getActualAmount().intValue();
+                if (earnPoints > 0) {
+                    user.setPoints(user.getPoints() + earnPoints);
+                    // 增加成长值
+                    user.setGrowthValue(user.getGrowthValue() + earnPoints);
+                    
+                    // 检查是否需要升级
+                    checkAndUpgradeLevel(user);
+                    
+                    userRepository.save(user);
+                    
+                    PointTransaction pt = new PointTransaction();
+                    pt.setUser(user);
+                    pt.setAmount(earnPoints);
+                    pt.setBalanceAfter(user.getPoints());
+                    pt.setType("EARN");
+                    pt.setRemark("订单消费赠送: " + order.getOrderNo());
+                    pointTransactionRepository.save(pt);
+                }
+            } catch (Exception e) {
+                // 积分逻辑异常不影响主支付流程
             }
         }
         orderRepository.save(order);
@@ -278,17 +312,28 @@ public class OrderService {
         switch (status) {
             case "PAID": return "MAKING";
             case "MAKING": return "READY";
-            case "READY": return "DELIVERED";
-            default: return "COMPLETED";
+            case "READY": return "DELIVERING";
+            case "DELIVERING": return "DELIVERED";
+            case "DELIVERED": return "COMPLETED";
+            case "COMPLETED": return "REVIEWED";
+            default: return "FINISHED";
         }
     }
 
     private int calculateProgress(String status) {
         switch (status) {
-            case "PAID": return 25;
-            case "MAKING": return 50;
-            case "READY": return 75;
-            case "DELIVERED": return 100;
+            case "PENDING_PAYMENT": return 10;
+            case "PAID": return 20;
+            case "MAKING": return 40;
+            case "READY": return 60;
+            case "DELIVERING": return 80;
+            case "DELIVERED": return 90;
+            case "COMPLETED":
+            case "REVIEWED":
+            case "FINISHED": return 100;
+            case "REFUNDING":
+            case "REFUNDED":
+            case "CANCELLED": return 0;
             default: return 0;
         }
     }
@@ -364,13 +409,57 @@ public class OrderService {
         return s;
     }
 
+    /**
+     * 获取订单状态的中文名称
+     * 零回归原则：仅用于展示，不改变原有逻辑
+     */
+    public String getStatusChineseName(String status) {
+        if (status == null) return "未知状态";
+        switch (status.toUpperCase()) {
+            case "PENDING_PAYMENT": return "待支付";
+            case "PAID": return "已支付/待接单";
+            case "MAKING": return "制作中";
+            case "READY": return "待取餐";
+            case "DELIVERING": return "配送中";
+            case "DELIVERED": return "已送达";
+            case "COMPLETED": return "已完成";
+            case "FINISHED": return "已结束";
+            case "REFUNDING": return "退款中";
+            case "REFUNDED": return "已退款";
+            case "CANCELLED": return "已取消";
+            case "REVIEWED": return "已评价";
+            case "APPEALING": return "申诉中";
+            default: return status;
+        }
+    }
+
     @Transactional
     public void applyRefund(String orderNo, String reason) {
         Order order = orderRepository.findByOrderNo(orderNo)
                 .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
         order.setStatus("REFUNDING");
+        order.setRefundReason(reason); // 记录退款原因
         orderRepository.save(order);
         saveTimeline(order, "REFUNDING");
+    }
+
+    @Transactional
+    public void approveRefund(String orderNo) {
+        Order order = orderRepository.findByOrderNo(orderNo)
+                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
+        if (!"REFUNDING".equals(order.getStatus())) {
+            throw new ServiceException("INVALID_STATUS", "订单不在退款申请中");
+        }
+        
+        // 退钱给用户钱包
+        User user = order.getUser();
+        BigDecimal refundAmount = order.getActualAmount();
+        user.setBalance((user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO).add(refundAmount));
+        userRepository.save(user);
+        
+        order.setStatus("REFUNDED");
+        orderRepository.save(order);
+        saveTimeline(order, "REFUNDED");
     }
 
     public String getRefundStatus(String orderNo) {
@@ -403,10 +492,57 @@ public class OrderService {
         Order order = orderRepository.findByOrderNo(orderNo)
                 .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
         
+        // 异常熔断：评价逻辑独立，不影响订单状态更新的安全性
+        // 注意：在 @Transactional 方法中，如果内部抛出异常，即使被 catch，事务也会被标记为 rollback-only。
+        // 为了实现真正的“异常熔断”，我们将保存逻辑委托给一个非事务性或独立事务的方法。
+        try {
+            applicationContext.getBean(OrderService.class).saveReviewInternal(order, reviewData);
+        } catch (Exception e) {
+            // 静默失败，不中断主流程
+        }
+        
+        order.setIsCommented(true);
+        order.setStatus("REVIEWED"); // 14. 变成已评价
+        orderRepository.save(order);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void saveReviewInternal(Order order, Map<String, Object> reviewData) {
+        // 重新从数据库加载实体，确保在当前新事务中是受管状态
+        Order managedOrder = orderRepository.findById(order.getId()).orElseThrow();
+        
         com.milktea.milktea_backend.model.entity.OrderReview review = new com.milktea.milktea_backend.model.entity.OrderReview();
-        review.setOrder(order);
-        review.setUser(order.getUser());
-        review.setScore(((Number) reviewData.get("score")).intValue());
+        review.setOrder(managedOrder);
+        review.setUser(managedOrder.getUser());
+        review.setStore(managedOrder.getStore()); // 14. 关联店铺
+        
+        // 综合评分
+        if (reviewData.containsKey("score")) {
+            review.setScore(((Number) reviewData.get("score")).intValue());
+        } else {
+            review.setScore(5); // 默认5分
+        }
+
+        // 配送评分
+        if (reviewData.containsKey("deliveryScore")) {
+            review.setDeliveryScore(((Number) reviewData.get("deliveryScore")).intValue());
+        } else {
+            review.setDeliveryScore(5);
+        }
+
+        // 商品评分
+        if (reviewData.containsKey("productScore")) {
+            review.setProductScore(((Number) reviewData.get("productScore")).intValue());
+        } else {
+            review.setProductScore(5);
+        }
+
+        // 关联商品
+        if (reviewData.containsKey("productId") && reviewData.get("productId") != null) {
+            Long productId = Long.valueOf(reviewData.get("productId").toString());
+            productRepository.findById(productId).ifPresent(review::setProduct);
+        }
+
         review.setContent((String) reviewData.get("content"));
         // 处理图片列表
         if (reviewData.containsKey("images")) {
@@ -418,9 +554,6 @@ public class OrderService {
         }
         
         orderReviewRepository.save(review);
-        
-        order.setIsCommented(true);
-        orderRepository.save(order);
     }
 
     @Transactional
@@ -476,12 +609,110 @@ public class OrderService {
         return orderRepository.findByOrderNo(orderNo);
     }
 
-    public List<Order> findOrdersByUserId(Long userId) {
-        return orderRepository.findByUserId(userId);
+    public List<OrderDTO> getUserOrders(Long userId, String status) {
+        List<Order> allUserOrders = orderRepository.findByUserId(userId);
+        System.out.println("用户 " + userId + " 的总订单数: " + allUserOrders.size());
+        
+        Stream<Order> orderStream = allUserOrders.stream();
+        
+        if (status != null && !status.trim().isEmpty() && !"all".equalsIgnoreCase(status)) {
+            List<String> targetStatuses;
+            switch (status.toUpperCase()) {
+                case "COMPLETED":
+                    targetStatuses = Arrays.asList("COMPLETED", "FINISHED", "REVIEWED", "DELIVERED");
+                    break;
+                case "PAID":
+                    targetStatuses = Arrays.asList("PAID");
+                    break;
+                case "MAKING":
+                    targetStatuses = Arrays.asList("MAKING");
+                    break;
+                case "READY":
+                    targetStatuses = Arrays.asList("READY");
+                    break;
+                case "DELIVERING":
+                    targetStatuses = Arrays.asList("DELIVERING");
+                    break;
+                case "REFUNDING":
+                    targetStatuses = Arrays.asList("REFUNDING");
+                    break;
+                case "PENDING_PAYMENT":
+                    targetStatuses = Arrays.asList("PENDING_PAYMENT");
+                    break;
+                case "CANCELLED":
+                    targetStatuses = Arrays.asList("CANCELLED");
+                    break;
+                default:
+                    targetStatuses = Collections.singletonList(status);
+            }
+            orderStream = orderStream.filter(o -> targetStatuses.contains(o.getStatus()));
+        }
+        
+        return orderStream
+                .sorted((o1, o2) -> {
+                    LocalDateTime t1 = o1.getOrderTime() != null ? o1.getOrderTime() : o1.getCreatedAt();
+                    LocalDateTime t2 = o2.getOrderTime() != null ? o2.getOrderTime() : o2.getCreatedAt();
+                    if (t1 == null && t2 == null) return 0;
+                    if (t1 == null) return 1;
+                    if (t2 == null) return -1;
+                    return t2.compareTo(t1);
+                })
+                .map(this::convertToDTO)
+                .peek(dto -> {
+                    if (dto.getOrderTime() == null) dto.setOrderTime(dto.getCreatedAt());
+                    if (dto.getPayAmount() == null) dto.setPayAmount(dto.getTotalAmount());
+                    System.out.println("返回订单: " + dto.getOrderNo() + ", 状态: " + dto.getStatus());
+                })
+                .collect(Collectors.toList());
     }
 
-    public List<Order> findOrdersByUserIdAndStatus(Long userId, String status) {
-        return orderRepository.findByUserIdAndStatus(userId, status);
+    private OrderDTO convertToDTO(Order order) {
+        OrderDTO dto = new OrderDTO();
+        dto.setId(order.getId());
+        dto.setOrderNo(order.getOrderNo());
+        dto.setUserId(order.getUser().getId());
+        dto.setNickname(order.getUser().getNickname());
+        dto.setStoreId(order.getStore().getId());
+        dto.setStoreName(order.getStore().getName());
+        dto.setStatus(order.getStatus());
+        dto.setTotalAmount(order.getTotalAmount());
+        dto.setPayAmount(order.getActualAmount());
+        dto.setDiscountAmount(order.getDiscountAmount());
+        dto.setDeliveryFee(order.getDeliveryFee());
+        dto.setPayMethod(order.getPayMethod());
+        dto.setTransactionId(order.getTransactionId());
+        dto.setPayTime(order.getPayTime());
+        dto.setOrderTime(order.getOrderTime());
+        dto.setDeliveryType(order.getDeliveryType());
+        dto.setAddressJson(order.getAddressJson());
+        dto.setPickupCode(order.getPickupCode());
+        dto.setQueueNumber(order.getQueueNumber());
+        dto.setEstimatedReadyTime(order.getEstimatedReadyTime());
+        dto.setActualReadyTime(order.getActualReadyTime());
+        dto.setRemark(order.getRemark());
+        dto.setRemindCount(order.getRemindCount());
+        dto.setLastRemindTime(order.getLastRemindTime());
+        dto.setIsCommented(order.getIsCommented());
+        dto.setCreatedAt(order.getCreatedAt());
+        dto.setUpdatedAt(order.getUpdatedAt());
+
+        if (order.getOrderItems() != null) {
+            dto.setOrderItems(order.getOrderItems().stream().map(item -> {
+                OrderDTO.OrderItemDTO itemDto = new OrderDTO.OrderItemDTO();
+                itemDto.setId(item.getId());
+                if (item.getProduct() != null) {
+                    itemDto.setProductId(item.getProduct().getId());
+                }
+                itemDto.setProductName(item.getProductName());
+                itemDto.setProductImage(item.getProductImage());
+                itemDto.setSpecJson(item.getSpecJson());
+                itemDto.setPrice(item.getPrice());
+                itemDto.setQuantity(item.getQuantity());
+                itemDto.setTotalPrice(item.getTotalPrice());
+                return itemDto;
+            }).collect(Collectors.toList()));
+        }
+        return dto;
     }
 
     @Transactional
@@ -502,12 +733,76 @@ public class OrderService {
         Order order = orderRepository.findByOrderNo(orderNo)
                 .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
         // 只有已送达状态可以确认收货
-        if (!"DELIVERED".equals(order.getStatus())) {
+        if (!"DELIVERED".equals(order.getStatus()) && !"READY".equals(order.getStatus()) && !"DELIVERING".equals(order.getStatus())) {
             throw new ServiceException("ORDER_CANNOT_CONFIRM", "订单当前状态不可确认收货");
         }
         order.setStatus("COMPLETED");
         orderRepository.save(order);
         saveTimeline(order, "COMPLETED");
+    }
+
+    @Transactional
+    public void submitAppeal(String orderNo, Map<String, Object> appealData) {
+        Order order = orderRepository.findByOrderNo(orderNo)
+                .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
+        
+        com.milktea.milktea_backend.model.entity.OrderAppeal appeal = new com.milktea.milktea_backend.model.entity.OrderAppeal();
+        appeal.setOrder(order);
+        appeal.setUser(order.getUser());
+        appeal.setReason((String) appealData.get("reason"));
+        appeal.setDescription((String) appealData.get("description"));
+        appeal.setAmount(new java.math.BigDecimal(appealData.get("amount").toString()));
+        appeal.setStatus("PENDING");
+        
+        orderAppealRepository.save(appeal);
+        
+        order.setStatus("APPEALING");
+        orderRepository.save(order);
+    }
+
+    private void simulateOrderQueue(Order order) {
+        // 14. 模拟排队逻辑：零回归原则，使用独立线程异步处理，不阻塞主流程
+        new Thread(() -> {
+            try {
+                // 1. 模拟排队 10-30s
+                int queueTime = new Random().nextInt(21) + 10;
+                Thread.sleep(queueTime * 1000);
+                updateStatusSilently(order.getOrderNo(), "MAKING");
+                
+                // 2. 模拟制作 5-20s
+                int makingTime = new Random().nextInt(16) + 5;
+                Thread.sleep(makingTime * 1000);
+                
+                if ("DELIVERY".equals(order.getDeliveryType())) {
+                    updateStatusSilently(order.getOrderNo(), "DELIVERING");
+                    
+                    // 3. 配送 30min 自动送达 (演示环境缩短为 60s，生产环境应为 30*60)
+                    // Thread.sleep(30 * 60 * 1000);
+                    Thread.sleep(60 * 1000);
+                    updateStatusSilently(order.getOrderNo(), "DELIVERED");
+                } else {
+                    updateStatusSilently(order.getOrderNo(), "READY");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                // 异常熔断：模拟逻辑报错不影响主业务
+            }
+        }).start();
+    }
+
+    private void updateStatusSilently(String orderNo, String status) {
+        try {
+            // 重新获取订单以避免并发修改问题
+            Order order = orderRepository.findByOrderNo(orderNo).orElse(null);
+            if (order != null && !"CANCELLED".equals(order.getStatus()) && !"REFUNDED".equals(order.getStatus())) {
+                order.setStatus(status);
+                orderRepository.save(order);
+                saveTimeline(order, status);
+            }
+        } catch (Exception e) {
+            // 静默处理
+        }
     }
 
 }

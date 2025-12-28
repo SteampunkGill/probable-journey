@@ -30,7 +30,15 @@ public class AdminCouponController {
     @PostMapping("/coupons/distribute")
     public ApiResponse<Void> distributeCoupons(@RequestBody Map<String, Object> params) {
         Long templateId = Long.valueOf(params.get("templateId").toString());
-        List<Long> userIds = (List<Long>) params.get("userIds");
+        Object userIdsObj = params.get("userIds");
+        List<Long> userIds;
+        if (userIdsObj instanceof List) {
+            userIds = ((List<?>) userIdsObj).stream()
+                    .map(id -> Long.valueOf(id.toString()))
+                    .toList();
+        } else {
+            throw new IllegalArgumentException("userIds must be a list");
+        }
         couponService.distribute(templateId, userIds);
         return ApiResponse.success(null);
     }

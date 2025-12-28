@@ -93,6 +93,7 @@
                 <td>{{ formatDate(b.createdAt) }}</td>
                 <td>{{ b.status }}</td>
                 <td class="ops">
+                  <button @click="downloadBackup(b)">下载</button>
                   <button @click="restoreBackup(b)">恢复</button>
                 </td>
               </tr>
@@ -146,6 +147,13 @@
             <option value="3">店员</option>
           </select>
         </div>
+        <div class="form-item">
+          <label>所属门店：</label>
+          <select v-model="staffModal.form.storeId" class="admin-select">
+            <option :value="null">总店</option>
+            <option v-for="s in stores" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </div>
         <div class="modal-footer">
           <button @click="staffModal.show = false">取消</button>
           <button class="btn-primary" @click="saveStaff">保存</button>
@@ -153,6 +161,28 @@
       </div>
     </div>
   </div>
+    <!-- 门店编辑弹窗 -->
+    <div v-if="storeModal.show" class="modal-mask">
+      <div class="modal-container">
+        <h3>{{ storeModal.isEdit ? '编辑门店' : '新增门店' }}</h3>
+        <div class="form-item">
+          <label>门店名称：</label>
+          <input v-model="storeModal.form.name" class="admin-input" />
+        </div>
+        <div class="form-item">
+          <label>门店地址：</label>
+          <input v-model="storeModal.form.address" class="admin-input" />
+        </div>
+        <div class="form-item">
+          <label>营业时间：</label>
+          <input v-model="storeModal.form.businessHours" class="admin-input" placeholder="例如：09:00-22:00" />
+        </div>
+        <div class="modal-footer">
+          <button @click="storeModal.show = false">取消</button>
+          <button class="btn-primary" @click="saveStore">保存</button>
+        </div>
+      </div>
+    </div>
 </template>
 
 <script setup>
@@ -167,6 +197,35 @@ const backups = ref([])
 const logs = ref([])
 
 const staffModal = ref({ show: false, isEdit: false, form: {} })
+const storeModal = ref({ show: false, isEdit: false, form: {} })
+
+const showStoreModal = (s = null) => {
+  if (s) {
+    storeModal.value.isEdit = true
+    storeModal.value.form = { ...s }
+  } else {
+    storeModal.value.isEdit = false
+    storeModal.value.form = { name: '', address: '', businessHours: '', businessStatus: 1 }
+  }
+  storeModal.value.show = true
+}
+
+const saveStore = async () => {
+  try {
+    if (storeModal.value.isEdit) {
+      await put(`/api/admin/stores/${storeModal.value.form.id}`, storeModal.value.form)
+    } else {
+      await post('/api/admin/stores', storeModal.value.form)
+    }
+    storeModal.value.show = false
+    loadStores()
+    alert('保存成功')
+  } catch (error) {
+    console.error('保存门店失败:', error)
+    alert('保存失败')
+  }
+}
+
 
 const showStaffModal = (s = null) => {
   if (s) {
@@ -239,6 +298,12 @@ const createBackup = async () => {
   loadBackups()
 }
 
+const downloadBackup = (b) => {
+  const token = localStorage.getItem('token')
+  const url = `/api/admin/backups/${b.id}/download${token ? '?token=' + token : ''}`
+  window.open(url, '_blank')
+}
+
 const restoreBackup = async (b) => {
   if (confirm(`确定要恢复备份 ${b.fileName} 吗？当前数据将被覆盖！`)) {
     await post(`/api/admin/backups/${b.id}/restore`)
@@ -259,6 +324,7 @@ const formatDate = (dateStr) => {
 
 onMounted(() => {
   loadStaff()
+  loadStores()
 })
 </script>
 

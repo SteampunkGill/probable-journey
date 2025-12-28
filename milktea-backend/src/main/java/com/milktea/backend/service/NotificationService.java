@@ -3,7 +3,9 @@ package com.milktea.backend.service;
 import com.milktea.backend.dto.NotificationDTO;
 import com.milktea.backend.dto.PushTaskDTO;
 import com.milktea.backend.repository.NotificationRepository;
+import com.milktea.backend.repository.SysAnnouncementRepository;
 import com.milktea.milktea_backend.model.entity.Notification;
+import com.milktea.milktea_backend.model.entity.SysAnnouncement;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -21,9 +23,12 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final SysAnnouncementRepository sysAnnouncementRepository;
 
-    public NotificationService(NotificationRepository notificationRepository) {
+    public NotificationService(NotificationRepository notificationRepository,
+                               SysAnnouncementRepository sysAnnouncementRepository) {
         this.notificationRepository = notificationRepository;
+        this.sysAnnouncementRepository = sysAnnouncementRepository;
     }
 
     /**
@@ -99,34 +104,23 @@ public class NotificationService {
 
     @Transactional
     public void sendActivityNotice(Map<String, Object> notice) {
-        Notification notification = new Notification();
-        notification.setTitle((String) notice.get("title"));
-        notification.setContent((String) notice.get("content"));
+        // 11. 把后台增加通知的功能也改成在通知列表里面增加
+        SysAnnouncement announcement = new SysAnnouncement();
+        announcement.setTitle((String) notice.get("title"));
+        announcement.setContent((String) notice.get("content"));
+        announcement.setImageUrl((String) notice.get("imageUrl"));
+        announcement.setLinkUrl((String) notice.get("linkUrl"));
+        announcement.setIsActive(true);
+        announcement.setStartTime(LocalDateTime.now());
         
-        String targetType = (String) notice.getOrDefault("targetType", "ALL");
-        notification.setTargetType(targetType);
-        notification.setTargetValue((String) notice.get("targetValue"));
-        notification.setPushType("ACTIVITY");
-        
-        String triggerType = (String) notice.getOrDefault("triggerType", "IMMEDIATE");
-        notification.setTriggerType(triggerType);
-        notification.setTriggerCondition((String) notice.get("behavior"));
-        notification.setImageUrl((String) notice.get("imageUrl"));
-        notification.setLinkUrl((String) notice.get("linkUrl"));
-        
-        if ("IMMEDIATE".equals(triggerType)) {
-            notification.setSentTime(LocalDateTime.now());
-            notification.setStatus("SENT");
-        } else {
-            notification.setStatus("PENDING");
-        }
-        
-        notificationRepository.save(notification);
-        
-        // 模拟行为触发逻辑
-        if ("BEHAVIOR_TRIGGER".equals(triggerType)) {
-            System.out.println("触发行为推送: " + notice.get("behavior"));
-        }
+        sysAnnouncementRepository.save(announcement);
+    }
+
+    /**
+     * 获取当前有效的全局公告
+     */
+    public List<SysAnnouncement> getActiveAnnouncements() {
+        return sysAnnouncementRepository.findActiveAnnouncements(LocalDateTime.now());
     }
 
     private NotificationDTO convertToDTO(Notification notification) {

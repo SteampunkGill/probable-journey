@@ -20,15 +20,30 @@ public class FavoriteService {
     private final UserFavoriteProductRepository favoriteRepository;
     private final ProductRepository productRepository;
     private final UserService userService;
+    private final com.milktea.backend.repository.UserRepository userRepository;
 
+    @Transactional(readOnly = true)
     public Page<UserFavoriteProduct> getMyFavorites(int page, int size) {
         User user = userService.getCurrentUser();
-        return favoriteRepository.findByUser(user, PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        Page<UserFavoriteProduct> favorites = favoriteRepository.findByUser(user, PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        
+        // 防御性编程：确保 Product 被加载，触发 Hibernate 代理初始化
+        favorites.forEach(fav -> {
+            if (fav.getProduct() != null) {
+                fav.getProduct().getName();
+            }
+        });
+        
+        return favorites;
     }
 
     @Transactional
     public void addFavorite(Long productId) {
-        User user = userService.getCurrentUser();
+        User currentUser = userService.getCurrentUser();
+        // 确保从数据库获取最新的用户对象
+        User user = userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new ServiceException("USER_NOT_FOUND", "用户不存在"));
+                
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ServiceException("PRODUCT_NOT_FOUND", "商品不存在"));
 

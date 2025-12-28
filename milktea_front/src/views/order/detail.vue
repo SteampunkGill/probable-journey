@@ -10,7 +10,7 @@
       <!-- 订单状态 -->
       <div class="status-section">
         <div class="status-header">
-          <h2 class="status-text">{{ order.statusText }}</h2>
+          <h2 class="status-text">{{ getStatusText(order.status) }}</h2>
           <p class="status-hint" v-if="order.deliveryType === 'delivery'">预计{{ order.estimatedTime }}送达</p>
           <p class="status-hint" v-if="order.deliveryType === 'pickup'">请凭取餐码取餐</p>
         </div>
@@ -31,7 +31,7 @@
       </div>
 
       <!-- 取餐码（自取订单） -->
-      <div class="pickup-section" v-if="order.deliveryType === 'pickup' && order.pickupCode">
+      <div class="pickup-section" v-if="order.deliveryType === 'pickup' &amp;&amp; order.pickupCode">
         <div class="pickup-card">
           <span class="pickup-label">取餐码</span>
           <h1 class="pickup-code">{{ order.pickupCode }}</h1>
@@ -46,7 +46,7 @@
         </h3>
         
         <!-- 配送地址 -->
-        <div class="address-card" v-if="order.deliveryType === 'delivery' && order.address">
+        <div class="address-card" v-if="order.deliveryType === 'delivery' &amp;&amp; order.address">
           <div class="address-header">
             <span class="name">{{ order.address.name }}</span>
             <span class="phone">{{ order.address.phone }}</span>
@@ -55,7 +55,7 @@
         </div>
 
         <!-- 自提门店 -->
-        <div class="store-card" v-if="order.deliveryType === 'pickup' && order.store">
+        <div class="store-card" v-if="order.deliveryType === 'pickup' &amp;&amp; order.store">
           <div class="store-header">
             <span class="store-name">{{ order.store.name }}</span>
             <button class="call-btn" @click="callStore">
@@ -72,10 +72,10 @@
       <div class="goods-section">
         <h3 class="section-title">商品清单</h3>
         <div class="goods-list">
-          <div class="goods-item" v-for="item in order.items" :key="item.id">
-            <img class="goods-image" :src="item.image" />
+          <div class="goods-item" v-for="item in order.orderItems" :key="item.id">
+            <img class="goods-image" :src="formatImageUrl(item.productImage)" />
             <div class="goods-info">
-              <h4 class="goods-name">{{ item.name }}</h4>
+              <h4 class="goods-name">{{ item.productName }}</h4>
               <div class="goods-specs" v-if="item.customizations">
                 <span>{{ item.customizations.sweetness }} / {{ item.customizations.temperature }}</span>
                 <span v-if="item.customizations.toppings?.length > 0">
@@ -121,6 +121,34 @@
         </div>
       </div>
 
+      <!-- 评价信息 -->
+      <div class="review-section" v-if="order.status === 'REVIEWED' && order.review">
+        <h3 class="section-title">我的评价</h3>
+        <div class="review-card">
+          <div class="review-header">
+            <div class="review-scores">
+              <div class="score-item">
+                <span class="score-label">商品</span>
+                <div class="stars">
+                  <span v-for="i in 5" :key="i" class="star" :class="{ active: i <= order.review.productScore }">⭐</span>
+                </div>
+              </div>
+              <div class="score-item">
+                <span class="score-label">配送</span>
+                <div class="stars">
+                  <span v-for="i in 5" :key="i" class="star" :class="{ active: i <= order.review.deliveryScore }">⭐</span>
+                </div>
+              </div>
+            </div>
+            <span class="review-time">{{ order.review.createdAt }}</span>
+          </div>
+          <p class="review-content">{{ order.review.content }}</p>
+          <div class="review-images" v-if="order.review.images">
+            <img v-for="(img, index) in order.review.images" :key="index" :src="formatImageUrl(img)" @click="previewImage(img)" />
+          </div>
+        </div>
+      </div>
+
       <!-- 费用明细 -->
       <div class="amount-section">
         <h3 class="section-title">费用明细</h3>
@@ -156,27 +184,33 @@
     <!-- 底部操作栏 -->
     <div class="footer" v-if="!loading">
       <!-- 待支付 -->
-      <template v-if="order.canPay">
+      <template v-if="order.status === 'PENDING_PAYMENT' || order.canPay">
         <button class="footer-btn secondary" @click="cancelOrder">取消订单</button>
         <button class="footer-btn primary" @click="payOrder">立即支付</button>
       </template>
 
       <!-- 制作中 -->
-      <template v-else-if="order.canRemind">
+      <template v-else-if="order.status === 'MAKING' || order.canRemind">
         <button class="footer-btn secondary" @click="contactService">联系客服</button>
         <button class="footer-btn primary" @click="remindOrder">催单</button>
       </template>
 
       <!-- 待确认 -->
-      <template v-else-if="order.canConfirm">
+      <template v-else-if="order.status === 'DELIVERED' || order.status === 'READY' || order.status === 'DELIVERING'">
         <button class="footer-btn secondary" @click="contactService">联系客服</button>
         <button class="footer-btn primary" @click="confirmOrder">确认收货</button>
       </template>
 
       <!-- 已完成 -->
-      <template v-else-if="order.canReview">
+      <template v-else-if="order.status === 'COMPLETED' || order.status === 'FINISHED' || order.canReview">
         <button class="footer-btn secondary" @click="reorder">再来一单</button>
         <button class="footer-btn primary" @click="reviewOrder">去评价</button>
+      </template>
+
+      <!-- 已评价 -->
+      <template v-else-if="order.status === 'REVIEWED'">
+        <button class="footer-btn secondary" @click="reorder">再来一单</button>
+        <button class="footer-btn primary" @click="showAppealDialog">申诉退款</button>
       </template>
 
       <!-- 其他状态 -->
@@ -184,6 +218,40 @@
         <button class="footer-btn secondary" @click="contactService">联系客服</button>
         <button class="footer-btn primary" @click="reorder">再来一单</button>
       </template>
+    </div>
+
+    <!-- 申诉弹窗 -->
+    <div class="modal" v-if="showAppealModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>申请申诉退款</h3>
+          <button class="close-btn" @click="showAppealModal = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-item">
+            <label>申诉原因</label>
+            <select v-model="appealForm.reason">
+              <option value="商品质量问题">商品质量问题</option>
+              <option value="配送超时严重">配送超时严重</option>
+              <option value="商家态度恶劣">商家态度恶劣</option>
+              <option value="其他原因">其他原因</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>详细描述</label>
+            <textarea v-model="appealForm.description" placeholder="请详细描述您的问题..."></textarea>
+          </div>
+          <div class="form-item">
+            <label>退款金额</label>
+            <input type="number" v-model="appealForm.amount" :max="order.totalAmount" />
+            <span class="hint">最多可退 ¥{{ order.totalAmount }}</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn secondary" @click="showAppealModal = false">取消</button>
+          <button class="modal-btn primary" @click="submitAppeal">提交申诉</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -193,6 +261,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { orderApi } from '@/utils/api'
+import { formatImageUrl } from '@/utils/util'
 
 const route = useRoute()
 const router = useRouter()
@@ -204,6 +273,13 @@ const loading = ref(true)
 const statusSteps = ref([])
 const currentStep = ref(0)
 
+const showAppealModal = ref(false)
+const appealForm = ref({
+  reason: '商品质量问题',
+  description: '',
+  amount: 0
+})
+
 onMounted(() => {
   loadOrderDetail()
 })
@@ -213,8 +289,27 @@ const loadOrderDetail = async () => {
   try {
     const res = await orderApi.getOrderDetail(orderNo.value)
     if (res.code === 200) {
-      order.value = res.data
-      generateStatusSteps(res.data)
+      const data = res.data
+      // 预处理订单项数据
+      if (data.orderItems) {
+        data.orderItems = data.orderItems.map(item => {
+          // 解析规格 JSON
+          let customizations = null
+          if (item.specJson) {
+            try {
+              customizations = JSON.parse(item.specJson)
+            } catch (e) {
+              console.error('解析规格失败', e)
+            }
+          }
+          return {
+            ...item,
+            customizations: customizations
+          }
+        })
+      }
+      order.value = data
+      generateStatusSteps(data)
     }
   } catch (error) {
     console.error('加载订单详情失败:', error)
@@ -243,14 +338,37 @@ const generateStatusSteps = (orderData) => {
   }
   
   const stepMap = {
-    'pending_payment': 0,
-    'paid': 1,
-    'processing': 2,
-    'ready': 3,
-    'delivering': 3,
-    'completed': 4
+    'PENDING_PAYMENT': 0,
+    'PAID': 1,
+    'MAKING': 2,
+    'READY': 3,
+    'DELIVERING': 3,
+    'DELIVERED': 3,
+    'COMPLETED': 4,
+    'FINISHED': 4,
+    'REVIEWED': 4
   }
   currentStep.value = stepMap[orderData.status] || 0
+}
+
+const getStatusText = (status) => {
+  if (!status) return '未知状态'
+  const s = status.toUpperCase()
+  const statusMap = {
+    'PENDING_PAYMENT': '待支付',
+    'PAID': '待接单',
+    'MAKING': '制作中',
+    'READY': '待取餐',
+    'DELIVERING': '配送中',
+    'DELIVERED': '已送达',
+    'COMPLETED': '已完成',
+    'FINISHED': '已完成',
+    'REFUNDING': '退款中',
+    'REFUNDED': '已退款',
+    'CANCELLED': '已取消',
+    'REVIEWED': '已评价'
+  }
+  return statusMap[s] || status
 }
 
 const copyOrderNo = () => {
@@ -317,17 +435,23 @@ const confirmOrder = async () => {
 }
 
 const reviewOrder = () => {
-  alert('评价功能开发中')
+  router.push(`/review/${order.value.orderNo}`)
 }
 
 const reorder = () => {
-  order.value.items.forEach(item => {
+  const items = order.value.orderItems || []
+  const storeId = order.value.storeId
+  items.forEach(item => {
     cartStore.addItem({
+      productId: item.productId,
       id: item.productId,
-      name: item.name,
-      image: item.image,
+      storeId: storeId,
+      name: item.productName,
+      image: item.productImage,
       price: item.price,
-      quantity: item.quantity
+      quantity: item.quantity,
+      specId: item.specId,
+      customizations: item.customizations
     })
   })
   alert('已添加到购物车')
@@ -336,6 +460,30 @@ const reorder = () => {
 
 const contactService = () => {
   alert('联系客服：400-123-4567')
+}
+
+const showAppealDialog = () => {
+  appealForm.value.amount = order.value.totalAmount
+  showAppealModal.value = true
+}
+
+const submitAppeal = async () => {
+  if (!appealForm.value.description) {
+    alert('请填写详细描述')
+    return
+  }
+  try {
+    const res = await orderApi.submitAppeal(order.value.orderNo, appealForm.value)
+    if (res.code === 200) {
+      alert('申诉已提交，请耐心等待后台处理')
+      showAppealModal.value = false
+      loadOrderDetail()
+    } else {
+      alert(res.message || '提交失败')
+    }
+  } catch (error) {
+    console.error('提交申诉失败:', error)
+  }
 }
 </script>
 
@@ -791,6 +939,86 @@ const contactService = () => {
   box-shadow: 0 4px 12px rgba(210, 180, 140, 0.3);
 }
 
+/* 评价信息 */
+.review-section {
+  background: var(--surface-color);
+  margin: 20px 24px;
+  padding: 24px;
+  border-radius: 25px;
+  box-shadow: 0 4px 15px rgba(139, 69, 19, 0.08);
+  border: 1px solid var(--border-color);
+}
+
+.review-card {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.review-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.score-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.score-label {
+  font-size: 13px;
+  color: var(--text-color-medium);
+}
+
+.stars {
+  display: flex;
+  gap: 2px;
+}
+
+.star {
+  font-size: 12px;
+  color: #ddd;
+}
+
+.star.active {
+  color: #ffb347;
+}
+
+.review-time {
+  font-size: 12px;
+  color: var(--text-color-light);
+}
+
+.review-content {
+  font-size: 14px;
+  color: var(--text-color-dark);
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+.review-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.review-images img {
+  width: 70px;
+  height: 70px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+}
+
 /* 费用明细 */
 .amount-list {
   background: white;
@@ -902,6 +1130,121 @@ const contactService = () => {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none !important;
+}
+
+/* 弹窗样式 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: white;
+  width: 90%;
+  max-width: 400px;
+  border-radius: 24px;
+  overflow: hidden;
+  animation: modal-in 0.3s ease-out;
+}
+
+@keyframes modal-in {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--primary-dark);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-color-medium);
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.form-item {
+  margin-bottom: 20px;
+}
+
+.form-item label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color-dark);
+}
+
+.form-item select, .form-item textarea, .form-item input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.form-item textarea {
+  height: 100px;
+  resize: none;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-color-medium);
+  margin-top: 4px;
+  display: block;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  display: flex;
+  gap: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.modal-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.modal-btn.primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.modal-btn.secondary {
+  background: var(--background-color);
+  color: var(--text-color-dark);
 }
 
 /* 响应式调整 */

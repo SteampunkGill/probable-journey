@@ -195,6 +195,12 @@ const routes = [
         meta: { title: '商品管理', requiresAdmin: true }
       },
       {
+        path: 'inventory',
+        name: 'admin-inventory',
+        component: () => import('../views/admin/inventory/index.vue'),
+        meta: { title: '库存管理', requiresAdmin: true }
+      },
+      {
         path: 'store',
         name: 'admin-store',
         component: () => import('../views/admin/store/index.vue'),

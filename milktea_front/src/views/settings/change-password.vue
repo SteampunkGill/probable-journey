@@ -63,11 +63,11 @@ const handleSubmit = async () => {
 
   loading.value = true
   try {
-    const res = await authApi.changePassword({
-      oldPassword: form.value.oldPassword,
-      newPassword: form.value.newPassword
-    })
-    if (res.code === 200) {
+    const res = await authApi.changePassword(
+      form.value.oldPassword,
+      form.value.newPassword
+    )
+    if (res && (res.code === 200 || res.status === 'success')) {
       alert('密码修改成功，请重新登录')
       // 退出登录
       localStorage.removeItem('token')

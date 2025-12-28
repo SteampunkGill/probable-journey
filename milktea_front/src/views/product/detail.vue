@@ -198,7 +198,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
-import { productApi } from '@/utils/api'
+import { productApi, favoriteApi } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -218,22 +218,8 @@ const customizations = ref({
   quantity: 1
 })
 
-const sweetnessOptions = [
-  { value: 'no_sugar', label: '无糖', hint: '0%' },
-  { value: 'low_sugar', label: '三分糖', hint: '30%' },
-  { value: 'half_sugar', label: '五分糖', hint: '50%' },
-  { value: 'less_sugar', label: '七分糖', hint: '70%' },
-  { value: 'normal', label: '正常糖', hint: '100%' }
-]
-
-const temperatureOptions = [
-  { value: 'hot', label: '热' },
-  { value: 'warm', label: '温' },
-  { value: 'no_ice', label: '去冰' },
-  { value: 'less_ice', label: '少冰' },
-  { value: 'normal', label: '正常冰' }
-]
-
+const sweetnessOptions = ref([])
+const temperatureOptions = ref([])
 const toppingOptions = ref([])
 
 const maxToppings = 5
@@ -259,17 +245,75 @@ onMounted(() => {
 const loadProductDetail = async () => {
   loading.value = true
   try {
-    const [detailRes, reviewsRes] = await Promise.all([
-      productApi.getProductDetail(productId.value),
-      productApi.getProductReviews(productId.value)
-    ])
-    
+    // 获取商品详情
+    const detailRes = await productApi.getProductDetail(productId.value)
     if (detailRes.code === 200) {
       product.value = detailRes.data
     }
+
+    // 检查收藏状态
+    try {
+      const favRes = await favoriteApi.checkFavorite(productId.value)
+      if (favRes.code === 200) {
+        isFavorite.value = favRes.data
+      }
+    } catch (e) {
+      console.warn('获取收藏状态失败:', e)
+    }
     
-    if (reviewsRes.code === 200) {
-      comments.value = reviewsRes.data.list || []
+    // 获取规格和加料
+    try {
+      const customRes = await productApi.getProductCustomizations(productId.value)
+      if (customRes.code === 200) {
+        const { specs, options } = customRes.data
+        
+        // 映射甜度
+        const sweetnessSpec = specs.find(s => s.type === 'SWEETNESS')
+        if (sweetnessSpec && sweetnessSpec.items) {
+          sweetnessOptions.value = sweetnessSpec.items.map(item => ({
+            value: item.name,
+            label: item.name,
+            hint: item.description
+          }))
+          if (sweetnessOptions.value.length > 0) {
+            customizations.value.sweetness = sweetnessOptions.value[0].value
+          }
+        }
+
+        // 映射温度
+        const tempSpec = specs.find(s => s.type === 'TEMPERATURE')
+        if (tempSpec && tempSpec.items) {
+          temperatureOptions.value = tempSpec.items.map(item => ({
+            value: item.name,
+            label: item.name
+          }))
+          if (temperatureOptions.value.length > 0) {
+            customizations.value.temperature = temperatureOptions.value[0].value
+          }
+        }
+
+        // 映射加料
+        toppingOptions.value = options.filter(o => o.type === 'TOPPING').map(o => ({
+          id: o.id,
+          name: o.name,
+          price: o.price
+        }))
+      }
+    } catch (e) {
+      console.warn('加载规格失败:', e)
+    }
+
+    // 尝试获取评价 (如果接口存在)
+    try {
+      if (productApi.getProductReviews) {
+        const reviewsRes = await productApi.getProductReviews(productId.value)
+        if (reviewsRes && reviewsRes.code === 200) {
+          // 后端返回的是 List<OrderReview>，直接赋值
+          comments.value = Array.isArray(reviewsRes.data) ? reviewsRes.data : (reviewsRes.data.list || [])
+        }
+      }
+    } catch (e) {
+      console.warn('加载商品评价失败:', e)
     }
   } catch (error) {
     console.error('加载商品详情失败:', error)
@@ -278,9 +322,25 @@ const loadProductDetail = async () => {
   }
 }
 
-const toggleFavorite = () => {
-  isFavorite.value = !isFavorite.value
-  alert(isFavorite.value ? '已收藏' : '已取消收藏')
+const toggleFavorite = async () => {
+  try {
+    if (isFavorite.value) {
+      const res = await favoriteApi.removeFavorite(productId.value)
+      if (res.code === 200) {
+        isFavorite.value = false
+        alert('已取消收藏')
+      }
+    } else {
+      const res = await favoriteApi.addFavorite(productId.value)
+      if (res.code === 200) {
+        isFavorite.value = true
+        alert('已收藏')
+      }
+    }
+  } catch (error) {
+    console.error('操作收藏失败:', error)
+    alert('操作失败，请稍后重试')
+  }
 }
 
 const toggleTopping = (topping) => {

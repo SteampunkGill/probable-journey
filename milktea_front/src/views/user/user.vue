@@ -33,34 +33,6 @@
       </div>
     </div>
 
-    <!-- 我的订单 -->
-    <div class="order-section card">
-      <div class="section-header">
-        <span class="section-title">📦 我的订单</span>
-        <div class="all-orders" @click="router.push('/order-list')">
-          <span>全部订单</span>
-          <i class="iconfont icon-right"></i>
-        </div>
-      </div>
-      <div class="order-status-grid">
-        <div class="status-item" @click="router.push('/order-list?status=pending_payment')">
-          <div class="status-icon">💳</div>
-          <span class="status-name">待付款</span>
-        </div>
-        <div class="status-item" @click="router.push('/order-list?status=processing')">
-          <div class="status-icon">🍵</div>
-          <span class="status-name">制作中</span>
-        </div>
-        <div class="status-item" @click="router.push('/order-list?status=ready')">
-          <div class="status-icon">🛍️</div>
-          <span class="status-name">待取餐</span>
-        </div>
-        <div class="status-item" @click="router.push('/order-list?status=completed')">
-          <div class="status-icon">✅</div>
-          <span class="status-name">已完成</span>
-        </div>
-      </div>
-    </div>
 
     <!-- 我的资产 -->
     <div class="assets-section card">
@@ -173,7 +145,6 @@ const functions = ref([
   { id: 1, name: '地址管理', icon: 'icon-address', color: '#36CFC9', url: '/address' },
   { id: 2, name: '我的收藏', icon: 'icon-heart', color: '#FF6B6B', url: '/favorite' },
   { id: 3, name: '购买记录', icon: 'icon-history', color: '#FFA940', url: '/order-list' },
-  { id: 4, name: '积分商城', icon: 'icon-gift', color: '#FF6B6B', url: '/points/mall' },
   { id: 10, name: '分享有礼', icon: 'icon-share', color: '#FF9800', url: '/share' },
   { id: 9, name: '绑定会员卡', icon: 'icon-wallet', color: '#D4A574', url: '/user/bind-card' },
   { id: 5, name: '客服中心', icon: 'icon-service', color: '#73D13D', url: '' },
@@ -185,14 +156,16 @@ const functions = ref([
 const loadUserData = async () => {
   try {
     const res = await authApi.getUserProfile()
-    if (res) {
+    // 拦截器返回的是 ApiResponse 对象 { code, message, data }
+    if (res && res.code === 200 && res.data) {
+      const userData = res.data
       // 更新 Store
-      userStore.setUserInfo(res)
+      userStore.setUserInfo(userData)
       
       // 更新资产显示
-      assets.value[0].value = (res.balance || 0).toFixed(2)
-      assets.value[1].value = (res.couponCount || 0).toString()
-      assets.value[2].value = (res.points || 0).toString()
+      assets.value[0].value = (userData.balance || 0).toFixed(2)
+      assets.value[1].value = (userData.couponCount || 0).toString()
+      assets.value[2].value = (userData.points || 0).toString()
     }
   } catch (error) {
     console.error('加载用户信息失败:', error)
@@ -256,7 +229,10 @@ const checkBirthdayPrivilege = async () => {
 }
 
 onMounted(() => {
-  loadUserData()
+  const token = localStorage.getItem('token')
+  if (token && token !== 'undefined' && token !== 'null') {
+    loadUserData()
+  }
 })
 </script>
 

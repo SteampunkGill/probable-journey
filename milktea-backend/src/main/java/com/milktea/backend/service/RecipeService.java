@@ -72,4 +72,19 @@ public class RecipeService {
             productRepository.save(product);
         });
     }
+
+    @Transactional
+    public void updateAllProductsCostByIngredient(Long ingredientId) {
+        List<ProductRecipe> recipes = productRecipeRepository.findAll().stream()
+                .filter(r -> r.getIngredient().getId().equals(ingredientId))
+                .collect(java.util.stream.Collectors.toList());
+        
+        java.util.Set<Long> productIds = recipes.stream()
+                .map(r -> r.getProduct().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        
+        for (Long productId : productIds) {
+            updateProductCost(productId);
+        }
+    }
 }

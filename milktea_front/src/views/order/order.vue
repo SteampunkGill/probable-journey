@@ -292,6 +292,7 @@ import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
 import { useUserStore } from '../../store/user'
 import { productApi } from '@/utils/api'
+import { formatImageUrl } from '@/utils/util'
 import heartIcon from '../../assets/images/icons/heart.png'
 import heartFillIcon from '../../assets/images/icons/heart-fill.png'
 
@@ -1120,7 +1121,7 @@ watch(activeCategoryId, () => {
 
 .cart-bar {
   position: fixed;
-  bottom: 0;
+  bottom: 80px;
   left: 0;
   right: 0;
   background: var(--surface-color);
@@ -1478,6 +1479,19 @@ watch(activeCategoryId, () => {
 }
 
 /* 响应式调整 */
+@media (max-width: 768px) {
+  .cart-bar {
+    bottom: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cart-bar {
+    bottom: 60px;
+  }
+}
+
+
 @media (max-width: 375px) {
   .search-bar {
     padding: 16px 20px;

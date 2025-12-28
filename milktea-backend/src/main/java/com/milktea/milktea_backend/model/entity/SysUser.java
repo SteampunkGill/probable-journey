@@ -38,6 +38,13 @@ public class SysUser {
     @Column(name = "avatar", length = 200)
     private String avatar;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
+
+    @Column(name = "position", length = 50)
+    private String position;
+
     @Column(name = "status", nullable = false, length = 20)
     private String status; // ACTIVE, DISABLED
 

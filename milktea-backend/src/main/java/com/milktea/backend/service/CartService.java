@@ -86,7 +86,7 @@ public class CartService {
                 userId, request.getProductId(), spec, request.getSweetness(), request.getTemperature());
 
         CartItem item;
-        if (existingItem.isPresent()) {
+        if (existingItem.isPresent() && (request.getToppings() == null || request.getToppings().isEmpty())) {
             item = existingItem.get();
             item.setQuantity(item.getQuantity() + request.getQuantity());
         } else {

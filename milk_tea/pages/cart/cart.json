@@ -1,7 +1,0 @@
-{
-  "usingComponents": {
-    "quantity-selector": "/components/quantity-selector/quantity-selector"
-  },
-  "navigationBarTitleText": "购物车",
-  "enablePullDownRefresh": true
-}

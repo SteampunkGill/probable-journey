@@ -170,6 +170,16 @@ public class StoreService {
             if (storeDetails.getBusinessHoursJson() != null) {
                 store.setBusinessHoursJson(storeDetails.getBusinessHoursJson());
             }
+            if (storeDetails.getBusinessHours() != null) {
+                store.setBusinessHours(storeDetails.getBusinessHours());
+            }
+            // 15. 后台增加一个每个店铺营业时间调整
+            if (storeDetails.getOpenTime() != null) {
+                store.setOpenTime(storeDetails.getOpenTime());
+            }
+            if (storeDetails.getCloseTime() != null) {
+                store.setCloseTime(storeDetails.getCloseTime());
+            }
             if (storeDetails.getLatitude() != null) {
                 store.setLatitude(storeDetails.getLatitude());
             }
@@ -214,8 +224,25 @@ public class StoreService {
         
         return storeRepository.findById(id).map(store -> {
             store.setStatus(status);
+            // 同步更新 businessStatus
+            if ("OPEN".equals(status)) {
+                store.setBusinessStatus(1);
+            } else if ("CLOSED".equals(status)) {
+                store.setBusinessStatus(0);
+            }
             return storeRepository.save(store);
         });
+    }
+
+    /**
+     * 更新门店营业状态（支持 businessStatus 和 status 同步）
+     * @param id 门店ID
+     * @param status 新状态字符串 (OPEN/CLOSED)
+     * @return 更新后的门店实体Optional
+     */
+    @Transactional
+    public Optional<Store> updateStoreBusinessStatus(Long id, String status) {
+        return updateStoreStatus(id, status);
     }
 
     /**

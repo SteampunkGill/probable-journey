@@ -17,7 +17,16 @@ public class AppPaymentController {
     @PostMapping("/alipay")
     public ApiResponse<String> initiateAlipay(@RequestBody Map<String, String> body) {
         String orderNo = body.get("orderNo");
-        return ApiResponse.success(orderService.initiatePayment(orderNo, "ALIPAY"));
+        String method = body.getOrDefault("method", "ALIPAY");
+        return ApiResponse.success(orderService.initiatePayment(orderNo, method));
+    }
+
+    @PostMapping("/confirm")
+    public ApiResponse<Void> confirmPayment(@RequestBody Map<String, String> body) {
+        String orderNo = body.get("orderNo");
+        String method = body.getOrDefault("method", "BALANCE");
+        orderService.payOrder(orderNo, method);
+        return ApiResponse.success(null);
     }
 
     @GetMapping("/status/{orderNo}")

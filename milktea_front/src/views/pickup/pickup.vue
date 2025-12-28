@@ -208,7 +208,12 @@ const goToOrder = () => {
 }
 
 onMounted(() => {
-  loadOrders()
+  const token = localStorage.getItem('token')
+  if (token && token !== 'undefined' && token !== 'null') {
+    loadOrders()
+  } else {
+    loading.value = false
+  }
 })
 </script>
 <style scoped>

@@ -12,6 +12,9 @@ import java.util.UUID;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -30,6 +33,19 @@ public class AdminSystemController {
     public ApiResponse<StaffDTO> createStaff(@RequestBody StaffDTO staffDTO) {
         return ApiResponse.success(systemService.createStaff(staffDTO));
     }
+
+    @PutMapping("/staff/{id}")
+    public ApiResponse<StaffDTO> updateStaff(@PathVariable Long id, @RequestBody StaffDTO staffDTO) {
+        staffDTO.setId(id);
+        return ApiResponse.success(systemService.updateStaff(staffDTO));
+    }
+
+    @PostMapping("/staff/{id}/reset-password")
+    public ApiResponse<Void> resetStaffPassword(@PathVariable Long id) {
+        systemService.resetStaffPassword(id);
+        return ApiResponse.success(null);
+    }
+
 
     @GetMapping("/roles")
     public ApiResponse<List<RoleDTO>> getRoleList() {
@@ -56,7 +72,7 @@ public class AdminSystemController {
 
     @PutMapping("/stores/{id}/business-hours")
     public ApiResponse<Void> setBusinessHours(@PathVariable Long id, @RequestBody List<BusinessHourDTO> hours) {
-
+        systemService.setBusinessHours(id, hours);
         return ApiResponse.success(null);
     }
 
@@ -69,9 +85,11 @@ public class AdminSystemController {
     }
 
     @PutMapping("/stores/{id}/business-status")
-    public ApiResponse<Void> setBusinessStatus(@PathVariable Long id, @RequestBody Map<String, String> data) {
-        systemService.updateBusinessStatus(id, data.get("status"));
-        return ApiResponse.success(null);
+    public ApiResponse<StoreDTO> setBusinessStatus(@PathVariable Long id, @RequestBody Map<String, String> data) {
+        String status = data.get("status");
+        return systemService.updateStoreBusinessStatus(id, status)
+                .map(ApiResponse::success)
+                .orElseThrow(() -> new com.milktea.backend.exception.ServiceException("STORE_NOT_FOUND", "门店不存在"));
     }
 
     @GetMapping("/stores/business-settings")
@@ -102,13 +120,23 @@ public class AdminSystemController {
 
     @PostMapping("/backups")
     public ApiResponse<BackupDTO> createBackup() {
-        return ApiResponse.success(systemService.createBackup());
+        return ApiResponse.success(systemService.createRealBackup());
     }
 
     @PostMapping("/backups/{id}/restore")
     public ApiResponse<Void> restoreBackup(@PathVariable Long id) {
         systemService.restoreBackup(id);
         return ApiResponse.success(null);
+    }
+    @GetMapping("/backups/{id}/download")
+    public ResponseEntity<byte[]> downloadBackup(@PathVariable Long id) {
+        byte[] content = systemService.getBackupContent(id);
+        String fileName = systemService.getBackupFileName(id);
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName)
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(content);
     }
 
     @GetMapping("/monitoring/performance")

@@ -19,8 +19,8 @@
         :key="item.id"
         @click="onProductTap(item.product.id)"
       >
-        <!-- 左侧图片 -->
-        <img class="product-image" :src="item.product.image || defaultImage" />
+        <!-- 左侧图片：增加对多种可能字段名的兼容 -->
+        <img class="product-image" :src="item.product.imageUrl || item.product.mainImageUrl || defaultImage" />
         
         <!-- 中间信息 -->
         <div class="product-info">
@@ -88,7 +88,12 @@ const hasMore = ref(false)
 const defaultImage = 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400'
 
 onMounted(() => {
-  loadFavorites()
+  const token = localStorage.getItem('token')
+  if (token && token !== 'undefined' && token !== 'null') {
+    loadFavorites()
+  } else {
+    loading.value = false
+  }
 })
 
 const loadFavorites = async (isLoadMore = false) => {
@@ -101,14 +106,15 @@ const loadFavorites = async (isLoadMore = false) => {
       size: size.value
     }
     const res = await favoriteApi.getFavorites(params)
-    if (res && res.content) {
+    const pageData = res.data || res
+    if (pageData && pageData.content) {
       if (isLoadMore) {
-        favoriteList.value = [...favoriteList.value, ...res.content]
+        favoriteList.value = [...favoriteList.value, ...pageData.content]
       } else {
-        favoriteList.value = res.content
+        favoriteList.value = pageData.content
       }
-      total.value = res.totalElements
-      hasMore.value = !res.last
+      total.value = pageData.totalElements || pageData.total || 0
+      hasMore.value = !pageData.last
     }
   } catch (error) {
     console.error('加载收藏失败:', error)

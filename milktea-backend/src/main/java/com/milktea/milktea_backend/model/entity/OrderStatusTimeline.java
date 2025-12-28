@@ -30,7 +30,26 @@ public class OrderStatusTimeline {
     @Column(name = "remark", length = 200)
     private String remark;
 
+    @Column(name = "status_text", length = 50)
+    private String statusText;
+
+    @Column(name = "is_current")
+    private Boolean isCurrent = true;
+
+    @Column(name = "time")
+    private LocalDateTime time;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (time == null) {
+            time = LocalDateTime.now();
+        }
+        if (isCurrent == null) {
+            isCurrent = true;
+        }
+    }
 }

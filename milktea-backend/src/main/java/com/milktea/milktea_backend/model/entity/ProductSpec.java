@@ -46,4 +46,7 @@ public class ProductSpec {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Transient
+    private java.util.List<ProductSpecItem> items;
 }

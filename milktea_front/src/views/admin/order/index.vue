@@ -3,13 +3,18 @@
     <div class="action-bar card">
       <div class="search-form">
         <input v-model="query.orderNo" placeholder="订单号" class="admin-input" />
-        <select v-model="query.status" class="admin-select">
+        <select v-model="frontendStatusFilter" class="admin-select">
           <option value="">全部状态</option>
-          <option value="PAID">待接单</option>
-          <option value="MAKING">制作中</option>
-          <option value="READY">待取餐</option>
-          <option value="DELIVERED">已完成</option>
-          <option value="REFUNDING">退款中</option>
+          <option value="待支付">待支付</option>
+          <option value="待接单">待接单</option>
+          <option value="制作中">制作中</option>
+          <option value="待取餐">待取餐</option>
+          <option value="配送中">配送中</option>
+          <option value="已送达">已送达</option>
+          <option value="已完成">已完成</option>
+          <option value="退款中">退款中</option>
+          <option value="已评价">已评价</option>
+          <option value="已取消">已取消</option>
         </select>
         <button class="btn-primary" @click="loadOrders">查询</button>
         <button class="btn-success" @click="exportOrders">导出订单</button>
@@ -21,15 +26,21 @@
     </div>
 
     <div class="order-tabs card">
-      <div class="tab-item" :class="{ active: activeTab === 'pending' }" @click="activeTab = 'pending'">待处理订单</div>
-      <div class="tab-item" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">全部订单</div>
-      <div class="tab-item" :class="{ active: activeTab === 'refund' }" @click="activeTab = 'refund'">售后/退款</div>
+      <div class="tab-item" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">全部</div>
+      <div class="tab-item" :class="{ active: activeTab === 'PENDING_PAYMENT' }" @click="activeTab = 'PENDING_PAYMENT'">待支付</div>
+      <div class="tab-item" :class="{ active: activeTab === 'PAID' }" @click="activeTab = 'PAID'">待接单</div>
+      <div class="tab-item" :class="{ active: activeTab === 'MAKING' }" @click="activeTab = 'MAKING'">制作中</div>
+      <div class="tab-item" :class="{ active: activeTab === 'READY' }" @click="activeTab = 'READY'">待取餐</div>
+      <div class="tab-item" :class="{ active: activeTab === 'DELIVERING' }" @click="activeTab = 'DELIVERING'">配送中</div>
+      <div class="tab-item" :class="{ active: activeTab === 'COMPLETED' }" @click="activeTab = 'COMPLETED'">已完成</div>
+      <div class="tab-item" :class="{ active: activeTab === 'REFUNDING' }" @click="activeTab = 'REFUNDING'">退款中</div>
+      <div class="tab-item" :class="{ active: activeTab === 'appeal' }" @click="activeTab = 'appeal'">申诉退款</div>
       <div class="tab-item" :class="{ active: activeTab === 'complaint' }" @click="activeTab = 'complaint'">投诉建议</div>
     </div>
 
     <div class="table-container card">
       <!-- 待处理/全部订单表格 -->
-      <table v-if="activeTab !== 'complaint'" class="admin-table">
+      <table v-if="activeTab !== 'complaint' && activeTab !== 'appeal'" class="admin-table">
         <thead>
           <tr>
             <th><input type="checkbox" @change="toggleAll" :checked="isAllSelected" /></th>
@@ -42,7 +53,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="o in orders" :key="o.orderNo">
+          <tr v-for="o in filteredOrders" :key="o.orderNo">
             <td><input type="checkbox" v-model="selectedNos" :value="o.orderNo" /></td>
             <td>{{ o.orderNo }}</td>
             <td>{{ formatDate(o.orderTime || o.createdAt) }}</td>
@@ -54,8 +65,38 @@
             <td class="ops">
               <button v-if="o.status === 'PAID'" @click="handleOrder(o, 'accept')">接单</button>
               <button v-if="o.status === 'MAKING'" @click="handleOrder(o, 'ready')">制作完成</button>
+              <button v-if="o.status === 'DELIVERING'" @click="handleOrder(o, 'deliver')">确认送达</button>
+              <button v-if="o.status === 'READY' || o.status === 'DELIVERED'" @click="handleOrder(o, 'complete')">完成订单</button>
               <button @click="printOrder(o)">打印小票</button>
               <button v-if="o.status === 'REFUNDING'" @click="showRefundModal(o)">审核退款</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 申诉退款表格 -->
+      <table v-else-if="activeTab === 'appeal'" class="admin-table">
+        <thead>
+          <tr>
+            <th>订单号</th>
+            <th>原因</th>
+            <th>描述</th>
+            <th>金额</th>
+            <th>状态</th>
+            <th>时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="a in appeals" :key="a.id">
+            <td>{{ a.orderNo }}</td>
+            <td>{{ a.reason }}</td>
+            <td class="text-ellipsis">{{ a.description }}</td>
+            <td>¥{{ a.amount }}</td>
+            <td>{{ a.status === 'PENDING' ? '待处理' : '已处理' }}</td>
+            <td>{{ formatDate(a.createdAt) }}</td>
+            <td class="ops">
+              <button v-if="a.status === 'PENDING'" @click="handleAppeal(a)">退款</button>
             </td>
           </tr>
         </tbody>
@@ -116,9 +157,11 @@ import request from '../../../utils/request'
 
 const orders = ref([])
 const complaints = ref([])
+const appeals = ref([])
 const selectedNos = ref([])
-const activeTab = ref('pending')
+const activeTab = ref('all')
 const query = ref({ orderNo: '', status: '', storeId: '' })
+const frontendStatusFilter = ref('') // 纯前端按中文筛选
 
 const refundModal = ref({
   show: false,
@@ -128,18 +171,36 @@ const refundModal = ref({
 
 const isAllSelected = computed(() => orders.value.length > 0 && selectedNos.value.length === orders.value.length)
 
+// 纯前端按中文筛选逻辑
+const filteredOrders = computed(() => {
+  if (!frontendStatusFilter.value) return orders.value
+  return orders.value.filter(o => getStatusName(o.status) === frontendStatusFilter.value)
+})
+
 const loadOrders = async () => {
   let url = '/api/admin/orders'
-  if (activeTab.value === 'pending') url = '/api/admin/orders/pending'
-  
   const params = { ...query.value }
-  if (activeTab.value === 'refund') params.status = 'REFUNDING'
+  
+  // 零回归原则：根据标签页自动设置状态过滤
+  const statusTabs = ['PENDING_PAYMENT', 'PAID', 'MAKING', 'READY', 'DELIVERING', 'COMPLETED', 'REFUNDING']
+  if (statusTabs.includes(activeTab.value)) {
+    params.status = activeTab.value
+  }
   
   try {
     const res = await request.get(url, { params })
-    orders.value = res.data || []
+    // 零回归原则：健壮处理响应结构，兼容 ApiResponse 和直接返回数组的情况
+    if (res && res.data && Array.isArray(res.data)) {
+      orders.value = res.data
+    } else if (Array.isArray(res)) {
+      orders.value = res
+    } else {
+      orders.value = []
+    }
+    console.log('加载订单成功:', orders.value.length)
   } catch (error) {
     console.error('加载订单失败:', error)
+    orders.value = []
   }
 }
 
@@ -152,9 +213,20 @@ const loadComplaints = async () => {
   }
 }
 
+const loadAppeals = async () => {
+  try {
+    const res = await request.get('/api/admin/appeals')
+    appeals.value = res.data || []
+  } catch (error) {
+    console.error('加载申诉失败:', error)
+  }
+}
+
 watch(activeTab, (val) => {
   if (val === 'complaint') {
     loadComplaints()
+  } else if (val === 'appeal') {
+    loadAppeals()
   } else {
     loadOrders()
   }
@@ -234,14 +306,34 @@ const handleComplaint = async (c) => {
   }
 }
 
+const handleAppeal = async (a) => {
+  if (confirm(`确定要为订单 ${a.orderNo} 退款 ¥${a.amount} 吗？`)) {
+    try {
+      await request.post(`/api/admin/appeals/${a.id}/refund`)
+      alert('退款成功')
+      loadAppeals()
+    } catch (error) {
+      console.error('退款失败:', error)
+      alert('退款失败: ' + (error.response?.data?.message || error.message))
+    }
+  }
+}
+
 const getStatusName = (status) => {
   const map = {
+    'PENDING_PAYMENT': '待支付',
     'PAID': '待接单',
     'MAKING': '制作中',
     'READY': '待取餐',
-    'DELIVERED': '已完成',
+    'DELIVERING': '配送中',
+    'DELIVERED': '已送达',
+    'COMPLETED': '已完成',
     'REFUNDING': '退款中',
-    'REFUNDED': '已退款'
+    'REFUNDED': '已退款',
+    'REVIEWED': '已评价',
+    'APPEALING': '申诉中',
+    'CANCELLED': '已取消',
+    'FINISHED': '已结束'
   }
   return map[status] || status
 }

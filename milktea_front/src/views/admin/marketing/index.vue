@@ -69,7 +69,7 @@
               <td>{{ t.type === 'REDUCTION' ? '满减' : '折扣' }}</td>
               <td>{{ t.type === 'REDUCTION' ? '¥' + t.value : t.value + '折' }}</td>
               <td>¥{{ t.minAmount }}</td>
-              <td>{{ t.receivedCount }}/{{ t.totalCount }}</td>
+              <td>{{ t.issuedQuantity || 0 }}/{{ t.totalQuantity === -1 ? '无限制' : t.totalQuantity }}</td>
               <td class="ops">
                 <button @click="distributeCoupon(t)">精准发放</button>
                 <button @click="viewDistribution(t)">发放记录</button>
@@ -220,15 +220,47 @@
           <label>结束时间：</label>
           <input v-model="activityModal.form.endTime" type="datetime-local" class="admin-input" />
         </div>
-        <div class="form-item">
-          <label>活动规则 (JSON)：</label>
-          <textarea v-model="activityModal.form.rulesJson" class="admin-input" rows="4" placeholder='例如：{"threshold": 30, "reduce": 5}'></textarea>
+        <!-- 活动规则可视化配置 -->
+        <div class="activity-rules-config">
+          <div v-if="activityModal.form.type === 'FULL_REDUCE'">
+            <div class="form-item">
+              <label>满减门槛 (元)：</label>
+              <input type="number" v-model.number="activityRules.threshold" class="admin-input" placeholder="例如：30" />
+            </div>
+            <div class="form-item">
+              <label>减免金额 (元)：</label>
+              <input type="number" v-model.number="activityRules.reduce" class="admin-input" placeholder="例如：5" />
+            </div>
+          </div>
+          
+          <div v-else-if="activityModal.form.type === 'SECOND_HALF'">
+            <div class="form-item">
+              <label>第二杯折扣率：</label>
+              <input type="number" v-model.number="activityRules.secondDiscount" class="admin-input" placeholder="例如：0.5 (代表半价)" />
+            </div>
+          </div>
+
+          <div v-else-if="activityModal.form.type === 'LIMITED_DISCOUNT'">
+            <div class="form-item">
+              <label>折扣比例 (0-1)：</label>
+              <input type="number" v-model.number="activityRules.discount" class="admin-input" placeholder="例如：0.8 (代表8折)" />
+            </div>
+          </div>
+
+          <div v-else-if="activityModal.form.type === 'FLASH_SALE'">
+            <div class="form-item">
+              <label>秒杀价格 (元)：</label>
+              <input type="number" v-model.number="activityRules.flashPrice" class="admin-input" placeholder="请输入秒杀价" />
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button @click="activityModal.show = false">取消</button>
           <button class="btn-primary" @click="saveActivity">保存</button>
         </div>
       </div>
+    </div>
+
     <!-- 轮播图编辑弹窗 -->
     <div v-if="bannerModal.show" class="modal-mask">
       <div class="modal-container" style="width: 500px;">
@@ -275,13 +307,131 @@
         </div>
       </div>
     </div>
+    <!-- 优惠券发放弹窗 -->
+    <div v-if="distributeModal.show" class="modal-mask">
+      <div class="modal-container" style="width: 600px;">
+        <h3>精准发放优惠券</h3>
+        <p style="margin-bottom: 15px; color: #8b4513;">正在为 [{{ distributeModal.template?.name }}] 选择发放对象</p>
+        
+        <div class="member-selector-box" style="max-height: 400px; overflow-y: auto; border: 2px solid #e8dccb; border-radius: 15px; padding: 10px; background: #fff;">
+          <div v-if="distributeModal.loading" style="text-align: center; padding: 20px;">加载中...</div>
+          <table v-else class="admin-table" style="box-shadow: none;">
+            <thead>
+              <tr>
+                <th style="width: 40px;"><input type="checkbox" @change="toggleAllMembers" :checked="isAllSelected" /></th>
+                <th>昵称</th>
+                <th>手机号</th>
+                <th>等级</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in distributeModal.members" :key="m.id" @click="toggleMemberSelection(m.id)" style="cursor: pointer;">
+                <td><input type="checkbox" :value="m.id" v-model="distributeModal.selectedIds" @click.stop /></td>
+                <td>{{ m.nickname }}</td>
+                <td>{{ m.phone }}</td>
+                <td>{{ m.levelName }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="margin-top: 15px; font-size: 14px; color: #7a6a5b;">
+          已选择 {{ distributeModal.selectedIds.length }} 位会员
+        </div>
+
+        <div class="modal-footer">
+          <button @click="distributeModal.show = false">取消</button>
+          <button class="btn-primary" @click="confirmDistribute" :disabled="distributeModal.selectedIds.length === 0">确认发放</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 优惠券模板编辑弹窗 -->
+    <div v-if="couponModal.show" class="modal-mask">
+      <div class="modal-container" style="width: 600px;">
+        <h3>{{ couponModal.isEdit ? '编辑优惠券模板' : '新增优惠券模板' }}</h3>
+        <div class="form-scroll-container" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+          <div class="form-item">
+            <label>模板名称：</label>
+            <input v-model="couponModal.form.name" class="admin-input" placeholder="请输入模板名称" />
+          </div>
+          <div class="form-item">
+            <label>优惠类型：</label>
+            <select v-model="couponModal.form.type" class="admin-select">
+              <option value="REDUCTION">满减</option>
+              <option value="DISCOUNT">折扣</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>{{ couponModal.form.type === 'REDUCTION' ? '减免金额 (元)：' : '折扣比例 (0-10，如8.5折输入8.5)：' }}</label>
+            <input type="number" v-model.number="couponModal.form.value" class="admin-input" :placeholder="couponModal.form.type === 'REDUCTION' ? '例如：5' : '例如：8.5'" />
+          </div>
+          <div class="form-item">
+            <label>使用门槛 (元)：</label>
+            <input type="number" v-model.number="couponModal.form.minAmount" class="admin-input" placeholder="例如：30" />
+          </div>
+          <div class="form-item">
+            <label>发行总量：</label>
+            <input type="number" v-model.number="couponModal.form.totalQuantity" class="admin-input" placeholder="-1表示不限制" />
+          </div>
+          <div class="form-item">
+            <label>每人限领：</label>
+            <input type="number" v-model.number="couponModal.form.usageLimitPerUser" class="admin-input" placeholder="默认1" />
+          </div>
+          <div class="form-item">
+            <label>有效期类型：</label>
+            <select v-model="couponModal.form.validityType" class="admin-select">
+              <option value="FIXED_DAYS">领取后固定天数有效</option>
+              <option value="FIXED_PERIOD">固定日期范围</option>
+            </select>
+          </div>
+          <div v-if="couponModal.form.validityType === 'FIXED_DAYS'" class="form-item">
+            <label>有效天数：</label>
+            <input type="number" v-model.number="couponModal.form.validityDays" class="admin-input" placeholder="例如：7" />
+          </div>
+          <div v-if="couponModal.form.validityType === 'FIXED_PERIOD'" class="form-item">
+            <label>开始时间：</label>
+            <input v-model="couponModal.form.startTime" type="datetime-local" class="admin-input" />
+          </div>
+          <div v-if="couponModal.form.validityType === 'FIXED_PERIOD'" class="form-item">
+            <label>结束时间：</label>
+            <input v-model="couponModal.form.endTime" type="datetime-local" class="admin-input" />
+          </div>
+          
+          <!-- 优惠券预览可视化 -->
+          <div class="coupon-preview-box">
+            <label>样式预览：</label>
+            <div class="coupon-card-preview" :class="couponModal.form.type">
+              <div class="coupon-left">
+                <div class="coupon-value">
+                  <span v-if="couponModal.form.type === 'REDUCTION'">¥</span>
+                  <span class="num">{{ couponModal.form.value || '0' }}</span>
+                  <span v-if="couponModal.form.type === 'DISCOUNT'">折</span>
+                </div>
+                <div class="coupon-threshold">满{{ couponModal.form.minAmount || '0' }}可用</div>
+              </div>
+              <div class="coupon-right">
+                <div class="coupon-name">{{ couponModal.form.name || '优惠券名称' }}</div>
+                <div class="coupon-time">
+                  <span v-if="couponModal.form.validityType === 'FIXED_DAYS'">领取后{{ couponModal.form.validityDays || 'X' }}天内有效</span>
+                  <span v-else>{{ couponModal.form.startTime ? couponModal.form.startTime.substring(0,10) : '开始日期' }} 至 {{ couponModal.form.endTime ? couponModal.form.endTime.substring(0,10) : '结束日期' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="couponModal.show = false">取消</button>
+          <button class="btn-primary" @click="saveCouponTemplate">保存模板</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { get, post, put, del } from '../../../utils/request'
+import { get, post, put, del, uploadFile } from '../../../utils/request'
 
 const activeTab = ref('activity')
 const activities = ref([])
@@ -290,8 +440,64 @@ const banners = ref([])
 const pushTasks = ref([])
 
 const activityModal = ref({ show: false, isEdit: false, form: {} })
+const activityRules = ref({})
+const couponModal = ref({ show: false, isEdit: false, form: { type: 'REDUCTION', validityType: 'FIXED_DAYS', usageLimitPerUser: 1 } })
+
+const showCouponModal = (t = null) => {
+  if (t) {
+    couponModal.value.isEdit = true
+    couponModal.value.form = {
+      ...t,
+      startTime: t.startTime ? t.startTime.replace(' ', 'T').substring(0, 16) : '',
+      endTime: t.endTime ? t.endTime.replace(' ', 'T').substring(0, 16) : ''
+    }
+  } else {
+    couponModal.value.isEdit = false
+    couponModal.value.form = { name: '', type: 'REDUCTION', value: 0, minAmount: 0, totalQuantity: -1, validityType: 'FIXED_DAYS', validityDays: 7, usageLimitPerUser: 1 }
+  }
+  couponModal.value.show = true
+}
+
+const saveCouponTemplate = async () => {
+  const submitData = { ...couponModal.value.form }
+  if (submitData.validityType === 'FIXED_PERIOD') {
+    submitData.startTime = formatDateTime(submitData.startTime)
+    submitData.endTime = formatDateTime(submitData.endTime)
+  } else {
+    submitData.startTime = null
+    submitData.endTime = null
+  }
+
+  try {
+    // 补充后端数据库要求的必填字段，确保兼容性
+    submitData.acquireLimit = submitData.usageLimitPerUser || 1
+    submitData.isActive = true
+    submitData.usageScope = 'ALL'
+    submitData.remainingQuantity = (submitData.totalQuantity && submitData.totalQuantity !== -1) ? submitData.totalQuantity : 999999
+
+    if (couponModal.value.isEdit) {
+      await post('/api/admin/coupon-templates', submitData)
+    } else {
+      await post('/api/admin/coupon-templates', submitData)
+    }
+    couponModal.value.show = false
+    loadCoupons()
+    alert('保存成功')
+  } catch (error) {
+    console.error('保存优惠券模板失败:', error)
+    alert('保存失败: ' + (error.message || '未知错误'))
+  }
+}
+
 const pushModal = ref({ show: false, form: { pushType: 'MARKETING', targetType: 'ALL', triggerType: 'IMMEDIATE' } })
 const bannerModal = ref({ show: false, isEdit: false, form: {} })
+
+// 监听活动类型变化，重置规则
+watch(() => activityModal.value.form.type, (newType) => {
+  if (!activityModal.value.isEdit) {
+    activityRules.value = {}
+  }
+})
 
 const showBannerModal = (b = null) => {
   if (b) {
@@ -308,36 +514,48 @@ const handleBannerFileChange = async (event) => {
   const file = event.target.files[0]
   if (!file) return
   
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('type', 'banner')
-  
   try {
-    // 后端接口是 /api/common/upload/image
-    const res = await post('/api/common/upload/image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    if (res && res.code === 200 && res.data && res.data.url) {
-      bannerModal.value.form.imageUrl = res.data.url
-    } else if (res && res.data && res.data.url) {
-      bannerModal.value.form.imageUrl = res.data.url
-    } else if (res && res.url) {
-      bannerModal.value.form.imageUrl = res.url
+    // 使用封装好的 uploadFile 工具，它会自动处理 FormData 和 Content-Type
+    const res = await uploadFile('/api/common/upload/image', file, { type: 'banner' })
+    
+    // 统一处理响应结构
+    let url = ''
+    if (res) {
+      // uploadFile 内部使用的是 service 实例，拦截器会返回 res (包含 code, data 等)
+      if (res.code === 200 && res.data && res.data.url) {
+        url = res.data.url
+      } else if (res.data && res.data.url) {
+        url = res.data.url
+      } else if (res.url) {
+        url = res.url
+      }
+    }
+
+    if (url) {
+      bannerModal.value.form.imageUrl = url
+    } else {
+      throw new Error('未获取到图片URL')
     }
   } catch (error) {
     console.error('上传失败:', error)
-    alert('上传失败')
+    alert('上传失败: ' + (error.message || '未知错误'))
   }
 }
 
 const saveBanner = async () => {
-  if (bannerModal.value.isEdit) {
-    await put(`/api/admin/banners/${bannerModal.value.form.id}`, bannerModal.value.form)
-  } else {
-    await post('/api/admin/banners', bannerModal.value.form)
+  try {
+    if (bannerModal.value.isEdit) {
+      await put(`/api/admin/banners/${bannerModal.value.form.id}`, bannerModal.value.form)
+    } else {
+      await post('/api/admin/banners', bannerModal.value.form)
+    }
+    bannerModal.value.show = false
+    loadBanners()
+    alert('保存成功')
+  } catch (error) {
+    console.error('保存失败:', error)
+    alert('保存失败: ' + (error.message || '未知错误'))
   }
-  bannerModal.value.show = false
-  loadBanners()
 }
 
 const deleteBanner = async (b) => {
@@ -350,22 +568,47 @@ const deleteBanner = async (b) => {
 const showActivityModal = (a = null) => {
   if (a) {
     activityModal.value.isEdit = true
-    activityModal.value.form = { ...a }
+    // 确保时间格式符合 datetime-local 的要求 (YYYY-MM-DDTHH:mm)
+    activityModal.value.form = {
+      ...a,
+      startTime: a.startTime ? a.startTime.replace(' ', 'T').substring(0, 16) : '',
+      endTime: a.endTime ? a.endTime.replace(' ', 'T').substring(0, 16) : ''
+    }
+    try {
+      activityRules.value = JSON.parse(a.rulesJson || '{}')
+    } catch (e) {
+      activityRules.value = {}
+    }
   } else {
     activityModal.value.isEdit = false
     activityModal.value.form = { name: '', type: 'FULL_REDUCE' }
+    activityRules.value = { threshold: 0, reduce: 0 }
   }
   activityModal.value.show = true
 }
 
 const saveActivity = async () => {
-  if (activityModal.value.isEdit) {
-    await put(`/api/admin/activities/${activityModal.value.form.id}`, activityModal.value.form)
-  } else {
-    await post('/api/admin/activities', activityModal.value.form)
+  // 创建提交数据的副本，避免修改原始表单导致界面显示异常
+  const submitData = { ...activityModal.value.form }
+  // 将可视化规则转换回 JSON
+  submitData.rulesJson = JSON.stringify(activityRules.value)
+  // 确保时间格式符合后端要求 (YYYY-MM-DDTHH:mm:ss)
+  submitData.startTime = formatDateTime(submitData.startTime)
+  submitData.endTime = formatDateTime(submitData.endTime)
+  
+  try {
+    if (activityModal.value.isEdit) {
+      await put(`/api/admin/activities/${submitData.id}`, submitData)
+    } else {
+      await post('/api/admin/activities', submitData)
+    }
+    activityModal.value.show = false
+    loadActivities()
+    alert('保存成功')
+  } catch (error) {
+    console.error('保存活动失败:', error)
+    alert('保存失败: ' + (error.message || '未知错误'))
   }
-  activityModal.value.show = false
-  loadActivities()
 }
 
 const loadActivities = async () => {
@@ -424,24 +667,62 @@ const viewPushStats = async (p) => {
   alert(`推送任务效果分析：\n发送人数：${data.sentCount}\n送达人数：${data.reachCount}\n阅读人数：${data.readCount}\n点击人数：${data.clickCount}`)
 }
 
+const distributeModal = ref({ show: false, template: null, members: [], selectedIds: [], loading: false })
+
 const distributeCoupon = async (t) => {
-  const userId = prompt('请输入目标用户ID（多个用逗号隔开）：')
-  if (!userId) return
-  const userIds = userId.split(',').map(id => {
-    const parsed = parseInt(id.trim())
-    return isNaN(parsed) ? null : parsed
-  }).filter(id => id !== null)
-  
-  if (userIds.length === 0) {
-    alert('请输入有效的用户ID')
+  distributeModal.value.template = t
+  distributeModal.value.selectedIds = []
+  distributeModal.value.show = true
+  loadMembersForDistribute()
+}
+
+const loadMembersForDistribute = async () => {
+  distributeModal.value.loading = true
+  try {
+    const res = await get('/api/admin/members', { size: 100 })
+    distributeModal.value.members = res.data.content || []
+  } catch (error) {
+    console.error('加载会员失败:', error)
+  } finally {
+    distributeModal.value.loading = false
+  }
+}
+
+const toggleMemberSelection = (id) => {
+  const index = distributeModal.value.selectedIds.indexOf(id)
+  if (index > -1) {
+    distributeModal.value.selectedIds.splice(index, 1)
+  } else {
+    distributeModal.value.selectedIds.push(id)
+  }
+}
+
+const isAllSelected = ref(false)
+const toggleAllMembers = () => {
+  if (isAllSelected.value) {
+    distributeModal.value.selectedIds = []
+  } else {
+    distributeModal.value.selectedIds = distributeModal.value.members.map(m => m.id)
+  }
+  isAllSelected.value = !isAllSelected.value
+}
+
+const confirmDistribute = async () => {
+  if (distributeModal.value.selectedIds.length === 0) {
+    alert('请至少选择一个用户')
     return
   }
   
   try {
-    await post('/api/admin/coupons/distribute', { templateId: t.id, userIds })
+    await post('/api/admin/coupons/distribute', {
+      templateId: distributeModal.value.template.id,
+      userIds: distributeModal.value.selectedIds
+    })
     alert('发放成功')
+    distributeModal.value.show = false
   } catch (error) {
     console.error('发放失败:', error)
+    alert('发放失败: ' + (error.message || '未知错误'))
   }
 }
 
@@ -457,6 +738,19 @@ const formatDate = (dateStr) => {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
   return `${date.getMonth() + 1}-${date.getDate()}`
+}
+
+const formatDateTime = (dateTimeStr) => {
+  if (!dateTimeStr) return null
+  // 将 datetime-local 的格式 (YYYY-MM-DDTHH:mm) 转换为后端需要的 ISO 格式 (YYYY-MM-DDTHH:mm:ss)
+  const date = new Date(dateTimeStr)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  const s = '00'
+  return `${y}-${m}-${d}T${h}:${min}:${s}`
 }
 
 onMounted(() => {
@@ -804,6 +1098,99 @@ onMounted(() => {
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(8px);
+
+.coupon-preview-box {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 15px;
+  border: 2px dashed #d4c7b5;
+}
+
+.coupon-card-preview {
+  display: flex;
+  width: 100%;
+  height: 100px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-top: 10px;
+  position: relative;
+}
+
+.coupon-card-preview::before {
+  content: '';
+  position: absolute;
+  left: 28%;
+  top: -10px;
+  bottom: -10px;
+  width: 20px;
+  background-image: radial-gradient(circle at 10px 10px, transparent 10px, #fff 10px);
+  background-size: 20px 20px;
+  z-index: 1;
+}
+
+.coupon-left {
+  width: 30%;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  position: relative;
+}
+
+.coupon-card-preview.DISCOUNT .coupon-left {
+  background: linear-gradient(135deg, #4dabf7 0%, #74c0fc 100%);
+}
+
+.coupon-value {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.coupon-value .num {
+  font-size: 32px;
+}
+
+.coupon-threshold {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.coupon-right {
+  flex: 1;
+  padding: 15px 15px 15px 25px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #fff;
+}
+
+.coupon-name {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.coupon-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.form-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.form-scroll-container::-webkit-scrollbar-thumb {
+  background-color: #d4c7b5;
+  border-radius: 3px;
+}
+
 }
 
 .modal-container {

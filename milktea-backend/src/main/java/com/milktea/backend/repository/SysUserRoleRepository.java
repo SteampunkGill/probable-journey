@@ -7,4 +7,5 @@ import com.milktea.milktea_backend.model.entity.SysUserRoleId;
 
 @Repository
 public interface SysUserRoleRepository extends JpaRepository<SysUserRole, SysUserRoleId> {
+    void deleteByUserId(Long userId);
 }

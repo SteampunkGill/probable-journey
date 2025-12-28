@@ -76,7 +76,6 @@
             <input type="checkbox" v-model="rememberMe" />
             <span class="remember-text">记住密码</span>
           </label>
-          <span v-if="loginType === 'user'" class="forgot-text" @click="router.push('/forgot')">忘记密码？</span>
         </div>
 
         <!-- 登录按钮 -->
@@ -764,43 +763,6 @@ onMounted(() => {
   margin-left: var(--spacing-xs);
 }
 
-.forgot-text {
-  font-size: var(--font-size-sm);
-  color: var(--primary-color);
-  cursor: pointer;
-  font-weight: 500;
-  position: relative;
-  padding: var(--spacing-xs) 0;
-  transition: all var(--transition-normal);
-}
-
-.login-page.admin .forgot-text {
-  color: #1890ff;
-}
-
-.forgot-text::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background: var(--primary-color);
-  transform: scaleX(0);
-  transition: transform var(--transition-normal);
-}
-
-.forgot-text:hover {
-  color: var(--primary-dark);
-}
-
-.forgot-text:hover::after {
-  transform: scaleX(1);
-}
-
-.login-page.admin .forgot-text:hover {
-  color: #40a9ff;
-}
 
 /* ========== 登录按钮 ========== */
 .login-btn {

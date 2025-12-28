@@ -6,4 +6,5 @@ import com.milktea.milktea_backend.model.entity.ProductNutrition;
 
 @Repository
 public interface ProductNutritionRepository extends JpaRepository<ProductNutrition, Long> {
+    java.util.List<ProductNutrition> findByProductId(Long productId);
 }

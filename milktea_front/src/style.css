@@ -1,21 +1,57 @@
 :root {
-  --primary-color: #D4A574;
-  --secondary-color: #87CEEB;
-  --bg-primary: #ffffff;
-  --bg-secondary: #FFF9E6;
-  --bg-tertiary: #f5f5f5;
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --text-tertiary: #999999;
-  --text-white: #ffffff;
-  --border-light: #eeeeee;
-  --success: #52c41a;
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-round: 50%;
+  /* 奶茶主题色彩方案 - 与App.vue保持一致 */
+  --background-color: #f5f0e1; /* 奶油色 */
+  --surface-color: #e8dccb; /* 浅卡其色 */
+  --primary-color: #a0522d; /* 焦糖色 */
+  --primary-dark: #8b4513; /* 深咖啡色 */
+  --primary-light: #d2b48c; /* 浅驼色 */
+  --accent-cream: #fff8dc; /* 玉米色/奶油 */
+  --accent-pink: #ffc0cb; /* 淡粉色 */
+  --accent-brown: #deb887; /* 沙棕色 */
+  --text-color-dark: #4a3b30; /* 深棕色 */
+  --text-color-medium: #7a6a5b; /* 中棕色 */
+  --text-color-light: #a09080; /* 浅咖色 */
+  --border-color: #d4c7b5; /* 柔和浅棕色 */
+  
+  /* 圆角大小 */
+  --border-radius-sm: 8px;
+  --border-radius-md: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-xl: 40px;
+  
+  /* 字体 */
+  --font-heading: 'Noto Serif KR', 'Prompt', serif;
+  --font-body: 'Noto Sans KR', 'Nunito', 'Quicksand', sans-serif;
+  
+  /* 阴影 */
+  --shadow-sm: 0 2px 8px rgba(139, 69, 19, 0.08);
+  --shadow-md: 0 4px 16px rgba(139, 69, 19, 0.12);
+  --shadow-lg: 0 8px 32px rgba(139, 69, 19, 0.16);
+  
+  /* 间距 */
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* 过渡效果 */
   --transition-fast: 0.2s;
+  --transition-normal: 0.3s;
+  --transition-slow: 0.5s;
+  
+  /* 兼容旧变量 */
+  --bg-primary: #ffffff;
+  --bg-secondary: var(--background-color);
+  --bg-tertiary: var(--surface-color);
+  --text-primary: var(--text-color-dark);
+  --text-secondary: var(--text-color-medium);
+  --text-tertiary: var(--text-color-light);
+  --text-white: #ffffff;
+  --border-light: var(--border-color);
+  --radius-md: var(--border-radius-md);
+  --radius-lg: var(--border-radius-lg);
+  --success: #52c41a;
 }
 
 * {

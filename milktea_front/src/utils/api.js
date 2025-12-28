@@ -53,7 +53,10 @@ export const homeApi = {
   getRecommendations: () => get('/home/recommendations'),
   
   // 提交推荐反馈
-  submitRecommendationFeedback: (data) => post('/home/recommendation-feedback', data)
+  submitRecommendationFeedback: (data) => post('/home/recommendation-feedback', data),
+  
+  // 获取通知列表
+  getNotifications: () => get('/home/notifications')
 }
 
 // 商品相关
@@ -66,6 +69,9 @@ export const productApi = {
   
   // 获取商品详情
   getProductDetail: (id) => get(`/products/${id}`),
+
+  // 获取商品评价
+  getProductReviews: (id) => get(`/products/${id}/reviews`),
   
   // 获取商品定制选项（规格和选项）
   getProductCustomizations: (id) => get(`/products/${id}/customizations`),
@@ -172,7 +178,10 @@ export const orderApi = {
   buyNow: (data) => post('/orders/create', { ...data, buyNow: true }),
   
   // 更新订单备注
-  updateOrderRemark: (orderNo, remark) => put(`/orders/${orderNo}/remark`, { remark })
+  updateOrderRemark: (orderNo, remark) => put(`/orders/${orderNo}/remark`, { remark }),
+  
+  // 提交申诉
+  submitAppeal: (orderNo, data) => post(`/orders/${orderNo}/appeal`, data)
 }
 
 // 地址相关
@@ -325,8 +334,10 @@ export const commonApi = {
 
 // 支付相关
 export const paymentApi = {
-  // 发起支付宝支付
-  initiateAlipay: (orderNo) => post('/payment/alipay', { orderNo }),
+  // 发起支付（支持 ALIPAY, BALANCE, WECHAT 等）
+  initiateAlipay: (orderNo, method = 'ALIPAY') => post('/payment/alipay', { orderNo, method }),
+  // 确认支付（用于余额支付或模拟支付成功后的状态同步）
+  confirmPayment: (orderNo, method = 'BALANCE') => post('/payment/confirm', { orderNo, method }),
   // 获取支付状态
   getPaymentStatus: (orderNo) => get(`/payment/status/${orderNo}`)
 }

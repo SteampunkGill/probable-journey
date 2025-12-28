@@ -24,8 +24,12 @@ const commonService = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   config => {
-    // 如果 url 是以 /api/admin 开头的，说明是管理端接口，不应该拼接 /v1/app
-    if (config.url.startsWith('/api/admin')) {
+    // 如果 url 是以 /api/admin 或 /api/common 开头的，不应该拼接 /v1/app
+    if (config.url.startsWith('/api/admin') || config.url.startsWith('/api/common')) {
+      config.baseURL = ''
+    } else if (config.url.startsWith('/upload/')) {
+      // 兼容上传接口，上传接口通常在 common 下
+      config.url = '/api/common' + config.url
       config.baseURL = ''
     }
     console.log(`请求地址: ${config.baseURL || ''}${config.url}`)
@@ -129,6 +133,13 @@ function handleBusinessError(data) {
 
 function handleUnauthorized() {
   if (isRedirecting) return
+  
+  // 检查当前是否真的没有 token，避免并发请求导致的重复跳转
+  const token = localStorage.getItem('token')
+  if (!token || token === 'undefined' || token === 'null') {
+    if (window.location.pathname.includes('/login')) return
+  }
+
   isRedirecting = true
   
   localStorage.removeItem('token')
@@ -136,8 +147,9 @@ function handleUnauthorized() {
   
   // 只有不在登录页时才跳转
   if (!window.location.pathname.includes('/login')) {
-    alert('登录已过期，请重新登录')
-    window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search)
+    console.warn('检测到未授权访问，正在跳转登录页...')
+    // 使用 replace 避免返回键回到报错页面
+    window.location.replace('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search))
   }
   
   setTimeout(() => {
@@ -171,29 +183,38 @@ function handleHttpError(response) {
   }
 }
 
-export const get = (url, params) => service.get(url, { params })
-export const post = (url, data) => service.post(url, data)
-export const put = (url, data) => service.put(url, data)
-export const del = (url) => service.delete(url)
+export const get = (url, params, config) => service.get(url, { params, ...config })
+export const post = (url, data, config) => service.post(url, data, config)
+export const put = (url, data, config) => service.put(url, data, config)
+export const del = (url, config) => service.delete(url, config)
 
-export const commonGet = (url, params) => commonService.get(url, { params })
-export const commonPost = (url, data) => commonService.post(url, data)
-export const commonPut = (url, data) => commonService.put(url, data)
-export const commonDel = (url) => commonService.delete(url)
+export const commonGet = (url, params, config) => commonService.get(url, { params, ...config })
+export const commonPost = (url, data, config) => commonService.post(url, data, config)
+export const commonPut = (url, data, config) => commonService.put(url, data, config)
+export const commonDel = (url, config) => commonService.delete(url, config)
 
 export const uploadFile = (url, file, params = {}) => {
   const formData = new FormData()
-  formData.append('file', file)
+  if (file instanceof File) {
+    formData.append('file', file)
+  } else if (file && file.raw instanceof File) {
+    formData.append('file', file.raw)
+  } else {
+    formData.append('file', file)
+  }
+  
   Object.keys(params).forEach(key => {
     if (params[key] !== undefined && params[key] !== null) {
       formData.append(key, params[key])
     }
   })
-  return commonService.post(url, formData, {
+  
+  // 使用 service 实例，因为它有处理 /api/common 的逻辑
+  // 并且不设置 Content-Type，让浏览器自动处理（包含 boundary）
+  return service.post(url, formData, {
     headers: {
-      'Content-Type': 'multipart/form-data'
-    },
-    transformRequest: [(data) => data]
+      'Content-Type': undefined
+    }
   })
 }
 

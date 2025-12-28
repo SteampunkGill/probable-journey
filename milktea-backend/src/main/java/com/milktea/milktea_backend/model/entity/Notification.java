@@ -19,11 +19,27 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "title", length = 100)
+    @Column(name = "title", length = 100, nullable = false)
     private String title;
 
-    @Column(name = "content", columnDefinition = "TEXT")
+    @Column(name = "content", columnDefinition = "TEXT", nullable = false)
     private String content;
+
+    @Column(name = "type", length = 20)
+    private String type; // SYSTEM, ORDER, PROMOTION
+
+    @Column(name = "user_id")
+    private Long userId;
+
+    @Column(name = "is_read", nullable = false)
+    private Boolean isRead = false;
+
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     @Column(name = "target_type", length = 20)
     private String targetType; // ALL, MEMBER_LEVEL, INDIVIDUAL
@@ -31,12 +47,11 @@ public class Notification {
     @Column(name = "target_value", length = 100)
     private String targetValue;
 
-    @CreationTimestamp
-    @Column(name = "sent_time", updatable = false)
+    @Column(name = "sent_time")
     private LocalDateTime sentTime;
 
     @Column(name = "status", length = 20)
-    private String status; // SENT
+    private String status; // SENT, PENDING
 
     @Column(name = "push_type", length = 20)
     private String pushType; // MARKETING, ACTIVITY

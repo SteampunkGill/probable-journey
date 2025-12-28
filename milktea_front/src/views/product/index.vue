@@ -277,7 +277,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
-import { productApi } from '../../utils/api.js'
+import { productApi, favoriteApi } from '../../utils/api.js'
 import heartIcon from '../../assets/images/icons/heart.png'
 import heartFillIcon from '../../assets/images/icons/heart-fill.png'
 
@@ -376,9 +376,35 @@ const toggleTopping = (topping) => {
   }
 }
 
-const toggleFavorite = () => {
-  isFavorite.value = !isFavorite.value
-  alert(isFavorite.value ? '已收藏' : '已取消收藏')
+const toggleFavorite = async () => {
+  if (!product.value.id) return
+  try {
+    if (isFavorite.value) {
+      const res = await favoriteApi.removeFavorite(product.value.id)
+      if (res.code === 200 || res.status === 'success') {
+        isFavorite.value = false
+        alert('已取消收藏')
+      }
+    } else {
+      const res = await favoriteApi.addFavorite(product.value.id)
+      if (res.code === 200 || res.status === 'success') {
+        isFavorite.value = true
+        alert('已收藏')
+      }
+    }
+  } catch (error) {
+    console.error('操作收藏失败:', error)
+  }
+}
+
+const checkFavoriteStatus = async (id) => {
+  try {
+    const res = await favoriteApi.checkFavorite(id)
+    // 拦截器返回 res.data 或 res
+    isFavorite.value = res.data === true || res === true
+  } catch (error) {
+    console.error('检查收藏状态失败:', error)
+  }
 }
 
 const addToCart = async () => {
@@ -480,6 +506,7 @@ onMounted(() => {
   if (id) {
     product.value.id = id
     fetchProductDetail(id)
+    checkFavoriteStatus(id)
   }
 })
 </script>

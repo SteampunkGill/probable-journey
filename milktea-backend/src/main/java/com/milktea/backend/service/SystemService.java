@@ -12,6 +12,15 @@ import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.HashMap;
 import java.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Value;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.sql.ResultSetMetaData;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +37,7 @@ public class SystemService {
     private final UserRepository userRepository;
     private final SysBackupRepository sysBackupRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
-
+    private final javax.sql.DataSource dataSource;
     // --- 员工管理 ---
 
     public List<StaffDTO> getAllStaff() {
@@ -71,6 +80,51 @@ public class SystemService {
 
         return convertToStaffDTO(savedUser);
     }
+
+    @Transactional
+    public StaffDTO updateStaff(StaffDTO staffDTO) {
+        SysUser user = sysUserRepository.findById(staffDTO.getId())
+                .orElseThrow(() -> new com.milktea.backend.exception.ServiceException("USER_NOT_FOUND", "员工不存在"));
+        
+        user.setRealName(staffDTO.getRealName());
+        user.setPhone(staffDTO.getPhone());
+        user.setEmail(staffDTO.getEmail());
+        
+        if (staffDTO.getStoreId() != null) {
+            storeRepository.findById(staffDTO.getStoreId()).ifPresent(user::setStore);
+        } else {
+            user.setStore(null);
+        }
+
+        // 更新角色
+        if (staffDTO.getRoles() != null) {
+            // 先删除旧角色
+            sysUserRoleRepository.deleteByUserId(user.getId());
+            // 添加新角色
+            for (String roleCode : staffDTO.getRoles()) {
+                sysRoleRepository.findByCode(roleCode).ifPresent(role -> {
+                    SysUserRole userRole = new SysUserRole();
+                    userRole.setId(new SysUserRoleId(user.getId(), role.getId()));
+                    userRole.setUser(user);
+                    userRole.setRole(role);
+                    sysUserRoleRepository.save(userRole);
+                });
+            }
+        }
+
+        return convertToStaffDTO(sysUserRepository.save(user));
+    }
+
+    @Transactional
+    public void resetStaffPassword(Long id) {
+        sysUserRepository.findById(id).ifPresent(user -> {
+            // 重置为默认密码 123456
+            user.setPasswordHash(passwordEncoder.encode("123456"));
+            sysUserRepository.save(user);
+            recordLog("SYSTEM", "RESET_PASSWORD", "重置员工密码: " + user.getUsername());
+        });
+    }
+
 
     public List<RoleDTO> getAllRoles() {
         return sysRoleRepository.findAll().stream().map(this::convertToRoleDTO).collect(Collectors.toList());
@@ -130,10 +184,17 @@ public class SystemService {
     }
 
     @Transactional
-    public void updateBusinessStatus(Long id, String status) {
-        storeRepository.findById(id).ifPresent(store -> {
+    public java.util.Optional<StoreDTO> updateStoreBusinessStatus(Long id, String status) {
+        return storeRepository.findById(id).map(store -> {
             store.setStatus(status);
-            storeRepository.save(store);
+            // 同步更新 businessStatus
+            if ("OPEN".equals(status)) {
+                store.setBusinessStatus(1);
+            } else if ("CLOSED".equals(status)) {
+                store.setBusinessStatus(0);
+            }
+            Store saved = storeRepository.save(store);
+            return convertToStoreDTO(saved);
         });
     }
 
@@ -157,6 +218,19 @@ public class SystemService {
         });
     }
 
+    @Transactional
+    public void setBusinessHours(Long storeId, List<BusinessHourDTO> hours) {
+        storeRepository.findById(storeId).ifPresent(store -> {
+            if (hours != null && !hours.isEmpty()) {
+                // 简单实现：取第一个作为营业时间，或者根据业务逻辑合并
+                BusinessHourDTO hour = hours.get(0);
+                store.setOpenTime(hour.getStartTime());
+                store.setCloseTime(hour.getEndTime());
+                storeRepository.save(store);
+            }
+        });
+    }
+
     // --- 备份管理 ---
 
     public List<BackupDTO> getBackups() {
@@ -173,6 +247,84 @@ public class SystemService {
         backup.setStatus("COMPLETED");
         SysBackup saved = sysBackupRepository.save(backup);
         return convertToBackupDTO(saved);
+    }
+    @Transactional
+    public BackupDTO createRealBackup() {
+        String fileName = "backup_" + System.currentTimeMillis() + ".sql";
+        String uploadDir = "uploads/backups";
+        File dir = new File(uploadDir);
+        if (!dir.exists()) dir.mkdirs();
+        
+        File backupFile = new File(dir, fileName);
+        StringBuilder sqlContent = new StringBuilder();
+        
+        try (Connection conn = dataSource.getConnection()) {
+            Statement stmt = conn.createStatement();
+            
+            // 获取所有表
+            ResultSet tables = conn.getMetaData().getTables(null, null, "%", new String[]{"TABLE"});
+            while (tables.next()) {
+                String tableName = tables.getString("TABLE_NAME");
+                
+                // 生成建表语句 (简化版)
+                sqlContent.append("DROP TABLE IF EXISTS `").append(tableName).append("`;\n");
+                ResultSet createTableRs = stmt.executeQuery("SHOW CREATE TABLE `" + tableName + "`");
+                if (createTableRs.next()) {
+                    sqlContent.append(createTableRs.getString(2)).append(";\n\n");
+                }
+                
+                // 生成数据插入语句
+                ResultSet dataRs = stmt.executeQuery("SELECT * FROM `" + tableName + "`");
+                ResultSetMetaData metaData = dataRs.getMetaData();
+                int columnCount = metaData.getColumnCount();
+                
+                while (dataRs.next()) {
+                    sqlContent.append("INSERT INTO `").append(tableName).append("` VALUES (");
+                    for (int i = 1; i <= columnCount; i++) {
+                        Object value = dataRs.getObject(i);
+                        if (value == null) {
+                            sqlContent.append("NULL");
+                        } else if (value instanceof String || value instanceof java.time.temporal.Temporal) {
+                            sqlContent.append("'").append(value.toString().replace("'", "''")).append("'");
+                        } else {
+                            sqlContent.append(value);
+                        }
+                        if (i < columnCount) sqlContent.append(", ");
+                    }
+                    sqlContent.append(");\n");
+                }
+                sqlContent.append("\n");
+            }
+            
+            Files.write(backupFile.toPath(), sqlContent.toString().getBytes());
+            
+            SysBackup backup = new SysBackup();
+            backup.setFileName(fileName);
+            backup.setFilePath(backupFile.getPath());
+            backup.setFileSize(backupFile.length());
+            backup.setStatus("COMPLETED");
+            SysBackup saved = sysBackupRepository.save(backup);
+            return convertToBackupDTO(saved);
+            
+        } catch (Exception e) {
+            throw new com.milktea.backend.exception.ServiceException("BACKUP_FAILED", "备份失败: " + e.getMessage());
+        }
+    }
+
+    public byte[] getBackupContent(Long id) {
+        SysBackup backup = sysBackupRepository.findById(id)
+                .orElseThrow(() -> new com.milktea.backend.exception.ServiceException("BACKUP_NOT_FOUND", "备份不存在"));
+        try {
+            return Files.readAllBytes(new File(backup.getFilePath()).toPath());
+        } catch (IOException e) {
+            throw new com.milktea.backend.exception.ServiceException("FILE_READ_ERROR", "文件读取失败");
+        }
+    }
+
+    public String getBackupFileName(Long id) {
+        return sysBackupRepository.findById(id)
+                .map(SysBackup::getFileName)
+                .orElse("backup.sql");
     }
 
     @Transactional
@@ -275,6 +427,10 @@ public class SystemService {
         dto.setStatus(user.getStatus());
         dto.setLastLoginTime(user.getLastLoginTime());
         dto.setCreatedAt(user.getCreatedAt());
+        if (user.getStore() != null) {
+            dto.setStoreId(user.getStore().getId());
+            dto.setStoreName(user.getStore().getName());
+        }
         return dto;
     }
 
@@ -288,6 +444,7 @@ public class SystemService {
     }
 
     private StoreDTO convertToStoreDTO(Store store) {
+        if (store == null) return null;
         StoreDTO dto = new StoreDTO();
         dto.setId(store.getId());
         dto.setName(store.getName());
@@ -295,6 +452,18 @@ public class SystemService {
         dto.setAddress(store.getAddress());
         dto.setPhone(store.getPhone());
         dto.setStatus(store.getStatus());
+        dto.setBusinessStatus(store.getBusinessStatus());
+        dto.setOpenTime(store.getOpenTime());
+        dto.setCloseTime(store.getCloseTime());
+        dto.setManagerName(store.getManagerName());
+        dto.setManagerPhone(store.getManagerPhone());
+        dto.setLatitude(store.getLatitude());
+        dto.setLongitude(store.getLongitude());
+        dto.setDeliveryRadius(store.getDeliveryRadius());
+        dto.setDeliveryFee(store.getDeliveryFee());
+        dto.setMinOrderAmount(store.getMinOrderAmount());
+        dto.setIsAutoAccept(store.getIsAutoAccept());
+        dto.setIsOnlinePayment(store.getIsOnlinePayment());
         return dto;
     }
 
@@ -304,6 +473,7 @@ public class SystemService {
         dto.setFileName(backup.getFileName());
         dto.setFileSize(backup.getFileSize());
         dto.setStatus(backup.getStatus());
+        dto.setDownloadUrl("http://localhost:8081/api/admin/backups/download/" + backup.getId());
         dto.setCreatedAt(backup.getCreatedAt());
         return dto;
     }

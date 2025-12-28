@@ -81,7 +81,7 @@
         <div class="section-title">订单商品</div>
         <div class="goods-list">
           <div class="goods-item" v-for="item in orderItems" :key="item.id">
-            <img class="goods-image" :src="item.image" />
+            <img class="goods-image" :src="formatImageUrl(item.image)" />
             <div class="goods-info">
               <div class="goods-name">{{ item.name }}</div>
               <div class="goods-specs" v-if="item.customizations">
@@ -98,10 +98,13 @@
       </div>
 
       <!-- 优惠券 -->
-      <div class="section coupon-section" @click="router.push('/coupon')">
+      <div class="section coupon-section" @click="router.push(`/coupon?mode=select&amount=${subtotal}`)">
         <span class="label">🎫 优惠券</span>
         <div class="value">
-          <span v-if="selectedCoupon">{{ selectedCoupon.name }}</span>
+          <div v-if="selectedCoupon" class="selected-coupon-info">
+            <span class="coupon-name">{{ selectedCoupon.name }}</span>
+            <span class="coupon-tag" v-if="isBestCoupon">最优</span>
+          </div>
           <span v-else class="placeholder">请选择优惠券</span>
           <span class="count" v-if="availableCoupons.length > 0">{{ availableCoupons.length }}张可用</span>
         </div>
@@ -183,6 +186,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
 import { addressApi, couponApi, pointsApi, orderApi, cartApi, userApi, storeApi } from '../../utils/api'
+import { formatImageUrl } from '../../utils/util'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -200,6 +204,28 @@ const pointsToUse = ref(0)
 const availablePoints = ref(0)
 const remark = ref('')
 const estimatedDeliveryTime = ref('预计30分钟送达')
+
+const isBestCoupon = computed(() => {
+  if (!selectedCoupon.value || availableCoupons.value.length === 0) return false
+  const amount = parseFloat(subtotal.value)
+  
+  const calculateDiscount = (coupon) => {
+    let discount = 0
+    const type = coupon.type?.toUpperCase()
+    if (type === 'REDUCTION' || type === 'DISCOUNT_FIXED' || coupon.type === 'discount') {
+      discount = coupon.value
+    } else if (type === 'DISCOUNT' || type === 'PERCENTAGE' || coupon.type === 'percentage') {
+      const rate = coupon.value < 1 ? coupon.value : coupon.value / 100
+      discount = amount * (1 - rate)
+    }
+    return discount
+  }
+
+  const currentDiscount = calculateDiscount(selectedCoupon.value)
+  const maxDiscount = Math.max(...availableCoupons.value.map(calculateDiscount))
+  
+  return currentDiscount >= maxDiscount
+})
 
 const subtotal = computed(() => {
   return orderItems.value.reduce((total, item) => total + item.price * item.quantity, 0).toFixed(2)
@@ -239,12 +265,14 @@ const loadOrderData = async () => {
     const items = localStorage.getItem('checkoutItems')
     if (items) {
       orderItems.value = JSON.parse(items).map(item => {
-        let imageUrl = item.image || item.product?.mainImageUrl || item.product?.imageUrl
-        if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-          const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-          imageUrl = `http://localhost:8081${path}`
+        // 兼容后端不同的字段名
+        const imageUrl = item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl
+        const name = item.name || item.productName || item.product?.name
+        return {
+          ...item,
+          name: name,
+          image: formatImageUrl(imageUrl)
         }
-        return { ...item, image: imageUrl }
       })
     }
     const savedRemark = localStorage.getItem('orderRemark')
@@ -270,28 +298,47 @@ const loadOrderData = async () => {
     }
     
     if (couponRes.code === 200) {
-      availableCoupons.value = couponRes.data.filter(c => c.status === 'UNUSED')
-      // 自动匹配最佳优惠券
-      if (availableCoupons.value.length > 0) {
-        const amount = parseFloat(subtotal.value)
-        let best = null
-        let maxDiscount = 0
-        
-        availableCoupons.value.forEach(coupon => {
-          if (amount >= coupon.minAmount) {
-            let discount = 0
-            if (coupon.type === 'REDUCTION') {
-              discount = coupon.value
-            } else if (coupon.type === 'DISCOUNT') {
-              discount = amount * (1 - coupon.value)
-            }
-            if (discount > maxDiscount) {
-              maxDiscount = discount
-              best = coupon
-            }
+      const amount = parseFloat(subtotal.value)
+      // 过滤出当前订单可用的优惠券
+      availableCoupons.value = couponRes.data.filter(c =>
+        c.status === 'UNUSED' && amount >= c.minAmount
+      )
+      
+      // 优先从缓存获取用户手动选择的优惠券
+      const savedCoupon = localStorage.getItem('selectedCoupon')
+      if (savedCoupon) {
+        const coupon = JSON.parse(savedCoupon)
+        // 检查该优惠券是否在可用列表中
+        const isAvailable = availableCoupons.value.find(c => c.id === coupon.id)
+        if (isAvailable) {
+          selectedCoupon.value = isAvailable
+        }
+      }
+
+      // 如果没有手动选择或手动选择的不可用，则自动匹配最佳优惠券
+      if (!selectedCoupon.value && availableCoupons.value.length > 0) {
+        // 计算每张优惠券的实际折扣金额并排序
+        const sortedCoupons = [...availableCoupons.value].map(coupon => {
+          let discount = 0
+          // 兼容后端字段名：REDUCTION/DISCOUNT 或 模拟数据中的 discount/percentage
+          const type = coupon.type?.toUpperCase()
+          if (type === 'REDUCTION' || type === 'DISCOUNT_FIXED' || coupon.type === 'discount') {
+            discount = coupon.value
+          } else if (type === 'DISCOUNT' || type === 'PERCENTAGE' || coupon.type === 'percentage') {
+            // 如果是折扣率（如0.8表示8折），折扣金额 = 总额 * (1 - 0.8)
+            // 如果是百分比（如80表示8折），折扣金额 = 总额 * (1 - 80/100)
+            const rate = coupon.value < 1 ? coupon.value : coupon.value / 100
+            discount = amount * (1 - rate)
           }
-        })
-        selectedCoupon.value = best
+          return { ...coupon, _discount: discount }
+        }).sort((a, b) => b._discount - a._discount)
+
+        // 默认选中折扣最大的那张
+        selectedCoupon.value = sortedCoupons[0]
+        
+        // 记录前三张最优优惠券供 UI 展示（可选）
+        const topThree = sortedCoupons.slice(0, 3)
+        console.log('推荐的前三张优惠券:', topThree)
       }
     }
     
@@ -353,6 +400,8 @@ const submitOrder = async () => {
       alert('订单提交成功！')
       // 清除结算缓存
       localStorage.removeItem('checkoutItems')
+      localStorage.removeItem('selectedCoupon')
+      localStorage.removeItem('orderRemark')
       cartStore.clearCart()
       router.push(`/payment?orderNo=${orderNo}&amount=${totalAmount.value}`)
     } else {
@@ -740,6 +789,22 @@ watch(usePoints, (val) => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.selected-coupon-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.coupon-tag {
+  background: #ff4d4f;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  font-weight: bold;
 }
 
 .coupon-section .placeholder {

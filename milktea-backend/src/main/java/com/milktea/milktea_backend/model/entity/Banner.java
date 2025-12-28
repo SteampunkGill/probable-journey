@@ -1,5 +1,6 @@
 package com.milktea.milktea_backend.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.*;
 

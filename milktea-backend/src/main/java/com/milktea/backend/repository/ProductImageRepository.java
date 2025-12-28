@@ -6,4 +6,5 @@ import com.milktea.milktea_backend.model.entity.ProductImage;
 
 @Repository
 public interface ProductImageRepository extends JpaRepository<ProductImage, Long> {
+    java.util.List<ProductImage> findByProductIdOrderBySortOrderAsc(Long productId);
 }

@@ -22,6 +22,15 @@
     </div>
 
     <div class="main-content" v-else @scroll="onScroll">
+      <!-- 通知栏 -->
+      <div class="notification-bar" v-if="showNotification && currentNotification">
+        <div class="notification-content">
+          <img class="notice-icon" src="@/assets/images/icons/info.png" />
+          <span class="notice-text">{{ currentNotification.title }}: {{ currentNotification.content }}</span>
+        </div>
+        <img class="close-icon" src="@/assets/images/icons/history.png" @click="closeNotification" />
+      </div>
+
       <!-- 轮播图 -->
       <div class="banner-container" v-if="banners.length > 0">
         <div class="banner-wrapper" :style="{ transform: `translateX(-${currentBanner * 100}%)` }">
@@ -226,7 +235,7 @@ import { useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
 import { homeApi, storeApi, bannerApi, productApi, couponApi, promotionApi, addressApi } from '@/utils/api'
-import { getDistance } from '@/utils/util'
+import { getDistance, formatImageUrl } from '@/utils/util'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -247,6 +256,9 @@ const banners = ref([])
 const recommendProducts = ref([])
 const hotProducts = ref([])
 const availableCouponCount = ref(0)
+const notifications = ref([])
+const showNotification = ref(false)
+const currentNotification = ref(null)
 const cartCount = ref(0)
 const cartAnimating = ref(false)
 
@@ -417,15 +429,22 @@ const loadData = async () => {
     // 异步获取定位，不阻塞页面显示
     updateLocationAndNearbyStores()
     
-    // 获取可用优惠券数量
-    try {
-      const couponRes = await couponApi.getMyCoupons()
-      if (couponRes.code === 200) {
-        const coupons = couponRes.data.list || couponRes.data || []
-        availableCouponCount.value = coupons.filter(c => c.status === 'UNUSED').length
+    // 获取可用优惠券数量 (仅在已登录时获取)
+    const token = localStorage.getItem('token')
+    if (token && token !== 'undefined' && token !== 'null') {
+      try {
+        const couponRes = await couponApi.getMyCoupons()
+        if (couponRes && (couponRes.code === 200 || couponRes.status === 'success')) {
+          const resData = couponRes.data || couponRes
+          const coupons = resData.list || resData || []
+          if (Array.isArray(coupons)) {
+            availableCouponCount.value = coupons.filter(c => c.status === 'UNUSED').length
+          }
+        }
+      } catch (e) {
+        console.warn('获取优惠券数量失败，用户可能未登录或Token失效:', e.message)
+        // 不触发登出逻辑，静默失败
       }
-    } catch (e) {
-      console.error('获取优惠券数量失败:', e)
     }
     
   } catch (error) {
@@ -479,6 +498,15 @@ const reLocation = async () => {
 
 const makePhoneCall = (phone) => {
   window.location.href = `tel:${phone}`
+}
+
+const closeNotification = () => {
+  if (currentNotification.value) {
+    const closedNotices = JSON.parse(localStorage.getItem('closedNotices') || '[]')
+    closedNotices.push(currentNotification.value.id)
+    localStorage.setItem('closedNotices', JSON.stringify(closedNotices))
+  }
+  showNotification.value = false
 }
 
 onMounted(() => {
@@ -577,6 +605,61 @@ onUnmounted(() => {
   overflow-y: auto;
   padding-bottom: 40px;
   padding-top: 80px;
+}
+
+/* 通知栏样式 */
+.notification-bar {
+  margin: 0 var(--spacing-lg) var(--spacing-md);
+  background: linear-gradient(135deg, #fff8dc 0%, #fff 100%);
+  padding: 12px 16px;
+  border-radius: var(--border-radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--primary-light);
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.05);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.notice-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.notice-text {
+  font-size: 13px;
+  color: var(--primary-dark);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close-icon {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  margin-left: 10px;
+}
+
+.close-icon:hover {
+  opacity: 1;
 }
 
 /* 轮播图 */
@@ -1282,7 +1365,7 @@ onUnmounted(() => {
 .cart-float {
   position: fixed;
   right: var(--spacing-xl);
-  bottom: var(--spacing-xl);
+  bottom: calc(80px + var(--spacing-xl));
   width: 64px;
   height: 64px;
   background: linear-gradient(135deg, var(--primary-color, #a0522d), var(--primary-dark, #8b4513));

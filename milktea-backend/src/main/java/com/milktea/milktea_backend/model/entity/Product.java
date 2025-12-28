@@ -67,6 +67,30 @@ public class Product {
 
     @Column(name = "is_recommended")
     private Boolean isRecommended = false;
+
+    @Column(name = "is_recommend")
+    private Boolean isRecommend = false;
+
+    @Column(name = "is_hot")
+    private Boolean isHot = false;
+
+    @Column(name = "is_new")
+    private Boolean isNew = false;
+
+    @Column(name = "original_price", precision = 10, scale = 2)
+    private java.math.BigDecimal originalPrice;
+
+    @Column(name = "rating", precision = 2, scale = 1)
+    private java.math.BigDecimal rating = java.math.BigDecimal.valueOf(5.0);
+
+    @Column(name = "detail_html", columnDefinition = "TEXT")
+    private String detailHtml;
+
+    @Transient
+    private java.util.List<String> images;
+
+    @Transient
+    private java.util.List<ProductNutrition> nutrition;
     
     @Column(name = "sugar_content", length = 50)
     private String sugarContent;

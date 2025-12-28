@@ -1,0 +1,50 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/address/address",
+    "pages/address/edit",
+    "pages/order/order",
+    "pages/cart/index",
+    "pages/user/user",
+    "pages/admin/index",
+    "pages/admin/dashboard/index",
+    "pages/admin/store/index",
+    "pages/admin/product/index",
+    "pages/admin/inventory/index",
+    "pages/admin/order/index",
+    "pages/admin/member/index",
+    "pages/admin/marketing/index",
+    "pages/admin/system/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#a0522d",
+    "navigationBarTitleText": "奶茶店",
+    "navigationBarTextStyle": "white"
+  },
+  "tabBar": {
+    "color": "#7a6a5b",
+    "selectedColor": "#a0522d",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/order/order",
+        "text": "点单"
+      },
+      {
+        "pagePath": "pages/cart/index",
+        "text": "购物车"
+      },
+      {
+        "pagePath": "pages/user/user",
+        "text": "我的"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

@@ -53,6 +53,43 @@ public class CouponTemplate {
     @Column(name = "rule_json", columnDefinition = "json")
     private String ruleJson;
 
+    @Column(name = "usage_limit_per_user")
+    private Integer usageLimitPerUser = 1;
+
+    @Column(name = "acquire_limit")
+    private Integer acquireLimit = 1;
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
+    @Column(name = "remaining_quantity")
+    private Integer remainingQuantity = 0;
+
+    @Column(name = "usage_scope")
+    private String usageScope = "ALL";
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) createdAt = now;
+        if (updatedAt == null) updatedAt = now;
+        if (acquireLimit == null) acquireLimit = usageLimitPerUser != null ? usageLimitPerUser : 1;
+        if (isActive == null) isActive = true;
+        if (remainingQuantity == null) remainingQuantity = (totalQuantity != null && totalQuantity != -1) ? totalQuantity : 999999;
+        if (usageScope == null) usageScope = "ALL";
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
     public enum ValidityType {
         FIXED_DAYS,
         FIXED_PERIOD

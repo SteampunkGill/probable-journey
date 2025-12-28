@@ -32,8 +32,18 @@ public class OrderReview {
     @JoinColumn(name = "product_id")
     private Product product;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
+
     @Column(name = "score", nullable = false)
     private Integer score;
+
+    @Column(name = "product_score")
+    private Integer productScore;
+
+    @Column(name = "delivery_score")
+    private Integer deliveryScore;
 
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;

@@ -42,12 +42,9 @@ public class AppOrderController {
     }
 
     @GetMapping
-    public ApiResponse<List<Order>> getOrders(@RequestParam(required = false) String status) {
+    public ApiResponse<List<OrderDTO>> getOrders(@RequestParam(required = false) String status) {
         Long userId = userService.getCurrentUser().getId();
-        if (status != null) {
-            return ApiResponse.success(orderService.findOrdersByUserIdAndStatus(userId, status));
-        }
-        return ApiResponse.success(orderService.findOrdersByUserId(userId));
+        return ApiResponse.success(orderService.getUserOrders(userId, status));
     }
 
     @GetMapping("/status-count")
@@ -112,6 +109,12 @@ public class AppOrderController {
     @PostMapping("/{orderNo}/confirm")
     public ApiResponse<Void> confirmOrder(@PathVariable String orderNo) {
         orderService.confirmOrder(orderNo);
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/{orderNo}/appeal")
+    public ApiResponse<Void> submitAppeal(@PathVariable String orderNo, @RequestBody Map<String, Object> appealData) {
+        orderService.submitAppeal(orderNo, appealData);
         return ApiResponse.success(null);
     }
 

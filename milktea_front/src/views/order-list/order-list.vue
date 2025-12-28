@@ -47,12 +47,41 @@
           <span class="order-status" :class="item.status">{{ item.statusText }}</span>
         </div>
 
+        <!-- 订单进度条 -->
+        <div class="order-progress-container">
+          <div class="progress-bar">
+            <div class="progress-inner" :style="{ width: getProgressWidth(item.status) }"></div>
+          </div>
+          <div class="progress-steps">
+            <div class="step" :class="{ active: isStepActive(item.status, 1) }">
+              <div class="step-dot"></div>
+              <span class="step-text">下单</span>
+            </div>
+            <div class="step" :class="{ active: isStepActive(item.status, 2) }">
+              <div class="step-dot"></div>
+              <span class="step-text">支付</span>
+            </div>
+            <div class="step" :class="{ active: isStepActive(item.status, 3) }">
+              <div class="step-dot"></div>
+              <span class="step-text">制作</span>
+            </div>
+            <div class="step" :class="{ active: isStepActive(item.status, 4) }">
+              <div class="step-dot"></div>
+              <span class="step-text">待取</span>
+            </div>
+            <div class="step" :class="{ active: isStepActive(item.status, 5) }">
+              <div class="step-dot"></div>
+              <span class="step-text">完成</span>
+            </div>
+          </div>
+        </div>
+
         <!-- 商品列表 -->
         <div class="goods-list">
-          <div class="goods-item" v-for="goods in item.items" :key="goods.id">
-            <img class="goods-image" :src="goods.image || goods.product?.mainImageUrl || goods.product?.imageUrl" />
+          <div class="goods-item" v-for="goods in (item.items || item.orderItems)" :key="goods.id">
+            <img class="goods-image" :src="formatImageUrl(goods.image || goods.productImage || goods.product?.mainImageUrl || goods.product?.imageUrl)" />
             <div class="goods-info">
-              <span class="goods-name">{{ goods.name }}</span>
+              <span class="goods-name">{{ goods.name || goods.productName }}</span>
               <div class="goods-bottom">
                 <span class="goods-price">¥{{ goods.price }}</span>
                 <span class="goods-quantity">×{{ goods.quantity }}</span>
@@ -80,21 +109,27 @@
         <!-- 操作按钮 -->
         <div class="order-actions">
           <!-- 待支付 -->
-          <template v-if="item.status === 'pending_payment'">
+          <template v-if="item.status?.toLowerCase() === 'pending_payment'">
             <button class="action-btn secondary" @click.stop="cancelOrder(item.orderNo)">取消订单</button>
-            <button class="action-btn primary" @click.stop="payOrder(item)">去支付</button>
+            <button class="action-btn primary" @click.stop="payOrder(item)">立即付款</button>
           </template>
 
           <!-- 制作中 -->
-          <template v-if="item.status === 'processing'">
+          <template v-else-if="item.status?.toLowerCase() === 'processing' || item.status?.toUpperCase() === 'MAKING' || item.status?.toUpperCase() === 'PAID'">
             <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
             <button class="action-btn primary" @click.stop="remindOrder(item.orderNo)">催单</button>
           </template>
 
+          <!-- 待取餐 -->
+          <template v-else-if="item.status?.toLowerCase() === 'ready' || item.status?.toUpperCase() === 'READY'">
+            <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
+            <button class="action-btn primary" @click.stop="confirmOrder(item.orderNo)">立即取餐</button>
+          </template>
+
           <!-- 已完成 -->
-          <template v-if="item.status === 'completed'">
+          <template v-else-if="item.status?.toLowerCase() === 'completed' || item.status?.toUpperCase() === 'COMPLETED' || item.status?.toUpperCase() === 'FINISHED' || item.status?.toUpperCase() === 'REVIEWED'">
             <button class="action-btn secondary" @click.stop="reorder(item)">再来一单</button>
-            <button class="action-btn primary" v-if="item.canReview" @click.stop="reviewOrder(item.orderNo)">去评价</button>
+            <button class="action-btn primary" v-if="item.status?.toUpperCase() !== 'REVIEWED'" @click.stop="reviewOrder(item.orderNo)">立即评价</button>
           </template>
         </div>
       </div>
@@ -119,6 +154,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { orderApi } from '@/utils/api'
+import { formatImageUrl } from '@/utils/util'
 
 const router = useRouter()
 const route = useRoute()
@@ -141,15 +177,30 @@ const sortOption = ref('time_desc')
 const filteredOrders = computed(() => {
   let result = [...orders.value]
 
-  // 1. 搜索筛选 (按订单号)
+  // 1. 标签分类筛选
+  if (activeTab.value !== 'all') {
+    const statusFilterMap = {
+      'pending_payment': ['PENDING_PAYMENT'],
+      'processing': ['PAID', 'MAKING', 'ACCEPTED'],
+      'ready': ['READY', 'DELIVERING'],
+      'completed': ['DELIVERED', 'COMPLETED', 'FINISHED', 'REVIEWED']
+    }
+    const targetStatuses = statusFilterMap[activeTab.value] || []
+    result = result.filter(order => {
+      const s = order.status ? order.status.toUpperCase() : ''
+      return targetStatuses.includes(s)
+    })
+  }
+
+  // 2. 搜索筛选 (按订单号)
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(order => 
+    result = result.filter(order =>
       order.orderNo && order.orderNo.toLowerCase().includes(keyword)
     )
   }
 
-  // 2. 排序逻辑
+  // 3. 排序逻辑
   result.sort((a, b) => {
     switch (sortOption.value) {
       case 'time_desc':
@@ -172,56 +223,48 @@ onMounted(() => {
   if (route.query.status) {
     activeTab.value = route.query.status.toLowerCase()
   }
-  loadOrders()
+  
+  const token = localStorage.getItem('token')
+  if (token && token !== 'undefined' && token !== 'null') {
+    loadOrders()
+  } else {
+    loading.value = false
+  }
 })
 
 const switchTab = (key) => {
   activeTab.value = key
-  loadOrders()
+  // 纯前端筛选，不需要重新请求后端，除非需要刷新数据
 }
 
 // 状态文本映射
 const getStatusText = (status) => {
+  if (!status) return '未知状态'
+  const s = status.toUpperCase()
   const map = {
-    'PAID': '待使用',
-    'ACCEPTED': '待制作',
+    'PENDING_PAYMENT': '待支付',
+    'PAID': '待接单',
     'MAKING': '制作中',
     'READY': '待取餐',
+    'DELIVERING': '配送中',
     'DELIVERED': '已送达',
+    'COMPLETED': '已完成',
     'FINISHED': '已完成',
+    'REFUNDING': '退款中',
+    'REFUNDED': '已退款',
     'CANCELLED': '已取消',
-    'REFUNDED': '已退款'
+    'REVIEWED': '已评价'
   }
-  return map[status] || status
+  return map[s] || status
 }
 
 const loadOrders = async () => {
   loading.value = true
   try {
-    const params = {}
-    if (activeTab.value !== 'all') {
-      // 映射前端状态到后端状态
-      const statusMap = {
-        'pending': 'PAID', // 待使用/待取餐
-        'processing': 'MAKING', // 制作中
-        'completed': 'FINISHED' // 已完成
-      }
-      params.status = statusMap[activeTab.value]
-    }
-    const res = await orderApi.getOrderList(params)
-    let orderData = res.data || res || []
+    // 纯前端筛选：请求时不带状态参数，获取全部订单
+    const res = await orderApi.getOrderList()
+    const orderData = res.data || res || []
     
-    // 纯前端筛选逻辑
-    if (activeTab.value !== 'all') {
-      const statusMap = {
-        'pending': ['PAID', 'ACCEPTED', 'READY'],
-        'processing': ['MAKING'],
-        'completed': ['FINISHED', 'DELIVERED']
-      }
-      const targetStatuses = statusMap[activeTab.value] || []
-      orderData = orderData.filter(order => targetStatuses.includes(order.status))
-    }
-
     // 转换数据格式以匹配前端
     orders.value = orderData.map(order => ({
       id: order.id,
@@ -230,7 +273,11 @@ const loadOrders = async () => {
       statusText: getStatusText(order.status),
       createTime: order.createTime || order.orderTime || order.createdAt,
       totalAmount: order.totalAmount,
-      items: order.items || [],
+      items: (order.orderItems || order.items || []).map(item => ({
+        ...item,
+        name: item.productName || item.name,
+        image: item.productImage || item.image
+      })),
       pickupCode: order.pickupCode,
       canReview: order.canReview || false
     }))
@@ -300,6 +347,53 @@ const contactService = () => {
 
 const goToIndex = () => {
   router.push('/')
+}
+
+const confirmOrder = async (orderNo) => {
+  if (!confirm('确认已取餐/收到商品吗？')) return
+  try {
+    await orderApi.confirmOrder(orderNo)
+    alert('操作成功')
+    loadOrders()
+  } catch (error) {
+    console.error('确认订单失败', error)
+    alert('操作失败，请重试')
+  }
+}
+
+const getProgressWidth = (status) => {
+  if (!status) return '0%'
+  const s = status.toUpperCase()
+  const statusMap = {
+    'PENDING_PAYMENT': '20%',
+    'PAID': '40%',
+    'MAKING': '60%',
+    'READY': '80%',
+    'DELIVERING': '85%',
+    'DELIVERED': '90%',
+    'COMPLETED': '100%',
+    'FINISHED': '100%',
+    'REVIEWED': '100%'
+  }
+  return statusMap[s] || '0%'
+}
+
+const isStepActive = (status, step) => {
+  if (!status) return false
+  const s = status.toUpperCase()
+  const statusLevel = {
+    'PENDING_PAYMENT': 1,
+    'PAID': 2,
+    'MAKING': 3,
+    'READY': 4,
+    'DELIVERING': 4,
+    'DELIVERED': 4,
+    'COMPLETED': 5,
+    'FINISHED': 5,
+    'REVIEWED': 5
+  }
+  const currentLevel = statusLevel[s] || 0
+  return currentLevel >= step
 }
 </script>
 <style scoped>
@@ -478,6 +572,73 @@ const goToIndex = () => {
   padding-bottom: 16px;
   margin-bottom: 16px;
   border-bottom: 2px dashed var(--border-color);
+}
+
+/* 订单进度条样式 */
+.order-progress-container {
+  padding: 20px 10px;
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+}
+
+.progress-bar {
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  position: relative;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.progress-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-light), var(--primary-color));
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  z-index: 1;
+}
+
+.step-dot {
+  width: 10px;
+  height: 10px;
+  background: #ddd;
+  border-radius: 50%;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.step.active .step-dot {
+  background: var(--primary-color);
+  transform: scale(1.3);
+  box-shadow: 0 0 8px rgba(160, 82, 45, 0.4);
+}
+
+.step-text {
+  font-size: 12px;
+  color: #999;
+  transition: all 0.3s ease;
+}
+
+.step.active .step-text {
+  color: var(--primary-dark);
+  font-weight: bold;
 }
 
 .order-no {

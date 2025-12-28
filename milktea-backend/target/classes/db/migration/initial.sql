@@ -1,905 +1,1346 @@
+CREATE DATABASE `milktea_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
-SET NAMES utf8mb4;
-SET FOREIGN_KEY_CHECKS = 0;
+CREATE DATABASE `milktea_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
--- 1. 用户与会员体系 (User Center)
--- 会员等级表
-CREATE TABLE `member_levels` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `name` VARCHAR(50) NOT NULL COMMENT '等级名称',
-  `min_growth_value` INT NOT NULL DEFAULT 0 COMMENT '所需最小成长值',
-  `discount_rate` DECIMAL(3,2) DEFAULT 1.00 COMMENT '会员折扣率(如0.90)',
-  `privileges_json` JSON COMMENT '权益配置(免运费、生日礼等)',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `about_us` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `address` varchar(255) DEFAULT NULL,
+  `contact_phone` varchar(20) DEFAULT NULL,
+  `content` text,
+  `latitude` double DEFAULT NULL,
+  `logo_url` varchar(255) DEFAULT NULL,
+  `longitude` double DEFAULT NULL,
+  `title` varchar(100) NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员等级表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 用户表 
-CREATE TABLE `users` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `wechat_openid` VARCHAR(64) COMMENT '微信OpenID',
-  `wechat_unionid` VARCHAR(64) COMMENT '微信UnionID',
-  `username` VARCHAR(50) COMMENT '账号',
-  `password_hash` VARCHAR(255) COMMENT '密码',
-  `phone` VARCHAR(20) COMMENT '手机号',
-  `nickname` VARCHAR(64) COMMENT '昵称',
-  `avatar_url` VARCHAR(255) COMMENT '头像',
-  `birthday` DATE COMMENT '生日',
-  `member_level_id` BIGINT COMMENT '会员等级ID',
-  `inviter_id` BIGINT COMMENT '邀请人ID(用于分销绑定)',
-  `growth_value` INT DEFAULT 0 COMMENT '成长值',
-  `points` INT DEFAULT 0 COMMENT '当前积分',
-  `balance` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '余额',
-  `member_card_no` VARCHAR(50) COMMENT '实体卡号',
-  `status` VARCHAR(20) DEFAULT 'ACTIVE' COMMENT '状态',
-  `agreed_privacy` BOOLEAN DEFAULT FALSE COMMENT '是否同意隐私协议',
-  `is_deleted` BOOLEAN DEFAULT FALSE COMMENT '是否已注销',
-  `last_login_at` DATETIME COMMENT '最后登录时间',
-  `registration_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `allergens` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `icon_url` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_openid` (`wechat_openid`),
-  UNIQUE KEY `uk_phone` (`phone`),
-  KEY `idx_inviter` (`inviter_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+  UNIQUE KEY `UK_1tipxa3jfm7x5gcbqlmn6h7on` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 用户地址表 
-CREATE TABLE `user_addresses` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `name` VARCHAR(50) NOT NULL,
-  `phone` VARCHAR(20) NOT NULL,
-  `province` VARCHAR(50) NOT NULL,
-  `city` VARCHAR(50) NOT NULL,
-  `district` VARCHAR(50) NOT NULL,
-  `detail` VARCHAR(200) NOT NULL,
-  `longitude` DECIMAL(10, 7),
-  `latitude` DECIMAL(10, 7),
-  `tag` VARCHAR(20) COMMENT '标签: 家/公司',
-  `is_default` BOOLEAN DEFAULT FALSE,
-  `used_count` INT DEFAULT 0 COMMENT '使用次数(用于排序)',
-  `last_used_at` DATETIME COMMENT '最后使用时间',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户地址表';
-
--- 用户标签表
-CREATE TABLE `user_tags` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL COMMENT '标签名: 价格敏感、新品尝鲜',
-  `type` VARCHAR(20) DEFAULT 'MANUAL' COMMENT '类型: MANUAL手动/AUTO自动',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户标签定义';
-
-CREATE TABLE `user_tag_relation` (
-  `user_id` BIGINT NOT NULL,
-  `tag_id` BIGINT NOT NULL,
-  PRIMARY KEY (`user_id`, `tag_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户标签关联';
-
--- 2. 商品与库存 (Product & Inventory)
-
--- 商品分类
-CREATE TABLE `categories` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `parent_id` BIGINT DEFAULT NULL,
-  `name` VARCHAR(50) NOT NULL,
-  `icon_url` VARCHAR(255),
-  `sort_order` INT DEFAULT 0,
-  `is_active` BOOLEAN DEFAULT TRUE,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品分类';
-
--- 商品表
-CREATE TABLE `products` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `category_id` BIGINT,
-  `name` VARCHAR(100) NOT NULL,
-  `description` TEXT,
-  `main_image_url` VARCHAR(255),
-  `price` DECIMAL(10, 2) NOT NULL COMMENT '基础价格',
-  `is_member_exclusive` BOOLEAN DEFAULT FALSE COMMENT '是否会员专享',
-  `member_price` DECIMAL(10, 2) COMMENT '会员专享价',
-  `stock` INT DEFAULT 0 COMMENT '当前库存',
-  `alert_threshold` INT DEFAULT 10 COMMENT '库存预警阈值',
-  `sales` INT DEFAULT 0 COMMENT '累计销量',
-  `status` TINYINT DEFAULT 1 COMMENT '1:上架 0:下架',
-  `cost_price` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '成本价格',
-  -- 高级筛选字段
-  `sugar_content` VARCHAR(50) COMMENT '含糖量: 25g',
-  `calories` VARCHAR(50) COMMENT '卡路里: 250kcal',
-  `default_sweetness` VARCHAR(20) DEFAULT 'NORMAL' COMMENT '默认糖度',
-  `default_temperature` VARCHAR(20) DEFAULT 'ICE' COMMENT '默认温度',
-  `support_sweetness` JSON COMMENT '支持的糖度选项JSON',
-  `support_temperature` JSON COMMENT '支持的温度选项JSON',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_category` (`category_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品表';
--- 如果需要添加营养信息表
-CREATE TABLE `product_nutritions` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `product_id` BIGINT NOT NULL,
-  `name` VARCHAR(50) NOT NULL COMMENT '营养成分名称: 蛋白质/脂肪/碳水化合物',
-  `value` VARCHAR(50) NOT NULL COMMENT '含量值',
-  `unit` VARCHAR(20) COMMENT '单位: g/mg',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_product` (`product_id`),
-  CONSTRAINT `fk_product_nutritions_product` FOREIGN KEY (`product_id`) 
-    REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品营养成分表';
--- 原料/配方表 
-CREATE TABLE `ingredients` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL,
-  `unit` VARCHAR(20) COMMENT '单位: g/ml',
-  `stock` DECIMAL(10,2) COMMENT '原料库存',
-  `cost_per_unit` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '单位成本',
-  `alert_threshold` DECIMAL(10,2) COMMENT '预警阈值',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='原料表';
-
-CREATE TABLE `product_recipes` (
-  `product_id` BIGINT NOT NULL,
-  `ingredient_id` BIGINT NOT NULL,
-  `quantity` DECIMAL(10,2) NOT NULL COMMENT '消耗数量',
-  PRIMARY KEY (`product_id`, `ingredient_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品配方关联';
--- 商品关联关系表
-CREATE TABLE `product_related_map` (
-  `main_product_id` BIGINT NOT NULL COMMENT '主商品ID',
-  `related_product_id` BIGINT NOT NULL COMMENT '关联商品ID',
-  `relation_type` VARCHAR(20) COMMENT '关联类型: SIMILAR(相似)/COMPLEMENTARY(互补)/BUNDLE(套餐)/CROSS_SELL(交叉销售)',
-  `sort_order` INT DEFAULT 0 COMMENT '排序',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`main_product_id`, `related_product_id`),
-  KEY `idx_main_product` (`main_product_id`),
-  KEY `idx_related_product` (`related_product_id`),
-  CONSTRAINT `fk_related_main_product` FOREIGN KEY (`main_product_id`) 
-    REFERENCES `products` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_related_related_product` FOREIGN KEY (`related_product_id`) 
-    REFERENCES `products` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `chk_not_same_product` CHECK (`main_product_id` != `related_product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品关联关系表';
--- 商品规格项 (糖度、温度)
-CREATE TABLE `product_specs` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `product_id` BIGINT NOT NULL,
-  `type` VARCHAR(20) NOT NULL COMMENT 'SWEETNESS, TEMPERATURE',
-  `name` VARCHAR(50) NOT NULL COMMENT '正常、五分糖、去冰等',
-  `is_default` BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (`id`),
-  KEY `idx_product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品规格项';
-
--- 商品定制项 (加料)
-CREATE TABLE `product_options` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `product_id` BIGINT NOT NULL,
-  `type` VARCHAR(20) NOT NULL COMMENT 'TOPPING(加料), SIZE(杯型)',
-  `name` VARCHAR(50) NOT NULL COMMENT '选项名: 珍珠/大杯',
-  `price` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '加价',
-  `stock` INT COMMENT '独立库存(如限量Topping)',
-  PRIMARY KEY (`id`),
-  KEY `idx_product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品定制选项';
-
--- 3. 营销与活动 (Marketing)
--- 优惠券模板
-CREATE TABLE `coupon_templates` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(100) NOT NULL,
-  `type` VARCHAR(20) NOT NULL COMMENT 'REDUCTION:满减, DISCOUNT:折扣',
-  `value` DECIMAL(10, 2) NOT NULL COMMENT '减免金额或折扣率',
-  `min_amount` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '使用门槛',
-  `total_count` INT COMMENT '总发行量',
-  `received_count` INT DEFAULT 0 COMMENT '已领取量',
-  `start_time` DATETIME,
-  `end_time` DATETIME,
-  `days_valid` INT COMMENT '领取后有效天数',
-  `rule_json` JSON COMMENT '复杂规则: 指定商品ID等',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='优惠券模板';
-
--- 用户优惠券
-CREATE TABLE `user_coupons` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `template_id` BIGINT NOT NULL,
-  `code` VARCHAR(50) COMMENT '核销码',
-  `status` VARCHAR(20) DEFAULT 'UNUSED' COMMENT 'UNUSED, USED, EXPIRED',
-  `expire_time` DATETIME NOT NULL,
-  `used_order_id` BIGINT COMMENT '使用于哪个订单',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user_status` (`user_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户优惠券实例';
-
--- 促销活动
-CREATE TABLE `promotions` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(100) NOT NULL,
-  `type` VARCHAR(50) NOT NULL COMMENT 'FULL_REDUCE, SECOND_HALF, LIMITED_DISCOUNT, FLASH_SALE',
-  `start_time` DATETIME NOT NULL,
-  `end_time` DATETIME NOT NULL,
-  `rules_json` JSON NOT NULL COMMENT '存储具体规则参数',
-  `is_active` BOOLEAN DEFAULT TRUE,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='促销活动表';
-
--- 轮播图
 CREATE TABLE `banners` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `image_url` VARCHAR(255) NOT NULL,
-  `link_type` VARCHAR(20) COMMENT 'PRODUCT, URL, NONE',
-  `link_value` VARCHAR(255),
-  `sort` INT DEFAULT 0,
-  `position` VARCHAR(20) DEFAULT 'HOME',
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `background_color` varchar(20) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `image_url` varchar(255) NOT NULL,
+  `is_active` bit(1) NOT NULL,
+  `sort_order` int DEFAULT NULL,
+  `subtitle` varchar(100) DEFAULT NULL,
+  `target_id` varchar(50) DEFAULT NULL,
+  `title` varchar(100) DEFAULT NULL,
+  `type` varchar(20) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  `link_type` varchar(20) DEFAULT NULL,
+  `link_value` varchar(255) DEFAULT NULL,
+  `position` varchar(20) DEFAULT NULL,
+  `sort` int DEFAULT NULL,
+  `click_count` int DEFAULT NULL,
+  `end_time` datetime(6) DEFAULT NULL,
+  `start_time` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='广告轮播图';
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 推荐与反馈
-CREATE TABLE `user_recommendation_feedbacks` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `product_id` BIGINT NOT NULL,
-  `action` VARCHAR(20) COMMENT 'CLICK, PURCHASE, DISLIKE',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='推荐算法反馈数据';
-
--- 4. 订单与支付 (Orders)
-
-
--- 订单主表
-CREATE TABLE `orders` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `order_no` VARCHAR(32) NOT NULL COMMENT '订单号T2024...',
-  `user_id` BIGINT NOT NULL,
-  `store_id` BIGINT NOT NULL,
-  `status` VARCHAR(20) NOT NULL COMMENT 'PAID, MAKING, READY, DELIVERED, REFUNDING...',
-  `total_amount` DECIMAL(10, 2) NOT NULL COMMENT '订单总额',
-  `pay_amount` DECIMAL(10, 2) NOT NULL COMMENT '实付金额',
-  `discount_amount` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '优惠金额',
-  `balance_discount_amount` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '余额抵扣金额',
-  `delivery_fee` DECIMAL(10, 2) DEFAULT 0.00,
-  -- 支付信息
-  `pay_method` VARCHAR(20) COMMENT 'ALIPAY, WECHAT',
-  `transaction_id` VARCHAR(64) COMMENT '第三方支付流水号',
-  `pay_time` DATETIME,
-  `order_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '订单创建时间',
-  -- 履约信息
-  `delivery_type` VARCHAR(20) NOT NULL COMMENT 'PICKUP, DELIVERY',
-  `address_json` JSON COMMENT '快照: 收货地址信息',
-  `pickup_code` VARCHAR(10) COMMENT '取餐码',
-  `queue_number` INT COMMENT '当日排队号',
-  `estimated_ready_time` DATETIME COMMENT '预估完成时间',
-  `actual_ready_time` DATETIME COMMENT '实际制作完成时间',
-  -- 互动与备注
-  `remark` VARCHAR(200) COMMENT '用户备注',
-  `remind_count` INT DEFAULT 0 COMMENT '催单次数',
-  `last_remind_time` DATETIME COMMENT '上次催单时间',
-  `is_commented` BOOLEAN DEFAULT FALSE COMMENT '是否已评价',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+CREATE TABLE `cart_item_customizations` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `customization_type_name` varchar(50) NOT NULL,
+  `option_label` varchar(50) NOT NULL,
+  `option_value` varchar(50) NOT NULL,
+  `price_adjustment_at_add` decimal(10,2) NOT NULL,
+  `quantity` int NOT NULL,
+  `cart_item_id` bigint NOT NULL,
+  `option_id` bigint NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_order_no` (`order_no`),
-  KEY `idx_user` (`user_id`),
-  KEY `idx_store_status` (`store_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单主表';
+  KEY `FKr6pnoso87b0qdm4ajaf29mgjd` (`cart_item_id`),
+  KEY `FKnxofeju7c4edwdi0dcgsqhl39` (`option_id`),
+  CONSTRAINT `FKnxofeju7c4edwdi0dcgsqhl39` FOREIGN KEY (`option_id`) REFERENCES `product_options` (`id`),
+  CONSTRAINT `FKr6pnoso87b0qdm4ajaf29mgjd` FOREIGN KEY (`cart_item_id`) REFERENCES `cart_items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 订单详情表
-CREATE TABLE `order_items` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `order_id` BIGINT NOT NULL,
-  `product_id` BIGINT NOT NULL,
-  `product_name` VARCHAR(100) NOT NULL COMMENT '快照名',
-  `product_image` VARCHAR(255) COMMENT '快照图',
-  `spec_json` JSON COMMENT '规格快照: {temp: "去冰", sugar: "半糖", toppings: [...]}',
-  `price` DECIMAL(10, 2) NOT NULL COMMENT '单价快照',
-  `quantity` INT NOT NULL,
-  `total_price` DECIMAL(10, 2) NOT NULL,
+CREATE TABLE `cart_items` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `invalid_reason` varchar(255) DEFAULT NULL,
+  `is_selected` bit(1) NOT NULL DEFAULT b'1' COMMENT '是否选中',
+  `is_valid` bit(1) NOT NULL DEFAULT b'1' COMMENT '是否有效',
+  `original_price_at_add` decimal(38,2) DEFAULT NULL,
+  `price_at_add` decimal(10,2) NOT NULL DEFAULT '0.00' COMMENT '加入时的价格',
+  `quantity` int NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `product_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `store_id` bigint DEFAULT NULL COMMENT '门店ID',
+  `sweetness` varchar(255) DEFAULT NULL,
+  `temperature` varchar(255) DEFAULT NULL,
+  `spec_id` bigint DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_order` (`order_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单商品详情';
+  UNIQUE KEY `UK1vhvont0fdtramle6nmghntj7` (`user_id`,`product_id`),
+  KEY `FK1re40cjegsfvw58xrkdp6bac6` (`product_id`),
+  KEY `FKaydhc1g0rvhgg36t1irinj6nt` (`spec_id`),
+  KEY `FK5hdx4t879kwd8w87xkhs9c6dq` (`store_id`),
+  CONSTRAINT `FK1re40cjegsfvw58xrkdp6bac6` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `FK5hdx4t879kwd8w87xkhs9c6dq` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`),
+  CONSTRAINT `FK709eickf3kc0dujx3ub9i7btf` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKaydhc1g0rvhgg36t1irinj6nt` FOREIGN KEY (`spec_id`) REFERENCES `product_specs` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 订单退款记录
-CREATE TABLE `order_refunds` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `order_id` BIGINT NOT NULL,
-  `order_no` VARCHAR(32) NOT NULL,
-  `amount` DECIMAL(10, 2) NOT NULL,
-  `reason` VARCHAR(200),
-  `status` VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING, APPROVED, REJECTED',
-  `reply` VARCHAR(200) COMMENT '商家回复',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='售后退款单';
+CREATE TABLE `categories` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `icon_url` varchar(255) DEFAULT NULL,
+  `image_url` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `name` varchar(50) NOT NULL,
+  `sort_order` int DEFAULT '0',
+  `updated_at` datetime(6) NOT NULL,
+  `parent_id` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKsaok720gsu4u2wrgbk10b5n8d` (`parent_id`),
+  CONSTRAINT `FKsaok720gsu4u2wrgbk10b5n8d` FOREIGN KEY (`parent_id`) REFERENCES `categories` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 投诉建议表
 CREATE TABLE `complaints` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `order_id` BIGINT,
-  `type` VARCHAR(50) NOT NULL COMMENT '投诉类型: 服务、质量、配送、其他',
-  `content` TEXT NOT NULL,
-  `images_json` JSON,
-  `phone` VARCHAR(20),
-  `status` VARCHAR(20) DEFAULT 'PENDING' COMMENT 'PENDING, PROCESSING, RESOLVED',
-  `reply` TEXT,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `compensation` decimal(10,2) DEFAULT NULL,
+  `compensation_coupon_id` bigint DEFAULT NULL,
+  `compensation_type` varchar(20) DEFAULT NULL,
+  `content` text NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `images_json` json DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `remark` varchar(500) DEFAULT NULL,
+  `reply` text,
+  `status` varchar(20) NOT NULL,
+  `type` varchar(50) NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `order_id` bigint DEFAULT NULL,
+  `user_id` bigint NOT NULL,
+  `solution` varchar(500) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投诉建议表';
+  KEY `FKr32fabkp363nyst1byc5txf9u` (`order_id`),
+  KEY `FK83j5gqkd7ku4vc908g4rtmglr` (`user_id`),
+  CONSTRAINT `FK83j5gqkd7ku4vc908g4rtmglr` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKr32fabkp363nyst1byc5txf9u` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 订单评价与追评
-CREATE TABLE `order_reviews` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `order_id` BIGINT NOT NULL,
-  `user_id` BIGINT NOT NULL,
-  `score` TINYINT NOT NULL COMMENT '1-5分',
-  `content` TEXT COMMENT '评价内容',
-  `images_json` JSON COMMENT '图片列表',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `coupon_templates` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `acquire_limit` int NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `is_active` bit(1) NOT NULL,
+  `min_amount` decimal(10,2) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `received_count` int DEFAULT '0',
+  `remaining_quantity` int NOT NULL,
+  `start_date` date DEFAULT NULL,
+  `target_ids` json DEFAULT NULL,
+  `total_count` int DEFAULT NULL,
+  `type` varchar(20) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `usage_scope` varchar(20) NOT NULL,
+  `days_valid` int DEFAULT NULL,
+  `validity_type` enum('FIXED_DAYS','FIXED_PERIOD') NOT NULL,
+  `value` decimal(10,2) NOT NULL,
+  `version` int DEFAULT NULL,
+  `end_time` datetime(6) DEFAULT NULL,
+  `issued_quantity` int DEFAULT NULL,
+  `rule_json` json DEFAULT NULL,
+  `start_time` datetime(6) DEFAULT NULL,
+  `validity_days` int DEFAULT NULL,
+  `total_quantity` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `daily_statistics` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `create_time` datetime(6) DEFAULT NULL,
+  `new_user_count` int DEFAULT NULL,
+  `order_count` int DEFAULT NULL,
+  `sales_amount` decimal(15,2) DEFAULT NULL,
+  `stat_date` date NOT NULL,
+  `store_id` int NOT NULL,
+  `total_user_count` int DEFAULT NULL,
+  `update_time` datetime(6) DEFAULT NULL,
+  `avg_order_value` decimal(10,2) DEFAULT NULL,
+  `new_users` int DEFAULT NULL,
+  `total_orders` int DEFAULT NULL,
+  `total_points_earned` int DEFAULT NULL,
+  `total_points_spent` int DEFAULT NULL,
+  `total_sales` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `files` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `category` varchar(50) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `height` int DEFAULT NULL,
+  `mime_type` varchar(50) DEFAULT NULL,
+  `path` varchar(255) NOT NULL,
+  `size` int DEFAULT NULL,
+  `type` varchar(20) NOT NULL,
+  `url` varchar(255) NOT NULL,
+  `width` int DEFAULT NULL,
+  `user_id` bigint DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_order` (`order_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单评价';
+  KEY `FKdgr5hx49828s5vhjo1s8q3wdp` (`user_id`),
+  CONSTRAINT `FKdgr5hx49828s5vhjo1s8q3wdp` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `gift_cards` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `balance` decimal(10,2) NOT NULL,
+  `card_code` varchar(128) NOT NULL,
+  `card_no` varchar(32) NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `expiry_time` datetime(6) DEFAULT NULL,
+  `face_value` decimal(10,2) NOT NULL,
+  `status` varchar(20) NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `user_id` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_dbmjqa52c6jffsqjjbdy4mera` (`card_no`),
+  KEY `FKbjcq1j7vh35bq94vjoxkbk1a3` (`user_id`),
+  CONSTRAINT `FKbjcq1j7vh35bq94vjoxkbk1a3` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `ingredients` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `alert_threshold` decimal(10,2) DEFAULT NULL,
+  `cost_per_unit` decimal(10,2) DEFAULT '0.00',
+  `stock` decimal(10,2) DEFAULT NULL,
+  `unit` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_j6tsl15xx76y4kv41yxr4uxab` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `member_levels` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `min_growth_value` int NOT NULL DEFAULT '0' COMMENT '所需最小成长值',
+  `name` varchar(50) NOT NULL,
+  `privileges_json` json DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `discount_rate` decimal(3,2) DEFAULT '1.00' COMMENT '会员折扣率',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_ldagxsoc9y8nagb3dgjvma2ur` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `notifications` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `content` varchar(255) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `data_json` json DEFAULT NULL,
+  `is_read` bit(1) NOT NULL,
+  `read_at` datetime(6) DEFAULT NULL,
+  `title` varchar(100) NOT NULL,
+  `type` varchar(20) NOT NULL,
+  `user_id` bigint NOT NULL,
+  `sent_time` datetime(6) DEFAULT NULL,
+  `status` varchar(20) DEFAULT NULL,
+  `target_type` varchar(20) DEFAULT NULL,
+  `target_value` varchar(100) DEFAULT NULL,
+  `image_url` varchar(255) DEFAULT NULL,
+  `link_url` varchar(255) DEFAULT NULL,
+  `push_type` varchar(20) DEFAULT NULL,
+  `scheduled_time` datetime(6) DEFAULT NULL,
+  `trigger_condition` varchar(255) DEFAULT NULL,
+  `trigger_type` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK9y21adhxn0ayjhfocscqox7bh` (`user_id`),
+  CONSTRAINT `FK9y21adhxn0ayjhfocscqox7bh` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `order_item_customizations` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `customization_type_name` varchar(50) NOT NULL,
+  `option_label` varchar(50) NOT NULL,
+  `option_value` varchar(50) NOT NULL,
+  `price_adjustment_at_order` decimal(10,2) NOT NULL,
+  `quantity` int NOT NULL,
+  `order_item_id` bigint NOT NULL,
+  `option_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK9icomx5dcq92o8u99l1te7bql` (`order_item_id`),
+  KEY `FKcpgx2pfynhs4jkr4s9bw4r1bu` (`option_id`),
+  CONSTRAINT `FK9icomx5dcq92o8u99l1te7bql` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`),
+  CONSTRAINT `FKcpgx2pfynhs4jkr4s9bw4r1bu` FOREIGN KEY (`option_id`) REFERENCES `product_options` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `order_items` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间',
+  `original_price_at_order` decimal(10,2) DEFAULT NULL,
+  `price_at_order` decimal(10,2) DEFAULT '0.00' COMMENT '下单时价格',
+  `product_image_url` varchar(255) DEFAULT NULL,
+  `product_name` varchar(100) NOT NULL,
+  `quantity` int NOT NULL,
+  `subtotal` decimal(10,2) DEFAULT '0.00' COMMENT '小计',
+  `order_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  `price` decimal(10,2) NOT NULL,
+  `product_image` varchar(200) DEFAULT NULL,
+  `remark` varchar(100) DEFAULT NULL,
+  `spec_json` json DEFAULT NULL,
+  `sweetness` varchar(20) DEFAULT NULL,
+  `temperature` varchar(20) DEFAULT NULL,
+  `total_price` decimal(10,2) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKbioxgbv59vetrxe0ejfubep1w` (`order_id`),
+  KEY `fk_order_items_product_id_restrict` (`product_id`),
+  CONSTRAINT `fk_order_items_product_id_restrict` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `FKbioxgbv59vetrxe0ejfubep1w` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `order_refund_images` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `image_url` varchar(255) NOT NULL,
+  `refund_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKtp1pufg85a5clnusv2ltydxn8` (`refund_id`),
+  CONSTRAINT `FKtp1pufg85a5clnusv2ltydxn8` FOREIGN KEY (`refund_id`) REFERENCES `order_refunds` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `order_refunds` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `reason` varchar(100) NOT NULL,
+  `refund_amount` decimal(10,2) DEFAULT NULL,
+  `status` varchar(20) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `order_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `order_no` varchar(32) NOT NULL,
+  `reply` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKmc53i8eq1lukxtbdulobibrek` (`order_id`),
+  KEY `FKb9u2c1e8uhvpqn0koly6hlq8t` (`user_id`),
+  CONSTRAINT `FKb9u2c1e8uhvpqn0koly6hlq8t` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKmc53i8eq1lukxtbdulobibrek` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `order_review_appends` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `review_id` BIGINT NOT NULL,
-  `content` TEXT NOT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评价追评';
-
-
--- 5. 门店与系统管理 (Store & System)
-
-
--- 门店表
-CREATE TABLE `stores` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL,
-  `address` VARCHAR(200) NOT NULL,
-  `phone` VARCHAR(20),
-  `business_status` TINYINT DEFAULT 1 COMMENT '1:营业 0:休息',
-  `business_hours` VARCHAR(50) COMMENT '09:00-22:00',
-  `is_auto_receipt` BOOLEAN DEFAULT TRUE COMMENT '是否自动接单',
-  `current_wait_time` INT DEFAULT 0 COMMENT '当前预估等待(分钟)',
-  `is_active` BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否激活',
-  `code` VARCHAR(20) UNIQUE COMMENT '门店编码',
-  `province` VARCHAR(50) DEFAULT NULL COMMENT '省份',
-  `city` VARCHAR(50) DEFAULT NULL COMMENT '城市',
-  `district` VARCHAR(50) DEFAULT NULL COMMENT '区县',
-  `address_json` JSON COMMENT '地址详情JSON',
-  `manager_name` VARCHAR(50) COMMENT '负责人姓名',
-  `manager_phone` VARCHAR(20) COMMENT '负责人电话',
-  `status` VARCHAR(20) NOT NULL DEFAULT 'OPEN' COMMENT '状态',
-  `business_hours_json` JSON COMMENT '营业时间JSON',
-  `latitude` DECIMAL(10, 8) DEFAULT 0 COMMENT '纬度',
-  `longitude` DECIMAL(11, 8) DEFAULT 0 COMMENT '经度',
-  `delivery_radius` INT DEFAULT 0 COMMENT '配送半径',
-  `delivery_fee` DECIMAL(10, 2) DEFAULT 0 COMMENT '配送费',
-  `min_order_amount` DECIMAL(10, 2) DEFAULT 0 COMMENT '最低起送价',
-  `is_auto_accept` BOOLEAN DEFAULT FALSE COMMENT '是否自动接单',
-  `is_online_payment` BOOLEAN DEFAULT TRUE COMMENT '是否支持在线支付',
-  `config_json` JSON COMMENT '配置JSON',
-  `rating` DECIMAL(3, 2) DEFAULT 5.00 COMMENT '门店评分',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店表';
-
--- 打印机配置 
-CREATE TABLE `print_printers` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `store_id` BIGINT NOT NULL,
-  `name` VARCHAR(50) COMMENT '前台打印机',
-  `sn` VARCHAR(64) NOT NULL COMMENT '设备序列号',
-  `key` VARCHAR(64) COMMENT '设备Key',
-  `type` VARCHAR(20) COMMENT 'FEIE, YILIAN',
-  `status` TINYINT DEFAULT 1,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='打印机设备';
-
-CREATE TABLE `print_templates` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50),
-  `content` TEXT COMMENT '打印模板内容',
-  `is_default` BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='小票打印模板';
-
--- RBAC 权限管理
-CREATE TABLE `sys_roles` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL COMMENT '店长/店员',
-  `code` VARCHAR(50) NOT NULL UNIQUE,
-  `description` VARCHAR(100),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
-
-CREATE TABLE `sys_permissions` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `parent_id` BIGINT DEFAULT 0,
-  `name` VARCHAR(50) NOT NULL COMMENT '菜单或按钮名',
-  `code` VARCHAR(50) NOT NULL COMMENT '权限标识',
-  `type` TINYINT COMMENT '1:菜单 2:按钮',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限表';
-
-CREATE TABLE `sys_role_permissions` (
-  `role_id` BIGINT NOT NULL,
-  `permission_id` BIGINT NOT NULL,
-  PRIMARY KEY (`role_id`, `permission_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联';
-
--- 管理员/员工表
-CREATE TABLE `sys_users` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `username` VARCHAR(50) NOT NULL UNIQUE,
-  `password` VARCHAR(255) NOT NULL,
-  `real_name` VARCHAR(50),
-  `store_id` BIGINT COMMENT '所属门店, null为总店',
-  `status` TINYINT DEFAULT 1,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台管理员/员工';
-
-CREATE TABLE `sys_user_roles` (
-  `user_id` BIGINT NOT NULL,
-  `role_id` BIGINT NOT NULL,
-  PRIMARY KEY (`user_id`, `role_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联';
-
--- 操作日志 
-CREATE TABLE `sys_operation_logs` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT,
-  `username` VARCHAR(50),
-  `module` VARCHAR(50) COMMENT '操作模块',
-  `action` VARCHAR(50) COMMENT '操作动作',
-  `ip` VARCHAR(50),
-  `params_json` TEXT COMMENT '请求参数',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统操作日志';
-
--- 系统全局配置 
-CREATE TABLE `system_configs` (
-  `config_key` VARCHAR(100) NOT NULL,
-  `config_value` TEXT,
-  `description` VARCHAR(255),
-  PRIMARY KEY (`config_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置KV表';
-
--- 系统备份记录表
-CREATE TABLE `sys_backups` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `file_name` VARCHAR(255) NOT NULL,
-  `file_path` VARCHAR(500) NOT NULL,
-  `file_size` BIGINT,
-  `status` VARCHAR(20) DEFAULT 'COMPLETED' COMMENT 'COMPLETED, FAILED, IN_PROGRESS',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统备份记录表';
-
-
--- 消息通知与推送记录
-CREATE TABLE `notifications` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `title` VARCHAR(100),
-  `content` TEXT,
-  `target_type` VARCHAR(20) COMMENT 'ALL, MEMBER_LEVEL, INDIVIDUAL',
-  `target_value` VARCHAR(100),
-  `sent_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `status` VARCHAR(20) DEFAULT 'SENT',
-  `push_type` VARCHAR(20) DEFAULT NULL COMMENT '推送类型: MARKETING(营销), ACTIVITY(活动)',
-  `trigger_type` VARCHAR(20) DEFAULT NULL COMMENT '触发类型: IMMEDIATE(立即), SCHEDULED(定时), BEHAVIOR_TRIGGER(行为触发)',
-  `trigger_condition` VARCHAR(255) DEFAULT NULL COMMENT '触发条件/行为标识',
-  `image_url` VARCHAR(255) DEFAULT NULL COMMENT '推送配图URL',
-  `link_url` VARCHAR(255) DEFAULT NULL COMMENT '跳转链接URL',
-  `scheduled_time` DATETIME DEFAULT NULL COMMENT '计划发送时间',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='推送任务记录';
-
--- 6. 用户互动与收藏 (User Interaction & Favorites)
-
-
--- 用户收藏门店
-CREATE TABLE `user_favorite_stores` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `store_id` BIGINT NOT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `content` text NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `review_id` bigint NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_store` (`user_id`, `store_id`),
-  KEY `idx_user` (`user_id`),
-  KEY `idx_store` (`store_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户收藏门店';
+  KEY `FK9rg9nkraeoq87d2hhes0to52p` (`review_id`),
+  CONSTRAINT `FK9rg9nkraeoq87d2hhes0to52p` FOREIGN KEY (`review_id`) REFERENCES `order_reviews` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 用户收藏商品
-CREATE TABLE `user_favorite_products` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `product_id` BIGINT NOT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_product` (`user_id`, `product_id`),
-  KEY `idx_user` (`user_id`),
-  KEY `idx_product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户收藏商品';
-
--- 用户搜索历史
-CREATE TABLE `user_search_histories` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `keyword` VARCHAR(100) NOT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户搜索历史';
-
--- 用户分享记录 
-CREATE TABLE `user_shares` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `share_type` VARCHAR(20) COMMENT 'PRODUCT, STORE, COUPON',
-  `target_id` BIGINT COMMENT '分享目标ID',
-  `share_channel` VARCHAR(20) COMMENT 'WECHAT, QQ, WEIBO',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户分享记录';
-
--- 过敏原信息 
-CREATE TABLE `allergens` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL COMMENT '过敏原名称: 花生、牛奶',
-  `icon_url` VARCHAR(255),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='过敏原定义';
-
-CREATE TABLE `product_allergens` (
-  `product_id` BIGINT NOT NULL,
-  `allergen_id` BIGINT NOT NULL,
-  PRIMARY KEY (`product_id`, `allergen_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品过敏原关联';
-
--- 商品图片表 
-CREATE TABLE `product_images` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `product_id` BIGINT NOT NULL,
-  `image_url` VARCHAR(255) NOT NULL,
-  `sort_order` INT DEFAULT 0,
-  PRIMARY KEY (`id`),
-  KEY `idx_product` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品图片表';
-
--- 门店图片表
-CREATE TABLE `store_images` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `store_id` BIGINT NOT NULL,
-  `image_url` VARCHAR(255) NOT NULL,
-  `sort_order` INT DEFAULT 0,
-  PRIMARY KEY (`id`),
-  KEY `idx_store` (`store_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店图片表';
-
--- 门店营业时间特殊日期 
-CREATE TABLE `store_special_dates` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `store_id` BIGINT NOT NULL,
-  `date` DATE NOT NULL,
-  `business_hours` VARCHAR(50) COMMENT '特殊营业时间',
-  `is_closed` BOOLEAN DEFAULT FALSE COMMENT '是否闭店',
-  PRIMARY KEY (`id`),
-  KEY `idx_store` (`store_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店特殊日期';
-
--- 门店营业时间 
-CREATE TABLE `store_business_hours` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `store_id` BIGINT NOT NULL,
-  `day_of_week` TINYINT NOT NULL COMMENT '1-7 (周一至周日)',
-  `open_time` TIME NOT NULL,
-  `close_time` TIME NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_store_day` (`store_id`, `day_of_week`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店营业时间';
-
--- 购物车项
-CREATE TABLE `cart_items` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `store_id` BIGINT DEFAULT NULL,
-  `product_id` BIGINT NOT NULL,
-  `spec_id` BIGINT,
-  `sweetness` VARCHAR(20),
-  `temperature` VARCHAR(20),
-  `quantity` INT NOT NULL DEFAULT 1,
-  `is_selected` BIT(1) NOT NULL DEFAULT 1 COMMENT '是否选中',
-  `is_valid` BIT(1) NOT NULL DEFAULT 1 COMMENT '是否有效',
-  `price_at_add` DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT '加入时的价格',
-  `original_price_at_add` DECIMAL(10, 2) DEFAULT NULL COMMENT '加入时的原价',
-  `invalid_reason` VARCHAR(255) DEFAULT NULL COMMENT '失效原因',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='购物车项';
-
--- 购物车项定制
-CREATE TABLE `cart_item_customizations` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `cart_item_id` BIGINT NOT NULL,
-  `option_id` BIGINT NOT NULL COMMENT 'product_options.id',
-  `quantity` INT DEFAULT 1,
-  PRIMARY KEY (`id`),
-  KEY `idx_cart_item` (`cart_item_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='购物车项定制';
-
--- 订单项定制
-CREATE TABLE `order_item_customizations` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `order_item_id` BIGINT NOT NULL,
-  `option_id` BIGINT NOT NULL COMMENT 'product_options.id',
-  `quantity` INT DEFAULT 1,
-  PRIMARY KEY (`id`),
-  KEY `idx_order_item` (`order_item_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单项定制';
-
--- 订单状态时间线
-CREATE TABLE `order_status_timelines` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `order_id` BIGINT NOT NULL,
-  `status` VARCHAR(20) NOT NULL,
-  `occurred_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_order` (`order_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单状态时间线';
-
--- 订单退款图片
-CREATE TABLE `order_refund_images` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `refund_id` BIGINT NOT NULL,
-  `image_url` VARCHAR(255) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_refund` (`refund_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单退款图片';
-
--- 订单评价图片
 CREATE TABLE `order_review_images` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `review_id` BIGINT NOT NULL,
-  `image_url` VARCHAR(255) NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `image_url` varchar(255) NOT NULL,
+  `review_id` bigint NOT NULL,
+  `sort_order` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_review` (`review_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单评价图片';
+  KEY `FKibiwstkf6m9h025itpairjsa9` (`review_id`),
+  CONSTRAINT `FKibiwstkf6m9h025itpairjsa9` FOREIGN KEY (`review_id`) REFERENCES `order_reviews` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 积分兑换商品
-CREATE TABLE `point_exchange_items` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(100) NOT NULL,
-  `description` TEXT,
-  `point_cost` INT NOT NULL,
-  `stock` INT DEFAULT 0,
-  `image_url` VARCHAR(255),
-  `status` VARCHAR(20) DEFAULT 'AVAILABLE' COMMENT 'AVAILABLE, SOLD_OUT, DISABLED',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分兑换商品';
+CREATE TABLE `order_review_likes` (
+  `created_at` datetime(6) DEFAULT NULL,
+  `review_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`review_id`,`user_id`),
+  KEY `FKjwn3csdfuiu1wi3vf19yu5pij` (`user_id`),
+  CONSTRAINT `FK98p7uhat6vbn1seewheffohtl` FOREIGN KEY (`review_id`) REFERENCES `order_reviews` (`id`),
+  CONSTRAINT `FKjwn3csdfuiu1wi3vf19yu5pij` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 积分兑换记录
-CREATE TABLE `point_exchange_records` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `order_no` VARCHAR(64) NOT NULL,
-  `total_points` INT NOT NULL,
-  `total_items` INT NOT NULL,
-  `status` VARCHAR(20) DEFAULT 'COMPLETED',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `order_review_replies` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `content` text NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `is_official` bit(1) DEFAULT NULL,
+  `review_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分兑换记录';
-
--- 积分交易记录
-CREATE TABLE `point_transactions` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `user_id` BIGINT NOT NULL,
-  `type` VARCHAR(20) NOT NULL COMMENT 'EARN, SPEND, EXPIRE',
-  `amount` INT NOT NULL,
-  `balance_after` INT NOT NULL,
-  `related_id` BIGINT COMMENT '关联订单/兑换ID',
-  `remark` VARCHAR(200),
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分交易记录';
-
--- 验证码记录
-CREATE TABLE `verification_codes` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `phone` VARCHAR(20) NOT NULL,
-  `code` VARCHAR(10) NOT NULL,
-  `type` VARCHAR(20) COMMENT 'LOGIN, REGISTER, RESET_PASSWORD',
-  `expire_time` DATETIME NOT NULL,
-  `used` BOOLEAN DEFAULT FALSE,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_phone` (`phone`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='验证码记录';
-
--- 页面配置 
-CREATE TABLE `page_configs` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `page` VARCHAR(50) NOT NULL COMMENT 'HOME, CATEGORY',
-  `module` VARCHAR(50) NOT NULL COMMENT 'BANNER, QUICK_ENTRY',
-  `config_json` JSON NOT NULL COMMENT '配置内容',
-  `sort_order` INT DEFAULT 0,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='页面配置';
-
--- 快捷入口
-CREATE TABLE `quick_entries` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL,
-  `icon_url` VARCHAR(255),
-  `link_type` VARCHAR(20) COMMENT 'PRODUCT, CATEGORY, URL',
-  `link_value` VARCHAR(255),
-  `sort_order` INT DEFAULT 0,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='快捷入口';
-
--- 搜索关键词 
-CREATE TABLE `search_keywords` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `keyword` VARCHAR(100) NOT NULL,
-  `search_count` INT DEFAULT 0,
-  `is_hot` BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='搜索关键词';
-
--- 评价标签
-CREATE TABLE `review_tags` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(50) NOT NULL COMMENT '标签: 服务好、出餐快',
-  `type` VARCHAR(20) COMMENT 'POSITIVE, NEGATIVE',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评价标签';
+  KEY `FKauj972o6cpfi8tq0lv02opuff` (`review_id`),
+  KEY `FK9dy2vfs95vsek0qxdbccdeqyr` (`user_id`),
+  CONSTRAINT `FK9dy2vfs95vsek0qxdbccdeqyr` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKauj972o6cpfi8tq0lv02opuff` FOREIGN KEY (`review_id`) REFERENCES `order_reviews` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `order_review_tags` (
-  `review_id` BIGINT NOT NULL,
-  `tag_id` BIGINT NOT NULL,
-  PRIMARY KEY (`review_id`, `tag_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评价标签关联';
+  `review_id` bigint NOT NULL,
+  `tag_id` bigint NOT NULL,
+  PRIMARY KEY (`review_id`,`tag_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 每日统计
-CREATE TABLE `daily_statistics` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `store_id` BIGINT,
-  `date` DATE NOT NULL,
-  `order_count` INT DEFAULT 0,
-  `total_sales` DECIMAL(10,2) DEFAULT 0.00,
-  `new_users` INT DEFAULT 0,
-  `avg_order_amount` DECIMAL(10,2) DEFAULT 0.00 COMMENT '客单价',
+CREATE TABLE `order_reviews` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `content` varchar(255) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `is_anonymous` bit(1) NOT NULL,
+  `rating` smallint NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `order_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `images_json` json DEFAULT NULL,
+  `like_count` int DEFAULT NULL,
+  `reply_count` int DEFAULT NULL,
+  `score` int NOT NULL,
+  `product_score` int DEFAULT NULL COMMENT '商品评分',
+  `delivery_score` int DEFAULT NULL COMMENT '配送评分',
+  `product_id` bigint DEFAULT NULL,
+  `store_id` bigint DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_store_date` (`store_id`, `date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='每日统计';
+  UNIQUE KEY `UK47luv1v5wdmtm40rpbqrr2x65` (`order_id`),
+  KEY `FKdlovycfbwhcwuht06h17igxk3` (`user_id`),
+  KEY `FKdf6yyaj1ccykodu0lprh5hvvy` (`product_id`),
+  KEY `FK_order_reviews_store` (`store_id`),
+  CONSTRAINT `FK_order_reviews_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`),
+  CONSTRAINT `FKdf6yyaj1ccykodu0lprh5hvvy` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `FKdlovycfbwhcwuht06h17igxk3` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKejq2ik6sp8jo71cfdf1v0w5vh` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 支付记录
-CREATE TABLE `payments` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `order_id` BIGINT NOT NULL,
-  `transaction_id` VARCHAR(64) COMMENT '第三方支付流水号',
-  `amount` DECIMAL(10,2) NOT NULL,
-  `status` VARCHAR(20) DEFAULT 'PENDING' COMMENT 'SUCCESS, FAILED',
-  `pay_time` DATETIME,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `order_status_timelines` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '创建时间',
+  `is_current` bit(1) DEFAULT b'1' COMMENT '是否当前状态',
+  `status` varchar(20) NOT NULL,
+  `status_text` varchar(50) DEFAULT '' COMMENT '状态文本',
+  `time` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT '状态时间',
+  `order_id` bigint NOT NULL,
+  `remark` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_order` (`order_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付记录';
+  KEY `FKchg3d94pdow7x5lf11u2a51sd` (`order_id`),
+  CONSTRAINT `FKchg3d94pdow7x5lf11u2a51sd` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 文件上传记录
-CREATE TABLE `files` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `original_name` VARCHAR(255) NOT NULL,
-  `stored_name` VARCHAR(255) NOT NULL,
-  `url` VARCHAR(255) NOT NULL,
-  `size` BIGINT,
-  `mime_type` VARCHAR(100),
-  `uploader_id` BIGINT,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE `orders` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `acceptor_id` bigint DEFAULT NULL,
+  `acceptor_name` varchar(50) DEFAULT NULL,
+  `actual_ready_time` datetime(6) DEFAULT NULL,
+  `balance_discount_amount` decimal(10,2) DEFAULT '0.00' COMMENT '余额抵扣金额',
+  `balance_used` decimal(10,2) DEFAULT '0.00' COMMENT '余额抵扣金额',
+  `cancel_deadline` datetime(6) DEFAULT NULL,
+  `counter_number` varchar(20) DEFAULT NULL,
+  `coupon_id` bigint DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `delivery_fee` decimal(10,2) NOT NULL,
+  `delivery_time_expected` datetime(6) DEFAULT NULL,
+  `discount_amount` decimal(10,2) NOT NULL,
+  `estimated_arrival_time` datetime(6) DEFAULT NULL,
+  `estimated_ready_time` datetime(6) DEFAULT NULL,
+  `invoice_tax_number` varchar(50) DEFAULT NULL,
+  `invoice_title` varchar(100) DEFAULT NULL,
+  `invoice_type` varchar(20) DEFAULT NULL,
+  `is_rated` bit(1) DEFAULT b'0' COMMENT '是否已评价',
+  `order_no` varchar(50) NOT NULL,
+  `package_fee` decimal(10,2) DEFAULT '0.00' COMMENT '包装费',
+  `pay_amount` decimal(10,2) DEFAULT '0.00' COMMENT '实付金额',
+  `pickup_code` varchar(20) DEFAULT NULL,
+  `pickup_time_actual` datetime(6) DEFAULT NULL,
+  `points_discount_amount` decimal(10,2) DEFAULT '0.00' COMMENT '积分抵扣金额',
+  `points_used` int DEFAULT '0' COMMENT '使用的积分',
+  `product_amount` decimal(10,2) DEFAULT '0.00' COMMENT '商品总额',
+  `queue_position` int DEFAULT NULL,
+  `rate_deadline` datetime(6) DEFAULT NULL,
+  `refund_deadline` datetime(6) DEFAULT NULL,
+  `remark` varchar(255) DEFAULT NULL,
+  `rider_latitude` decimal(10,7) DEFAULT NULL,
+  `rider_longitude` decimal(10,7) DEFAULT NULL,
+  `rider_name` varchar(50) DEFAULT NULL,
+  `rider_phone` varchar(20) DEFAULT NULL,
+  `status` varchar(20) NOT NULL COMMENT '订单状态: PENDING_PAYMENT-待支付, PAID-已支付/待接单, MAKING-制作中, READY-待取餐, DELIVERING-配送中, DELIVERED-已送达, COMPLETED-已完成, FINISHED-已结束, REFUNDING-退款中, REFUNDED-已退款, CANCELLED-已取消, REVIEWED-已评价',
+  `status_text` varchar(50) DEFAULT NULL,
+  `total_amount` decimal(10,2) NOT NULL,
+  `type` varchar(20) DEFAULT 'PICKUP' COMMENT '订单类型',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `delivery_address_id` bigint DEFAULT NULL,
+  `pickup_store_id` bigint DEFAULT NULL,
+  `user_id` bigint NOT NULL,
+  `actual_amount` decimal(10,2) DEFAULT '0.00' COMMENT '实际支付金额',
+  `address_json` json DEFAULT NULL,
+  `delivery_type` varchar(20) NOT NULL,
+  `is_commented` bit(1) DEFAULT NULL,
+  `last_remind_time` datetime(6) DEFAULT NULL,
+  `order_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '订单创建时间',
+  `pay_method` varchar(20) DEFAULT NULL,
+  `pay_time` datetime(6) DEFAULT NULL,
+  `queue_number` int DEFAULT NULL,
+  `remind_count` int DEFAULT NULL,
+  `transaction_id` varchar(64) DEFAULT NULL,
+  `store_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_g8pohnngqi5x1nask7nff2u7w` (`order_no`),
+  KEY `FKdetdfuwt99im2ecifbqm94isd` (`delivery_address_id`),
+  KEY `FK1mkbbvgn9c5h1kflgdsmb4wlh` (`pickup_store_id`),
+  KEY `FK32ql8ubntj5uh44ph9659tiih` (`user_id`),
+  KEY `FKnqkwhwveegs6ne9ra90y1gq0e` (`store_id`),
+  CONSTRAINT `FK1mkbbvgn9c5h1kflgdsmb4wlh` FOREIGN KEY (`pickup_store_id`) REFERENCES `stores` (`id`),
+  CONSTRAINT `FK32ql8ubntj5uh44ph9659tiih` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKdetdfuwt99im2ecifbqm94isd` FOREIGN KEY (`delivery_address_id`) REFERENCES `user_addresses` (`id`),
+  CONSTRAINT `FKnqkwhwveegs6ne9ra90y1gq0e` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `page_configs` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `config_json` json NOT NULL,
+  `module` varchar(50) NOT NULL,
+  `page` varchar(50) NOT NULL,
+  `sort_order` int DEFAULT '0',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文件上传记录';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `payments` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `channel` varchar(20) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `expire_time` datetime(6) DEFAULT NULL,
+  `is_sandbox` bit(1) NOT NULL,
+  `pay_amount` decimal(10,2) NOT NULL,
+  `pay_id` varchar(100) DEFAULT NULL,
+  `pay_status` varchar(20) NOT NULL,
+  `pay_time` datetime(6) DEFAULT NULL,
+  `pay_type` varchar(20) NOT NULL,
+  `payment_url` varchar(255) DEFAULT NULL,
+  `transaction_id` varchar(100) DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `order_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK81gagumt0r8y3rmudcgpbk42l` (`order_id`),
+  CONSTRAINT `FK81gagumt0r8y3rmudcgpbk42l` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化基础数据
+CREATE TABLE `point_exchange_items` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `description` varchar(255) DEFAULT NULL,
+  `image_url` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `name` varchar(100) NOT NULL,
+  `points_cost` int NOT NULL,
+  `stock` int DEFAULT '0' COMMENT '库存',
+  `target_id` bigint DEFAULT NULL,
+  `target_type` varchar(20) NOT NULL,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `point_cost` int DEFAULT '0' COMMENT '积分成本',
+  `status` varchar(20) DEFAULT NULL,
+  `category` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `point_exchange_record_addresses` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `city` varchar(50) DEFAULT NULL,
+  `detail_address` varchar(200) NOT NULL,
+  `district` varchar(50) DEFAULT NULL,
+  `phone` varchar(20) NOT NULL,
+  `postal_code` varchar(10) DEFAULT NULL,
+  `province` varchar(50) DEFAULT NULL,
+  `recipient_name` varchar(50) NOT NULL,
+  `record_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_7w1j8rh5pwx93wy0h65qx72r8` (`record_id`),
+  CONSTRAINT `FKp6v4qscphjkdhy2psk15g40d8` FOREIGN KEY (`record_id`) REFERENCES `point_exchange_records` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化会员等级
-INSERT INTO `member_levels` (`name`, `min_growth_value`, `discount_rate`, `privileges_json`) VALUES 
-('普通会员', 0, 1.00, '{"birthday": false}'),
-('黄金会员', 500, 0.95, '{"birthday": true}'),
-('钻石会员', 2000, 0.88, '{"birthday": true, "speedy": true}');
+CREATE TABLE `point_exchange_record_items` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `points_per_item` int NOT NULL,
+  `quantity` int NOT NULL,
+  `total_points` int NOT NULL,
+  `item_id` bigint NOT NULL,
+  `record_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKqaabygb6vkvg4spunc7nxc1ud` (`item_id`),
+  KEY `FKml8jq3bsa1k6kk79yw0v4qg2k` (`record_id`),
+  CONSTRAINT `FKml8jq3bsa1k6kk79yw0v4qg2k` FOREIGN KEY (`record_id`) REFERENCES `point_exchange_records` (`id`),
+  CONSTRAINT `FKqaabygb6vkvg4spunc7nxc1ud` FOREIGN KEY (`item_id`) REFERENCES `point_exchange_items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化系统配置
-INSERT INTO `system_configs` (`config_key`, `config_value`, `description`) VALUES
-('points_rule', '{"rate": 1, "use_rate": 100, "max_use": 100}', '积分抵现规则'),
-('voice_remind', '{"new_order": true, "refund": true}', '语音提醒设置'),
-('search_hot_words', '["珍珠奶茶", "杨枝甘露", "新品"]', '热门搜索推荐'),
-('wechat_config', '{"appId": "wx1234567890", "appSecret": "abcdef1234567890"}', '微信小程序配置'),
-('payment_gateway_url', 'https://openapi.alipaydev.com/gateway.do', '支付网关地址'),
-('map_api_key', 'map_key_123456', '地图API密钥'),
-('member_benefits', '生日双倍积分,每月领券,优先出餐', '会员权益描述');
+CREATE TABLE `point_exchange_record_status_timelines` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `remark` varchar(200) DEFAULT NULL,
+  `status` varchar(20) NOT NULL,
+  `record_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKetu91nceqxftjnr0tacbvivxx` (`record_id`),
+  CONSTRAINT `FKetu91nceqxftjnr0tacbvivxx` FOREIGN KEY (`record_id`) REFERENCES `point_exchange_records` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化超级管理员
-INSERT INTO `sys_users` (`username`, `password`, `real_name`, `status`) VALUES
-('admin', '$2a$10$xyz...', '超级管理员', 1);
+CREATE TABLE `point_exchange_records` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `order_no` varchar(50) NOT NULL,
+  `remark` varchar(200) DEFAULT NULL,
+  `shipping_fee` decimal(10,2) DEFAULT NULL,
+  `status` varchar(20) NOT NULL,
+  `total_items` int NOT NULL,
+  `total_points` int NOT NULL,
+  `tracking_number` varchar(100) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKo0ax8jadtmcmqo11s34d2cdm4` (`user_id`),
+  CONSTRAINT `FKo0ax8jadtmcmqo11s34d2cdm4` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化一个测试用户 (ID=1)，用于开发阶段的兜底逻辑
-INSERT INTO `users` (`id`, `username`, `password_hash`, `phone`, `nickname`, `status`, `registration_time`) VALUES
-(1, 'testuser', '$2a$10$8.IlyE9uKwS.A.D68Z971u.6BaX.Y.P.8.Y.P.8.Y.P.8.Y.P.8', '13800138000', '测试用户', 'ACTIVE', NOW());
+CREATE TABLE `point_transactions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `balance_after_transaction` int DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `points_change` int DEFAULT NULL,
+  `related_id` bigint DEFAULT NULL,
+  `related_type` varchar(20) DEFAULT NULL,
+  `type` varchar(20) NOT NULL,
+  `user_id` bigint NOT NULL,
+  `amount` int NOT NULL,
+  `balance_after` int DEFAULT NULL,
+  `remark` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKcqbvxpskb8p7mko50hokltu5b` (`user_id`),
+  CONSTRAINT `FKcqbvxpskb8p7mko50hokltu5b` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化门店
-INSERT INTO `stores` (`name`, `address`, `phone`, `business_status`, `business_hours`) VALUES
-('深大店', '深圳市南山区粤海街道深圳大学', '0755-12345678', 1, '09:00-22:00'),
-('科技园店', '深圳市南山区科苑路15号', '0755-87654321', 1, '08:30-21:30');
+CREATE TABLE `print_printers` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `printer_key` varchar(64) DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL,
+  `sn` varchar(64) NOT NULL,
+  `status` int DEFAULT NULL,
+  `type` varchar(20) DEFAULT NULL,
+  `store_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK5yjds5yl88ix92vwna68wq4m4` (`store_id`),
+  CONSTRAINT `FK5yjds5yl88ix92vwna68wq4m4` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化分类
-INSERT INTO `categories` (`name`, `icon_url`, `sort_order`) VALUES
-('人气Top', '/images/categories/hot.png', 1),
-('经典奶茶', '/images/categories/milk-tea.png', 2),
-('清爽果茶', '/images/categories/fruit-tea.png', 3),
-('现磨咖啡', '/images/categories/coffee.png', 4),
-('精选小食', '/images/categories/snack.png', 5);
+CREATE TABLE `print_templates` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `content` text,
+  `is_default` bit(1) DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO `categories` (`name`, `icon_url`, `sort_order`) VALUES
-('热饮系列', '/images/categories/hot-drink.png', 6),
-('低糖系列', '/images/categories/low-sugar.png', 7),
-('季节限定', '/images/categories/seasonal.png', 8),
-('冰淇淋', '/images/categories/ice-cream.png', 9);
+CREATE TABLE `product_allergens` (
+  `allergen_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`allergen_id`,`product_id`),
+  KEY `FKps3ek2a1xvrk0h8dqaqn29hb1` (`product_id`),
+  CONSTRAINT `FK95v23b3wm2nnbjks4up3gwvkg` FOREIGN KEY (`allergen_id`) REFERENCES `allergens` (`id`),
+  CONSTRAINT `FKps3ek2a1xvrk0h8dqaqn29hb1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化商品
-INSERT INTO `products` (`category_id`, `name`, `description`, `price`, `cost_price`, `main_image_url`, `status`, `sales`, `is_member_exclusive`, `member_price`) VALUES
-(2, '珍珠奶茶', '经典台式风味，Q弹珍珠', 15.00, 5.00, '/images/products/milk-tea-1.jpg', 1, 1200, 0, 13.50),
-(2, '波霸奶茶', '超大颗波霸，口感丰富', 16.00, 6.00, '/images/products/milk-tea-2.jpg', 1, 800, 0, 14.40),
-(3, '杨枝甘露', '新鲜芒果配西柚，酸甜适口', 22.00, 8.00, '/images/products/fruit-tea-1.jpg', 1, 2500, 0, 19.80),
-(3, '多肉葡萄', '手剥新鲜葡萄，搭配芝士奶盖', 28.00, 10.00, '/images/products/fruit-tea-2.jpg', 1, 3000, 1, 25.00),
-(4, '生椰拿铁', '清甜生椰水遇上浓缩咖啡', 18.00, 7.00, '/images/products/coffee-1.jpg', 1, 1500, 0, 16.20);
+CREATE TABLE `product_allergens_map` (
+  `allergen_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`allergen_id`,`product_id`),
+  KEY `FKsuw88cchfxh48qfelmr1gdiur` (`product_id`),
+  CONSTRAINT `FKsuw88cchfxh48qfelmr1gdiur` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `FKt15xps1xpc9qvj57lutkag2nj` FOREIGN KEY (`allergen_id`) REFERENCES `allergens` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化规格
-INSERT INTO `product_specs` (`product_id`, `type`, `name`, `is_default`) VALUES
-(1, 'TEMPERATURE', '常规冰', 1), (1, 'TEMPERATURE', '少冰', 0), (1, 'TEMPERATURE', '去冰', 0), (1, 'TEMPERATURE', '热', 0),
-(1, 'SWEETNESS', '标准糖', 1), (1, 'SWEETNESS', '七分糖', 0), (1, 'SWEETNESS', '五分糖', 0), (1, 'SWEETNESS', '三分糖', 0), (1, 'SWEETNESS', '不加糖', 0);
+CREATE TABLE `product_customization_options` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `icon_url` varchar(255) DEFAULT NULL,
+  `is_default` bit(1) NOT NULL,
+  `label` varchar(50) NOT NULL,
+  `price_adjustment` decimal(10,2) NOT NULL,
+  `sort_order` int DEFAULT NULL,
+  `stock` int DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `value` varchar(50) NOT NULL,
+  `customization_type_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK69r85lfhsqqkrvbr0pr99dl2d` (`customization_type_id`),
+  CONSTRAINT `FK69r85lfhsqqkrvbr0pr99dl2d` FOREIGN KEY (`customization_type_id`) REFERENCES `product_customization_types` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化加料
-INSERT INTO `product_options` (`product_id`, `type`, `name`, `price`) VALUES
-(1, 'TOPPING', '珍珠', 2.00), (1, 'TOPPING', '椰果', 2.00), (1, 'TOPPING', '布丁', 3.00), (1, 'TOPPING', '芝士奶盖', 5.00);
+CREATE TABLE `product_customization_types` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `is_enabled` bit(1) NOT NULL,
+  `is_required` bit(1) NOT NULL,
+  `label` varchar(50) DEFAULT NULL,
+  `max_quantity` int DEFAULT NULL,
+  `sort_order` int DEFAULT NULL,
+  `type_name` varchar(50) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKt44rqbcge62xdoacoe2xlr64g` (`product_id`),
+  CONSTRAINT `FKt44rqbcge62xdoacoe2xlr64g` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化优惠券模板
-INSERT INTO `coupon_templates` (`name`, `type`, `reduction_amount`, `min_amount`, `total_count`, `received_count`, `start_time`, `end_time`) VALUES
-('新人5元无门槛', 'REDUCTION', 5.00, 0.00, 1000, 100, '2024-01-01 00:00:00', '2025-12-31 23:59:59'),
-('满30减10', 'REDUCTION', 10.00, 30.00, 500, 50, '2024-01-01 00:00:00', '2025-12-31 23:59:59'),
-('分享专享8折券', 'DISCOUNT', 0.80, 20.00, 2000, 200, '2024-01-01 00:00:00', '2025-12-31 23:59:59');
+CREATE TABLE `product_images` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `image_url` varchar(255) NOT NULL,
+  `sort_order` int DEFAULT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKqnq71xsohugpqwf3c9gxmsuy` (`product_id`),
+  CONSTRAINT `FKqnq71xsohugpqwf3c9gxmsuy` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化轮播图
-INSERT INTO `banners` (`image_url`, `link_type`, `link_value`, `sort`) VALUES
-('/images/banners/banner1.jpg', 'PRODUCT', '3', 1),
-('/images/banners/banner2.jpg', 'URL', 'https://example.com/activity', 2);
+CREATE TABLE `product_ingredients_map` (
+  `ingredient_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`ingredient_id`,`product_id`),
+  KEY `FKr65gr2gla0dp8v4b61pekoqwa` (`product_id`),
+  CONSTRAINT `FKr65gr2gla0dp8v4b61pekoqwa` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `FKt8r944lgsosl1lj524ptjivb3` FOREIGN KEY (`ingredient_id`) REFERENCES `ingredients` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 初始化积分商品
-INSERT INTO `point_exchange_items` (`name`, `description`, `point_cost`, `stock`, `image_url`, `status`) VALUES
-('5元代金券', '全场通用，无门槛', 500, 999, '/images/points/coupon-5.png', 'AVAILABLE'),
-('定制马克杯', '奶茶店专属定制', 2000, 50, '/images/points/cup.png', 'AVAILABLE');
+CREATE TABLE `product_nutritions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `unit` varchar(20) DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `value` varchar(50) NOT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKch9obbsvx5n3t0jhr2sudlfbp` (`product_id`),
+  CONSTRAINT `FKch9obbsvx5n3t0jhr2sudlfbp` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE `product_options` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL,
+  `price` decimal(10,2) DEFAULT NULL,
+  `stock` int DEFAULT NULL,
+  `type` varchar(20) NOT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK8vv4f8fru80wxocwgxwsrow61` (`product_id`),
+  CONSTRAINT `FK8vv4f8fru80wxocwgxwsrow61` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_recipes` (
+  `quantity` decimal(10,2) NOT NULL,
+  `ingredient_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`ingredient_id`,`product_id`),
+  KEY `FKdhkjblef758govm787foorpxw` (`product_id`),
+  CONSTRAINT `FK1mj09yf5hkjh6tjpw33rudgsr` FOREIGN KEY (`ingredient_id`) REFERENCES `ingredients` (`id`),
+  CONSTRAINT `FKdhkjblef758govm787foorpxw` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_related_map` (
+  `main_product_id` bigint NOT NULL,
+  `related_product_id` bigint NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `relation_type` varchar(20) DEFAULT NULL,
+  `sort_order` int DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`main_product_id`,`related_product_id`),
+  KEY `FKp1n29xlhww9eqjl92vj1yv0kh` (`related_product_id`),
+  CONSTRAINT `FKaniph9xcr0mrpfssfwdtdov35` FOREIGN KEY (`main_product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `FKp1n29xlhww9eqjl92vj1yv0kh` FOREIGN KEY (`related_product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_spec_combination_inventories` (
+  `created_at` datetime(6) DEFAULT NULL,
+  `low_stock_threshold` int DEFAULT NULL,
+  `stock` int NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `combination_id` bigint NOT NULL,
+  PRIMARY KEY (`combination_id`),
+  CONSTRAINT `FKbn0qdd8thcaks15m4fxvl7opw` FOREIGN KEY (`combination_id`) REFERENCES `product_spec_combinations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_spec_combination_items` (
+  `combination_id` bigint NOT NULL,
+  `spec_item_id` bigint NOT NULL,
+  PRIMARY KEY (`combination_id`,`spec_item_id`),
+  KEY `FKt6wfo9ybuxn8hsl2wtm5plcpd` (`spec_item_id`),
+  CONSTRAINT `FK6unw4g53jb6bjtpvt37bmjtgp` FOREIGN KEY (`combination_id`) REFERENCES `product_spec_combinations` (`id`),
+  CONSTRAINT `FKt6wfo9ybuxn8hsl2wtm5plcpd` FOREIGN KEY (`spec_item_id`) REFERENCES `product_spec_items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_spec_combination_prices` (
+  `specItemId` bigint NOT NULL,
+  `price` decimal(10,2) NOT NULL,
+  `combination_id` bigint NOT NULL,
+  PRIMARY KEY (`combination_id`,`specItemId`),
+  CONSTRAINT `FKs6emtmchwxv1uvh0bu6c8a2rq` FOREIGN KEY (`combination_id`) REFERENCES `product_spec_combinations` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_spec_combinations` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `description` varchar(200) DEFAULT NULL,
+  `is_default` bit(1) DEFAULT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `product_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK6nkfr7fec12sogt0kqy1pd76y` (`product_id`),
+  CONSTRAINT `FK6nkfr7fec12sogt0kqy1pd76y` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_spec_inventories` (
+  `created_at` datetime(6) DEFAULT NULL,
+  `low_stock_threshold` int DEFAULT NULL,
+  `stock` int NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `product_id` bigint NOT NULL,
+  `spec_item_id` bigint NOT NULL,
+  PRIMARY KEY (`product_id`,`spec_item_id`),
+  KEY `FKodmao76f3etw2jxf273g3h1vp` (`spec_item_id`),
+  CONSTRAINT `FKodmao76f3etw2jxf273g3h1vp` FOREIGN KEY (`spec_item_id`) REFERENCES `product_spec_items` (`id`),
+  CONSTRAINT `FKowcuif4rg0yyxebiuabeea5yf` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_spec_items` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `description` varchar(200) DEFAULT NULL,
+  `icon_url` varchar(255) DEFAULT NULL,
+  `name` varchar(50) NOT NULL,
+  `sort_order` int DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `spec_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKs7vmjeul5na5b0xi53csg7f7e` (`spec_id`),
+  CONSTRAINT `FKs7vmjeul5na5b0xi53csg7f7e` FOREIGN KEY (`spec_id`) REFERENCES `product_specs` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_spec_prices` (
+  `price_adjustment` decimal(10,2) NOT NULL,
+  `product_id` bigint NOT NULL,
+  `spec_item_id` bigint NOT NULL,
+  PRIMARY KEY (`product_id`,`spec_item_id`),
+  KEY `FKl569reeft2r4npx423cf89pj0` (`spec_item_id`),
+  CONSTRAINT `FK3sn420dee36ypq8o7x8qxc1gf` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `FKl569reeft2r4npx423cf89pj0` FOREIGN KEY (`spec_item_id`) REFERENCES `product_spec_items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_specs` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `is_required` bit(1) DEFAULT NULL,
+  `max_select` int DEFAULT NULL,
+  `name` varchar(50) NOT NULL,
+  `sort_order` int DEFAULT NULL,
+  `type` varchar(20) NOT NULL COMMENT 'SWEETNESS, TEMPERATURE',
+  `updated_at` datetime(6) DEFAULT NULL,
+  `product_id` bigint NOT NULL,
+  `is_default` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `FKpg8s24i6nwo81ab7awlr3tglk` (`product_id`),
+  CONSTRAINT `FKpg8s24i6nwo81ab7awlr3tglk` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `products` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `calories` varchar(20) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `default_sweetness` varchar(20) DEFAULT NULL,
+  `default_temperature` varchar(20) DEFAULT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `detail_html` varchar(255) DEFAULT NULL,
+  `favorite_count` int NOT NULL,
+  `is_active` bit(1) NOT NULL,
+  `is_hot` bit(1) NOT NULL,
+  `is_new` bit(1) NOT NULL,
+  `is_recommend` bit(1) NOT NULL,
+  `main_image_url` varchar(255) DEFAULT NULL,
+  `monthly_sales` int NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `original_price` decimal(10,2) DEFAULT NULL,
+  `price` decimal(10,2) NOT NULL,
+  `rating` decimal(2,1) NOT NULL,
+  `rating_count` int NOT NULL,
+  `sales` int NOT NULL,
+  `shelf_life` varchar(50) DEFAULT NULL,
+  `stock` int NOT NULL,
+  `storage_method` varchar(100) DEFAULT NULL,
+  `subtitle` varchar(255) DEFAULT NULL,
+  `sugar_content` varchar(20) DEFAULT NULL,
+  `support_sweetness` json DEFAULT NULL,
+  `support_temperature` json DEFAULT NULL,
+  `tags` json DEFAULT NULL,
+  `unit` varchar(20) DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `category_id` bigint DEFAULT NULL,
+  `alert_threshold` int DEFAULT NULL,
+  `cost_price` decimal(10,2) DEFAULT NULL,
+  `image_url` varchar(255) DEFAULT NULL,
+  `is_member_exclusive` bit(1) DEFAULT NULL,
+  `member_price` decimal(10,2) DEFAULT NULL,
+  `status` int DEFAULT NULL,
+  `is_recommended` bit(1) DEFAULT NULL,
+  `sku` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_fhmd06dsmj6k0n90swsh8ie9g` (`sku`),
+  KEY `FKog2rp4qthbtt2lfyhfo32lsw9` (`category_id`),
+  CONSTRAINT `FKog2rp4qthbtt2lfyhfo32lsw9` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `promotions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `button_text` varchar(50) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `end_time` datetime(6) NOT NULL,
+  `image_url` varchar(255) DEFAULT NULL,
+  `is_active` bit(1) NOT NULL,
+  `start_time` datetime(6) NOT NULL,
+  `subtitle` varchar(255) DEFAULT NULL,
+  `title` varchar(100) NOT NULL,
+  `type` varchar(20) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `value` decimal(10,2) DEFAULT NULL,
+  `name` varchar(100) NOT NULL,
+  `rules_json` json NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `quick_entries` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `badge` varchar(20) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `icon_url` varchar(255) NOT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `name` varchar(50) NOT NULL,
+  `sort_order` int DEFAULT NULL,
+  `target_id` bigint DEFAULT NULL,
+  `type` varchar(20) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `review_tags` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_212305laxs8mxe3m6y3nteagj` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `search_keywords` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `count` int NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `keyword` varchar(100) NOT NULL,
+  `type` varchar(20) DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_b1ik45vt49p9i8c4bkox82mrf` (`keyword`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `store_business_hours` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `close_time` time(6) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `day_of_week` int NOT NULL,
+  `is_open` bit(1) NOT NULL,
+  `open_time` time(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `store_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK80xirqrvvoqvaon5435d6de0q` (`store_id`),
+  CONSTRAINT `FK80xirqrvvoqvaon5435d6de0q` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `store_images` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `image_url` varchar(255) NOT NULL,
+  `sort_order` int DEFAULT NULL,
+  `store_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK6s8ktg0dkmr6w1wc8jqwvk6tu` (`store_id`),
+  CONSTRAINT `FK6s8ktg0dkmr6w1wc8jqwvk6tu` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `store_services` (
+  `service_type` varchar(20) NOT NULL,
+  `store_id` bigint NOT NULL,
+  PRIMARY KEY (`service_type`,`store_id`),
+  KEY `FKtj4njgbt88gcr7oefl7mdmnti` (`store_id`),
+  CONSTRAINT `FKtj4njgbt88gcr7oefl7mdmnti` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `store_special_date` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `close_time` time(6) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `is_open` bit(1) NOT NULL,
+  `open_time` time(6) DEFAULT NULL,
+  `remark` varchar(200) DEFAULT NULL,
+  `special_date` date NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `store_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK5nhljnbl2ikgleghw44mjcph9` (`store_id`),
+  CONSTRAINT `FK5nhljnbl2ikgleghw44mjcph9` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `store_special_dates` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `business_hours` varchar(50) DEFAULT NULL,
+  `date` date NOT NULL,
+  `is_closed` bit(1) DEFAULT NULL,
+  `store_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKibilxxwj3ydmtaxbxj3kx1gpj` (`store_id`),
+  CONSTRAINT `FKibilxxwj3ydmtaxbxj3kx1gpj` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `store_tags` (
+  `store_id` bigint NOT NULL,
+  `tag_name` varchar(50) NOT NULL,
+  PRIMARY KEY (`store_id`,`tag_name`),
+  CONSTRAINT `FKkn3jxcg61hmbljc4fxa5xkxek` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `stores` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `address` varchar(255) NOT NULL,
+  `business_hours` varchar(100) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `current_wait_time` int NOT NULL,
+  `delivery_fee` decimal(10,2) DEFAULT '0.00',
+  `is_active` tinyint(1) DEFAULT '1',
+  `latitude` decimal(10,8) DEFAULT '0.00000000' COMMENT '纬度',
+  `longitude` decimal(11,8) DEFAULT '0.00000000' COMMENT '经度',
+  `minimum_order_amount` decimal(10,2) DEFAULT '0.00' COMMENT '最低起送价(冗余字段修复)',
+  `name` varchar(100) NOT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `rating` decimal(3,2) DEFAULT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'OPEN',
+  `updated_at` datetime(6) NOT NULL,
+  `address_json` json DEFAULT NULL,
+  `business_hours_json` json DEFAULT NULL,
+  `code` varchar(20) DEFAULT NULL,
+  `config_json` json DEFAULT NULL,
+  `delivery_radius` int DEFAULT '0',
+  `is_auto_accept` bit(1) DEFAULT NULL,
+  `is_online_payment` bit(1) DEFAULT NULL,
+  `manager_name` varchar(50) DEFAULT NULL,
+  `manager_phone` varchar(20) DEFAULT NULL,
+  `min_order_amount` decimal(10,2) DEFAULT '0.00' COMMENT '最低起送价',
+  `business_status` int DEFAULT NULL,
+  `is_auto_receipt` tinyint(1) DEFAULT '1',
+  `province` varchar(50) DEFAULT NULL COMMENT '省份',
+  `city` varchar(50) DEFAULT NULL COMMENT '城市',
+  `district` varchar(50) DEFAULT NULL COMMENT '区县',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_ma58utc2vht2ri6cdft9hjtr4` (`code`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `sys_backups` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `file_name` varchar(255) NOT NULL,
+  `file_path` varchar(255) NOT NULL,
+  `file_size` bigint DEFAULT NULL,
+  `status` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `sys_operation_logs` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `action` varchar(50) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `ip` varchar(50) DEFAULT NULL,
+  `module` varchar(50) DEFAULT NULL,
+  `params_json` text,
+  `user_id` bigint DEFAULT NULL,
+  `username` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `sys_permissions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `code` varchar(50) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `parent_id` bigint DEFAULT NULL,
+  `type` tinyint DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `sys_role_permissions` (
+  `permission_id` bigint NOT NULL,
+  `role_id` bigint NOT NULL,
+  PRIMARY KEY (`permission_id`,`role_id`),
+  KEY `FKn16g6ssysj9ncfabu2dj0s5u8` (`role_id`),
+  CONSTRAINT `FKa6lycvisbrxexjyanm5grngc0` FOREIGN KEY (`permission_id`) REFERENCES `sys_permissions` (`id`),
+  CONSTRAINT `FKn16g6ssysj9ncfabu2dj0s5u8` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `sys_roles` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `code` varchar(50) NOT NULL,
+  `description` varchar(100) DEFAULT NULL,
+  `name` varchar(50) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_pjdyd7mxv3d909iq031ko99xv` (`code`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `sys_user_roles` (
+  `role_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`role_id`,`user_id`),
+  KEY `FK9508r3u91qjr7onvpyf6203p8` (`user_id`),
+  CONSTRAINT `FK9508r3u91qjr7onvpyf6203p8` FOREIGN KEY (`user_id`) REFERENCES `sys_users` (`id`),
+  CONSTRAINT `FKmkhkspb26v193sxs3dhgu6s2p` FOREIGN KEY (`role_id`) REFERENCES `sys_roles` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `sys_users` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `avatar` varchar(200) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `last_login_ip` varchar(45) DEFAULT NULL,
+  `last_login_time` datetime(6) DEFAULT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `real_name` varchar(50) DEFAULT NULL,
+  `status` varchar(20) NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `username` varchar(50) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_lgllb14jd9kcm09b9enkkbh0q` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `system_configs` (
+  `key` varchar(100) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `value` varchar(255) DEFAULT NULL,
+  `value_type` varchar(20) NOT NULL,
+  `config_key` varchar(100) NOT NULL,
+  `config_value` text,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_addresses` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `city` varchar(50) NOT NULL COMMENT '城市',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `detail` varchar(255) NOT NULL,
+  `district` varchar(50) NOT NULL COMMENT '区县',
+  `is_default` tinyint(1) DEFAULT '0',
+  `label` varchar(50) DEFAULT NULL,
+  `latitude` decimal(10,7) DEFAULT NULL COMMENT '纬度',
+  `longitude` decimal(10,7) DEFAULT NULL COMMENT '经度',
+  `name` varchar(100) NOT NULL,
+  `phone` varchar(20) NOT NULL,
+  `postal_code` varchar(10) DEFAULT NULL,
+  `province` varchar(50) NOT NULL COMMENT '省份',
+  `type` varchar(20) DEFAULT 'RECEIVE',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_id` bigint NOT NULL,
+  `last_used_at` datetime(6) DEFAULT NULL,
+  `tag` varchar(20) DEFAULT NULL,
+  `used_count` int DEFAULT '0',
+  `is_history` bit(1) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKn2fisxyyu3l9wlch3ve2nocgp` (`user_id`),
+  CONSTRAINT `FKn2fisxyyu3l9wlch3ve2nocgp` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_coupons` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `code` varchar(50) DEFAULT NULL,
+  `end_time` datetime(6) NOT NULL,
+  `receive_time` datetime(6) DEFAULT NULL,
+  `start_time` datetime(6) NOT NULL,
+  `status` varchar(20) DEFAULT NULL,
+  `is_used` bit(1) NOT NULL,
+  `used_order_id` bigint DEFAULT NULL,
+  `coupon_template_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKmqrbfrxy6twa3ljnyfojhooua` (`coupon_template_id`),
+  KEY `FK654lvm2qu8l08pyg310mbd74h` (`user_id`),
+  CONSTRAINT `FK654lvm2qu8l08pyg310mbd74h` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKmqrbfrxy6twa3ljnyfojhooua` FOREIGN KEY (`coupon_template_id`) REFERENCES `coupon_templates` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_favorite_products` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `product_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UKtku5mgc6b7m5v7m4312hhqj02` (`user_id`,`product_id`),
+  KEY `FK85wif3w88mq3p4ad5h972g9n9` (`product_id`),
+  CONSTRAINT `FK15xaakjffx56a52b4dulxa0tu` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FK85wif3w88mq3p4ad5h972g9n9` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_favorite_stores` (
+  `store_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  PRIMARY KEY (`store_id`,`user_id`),
+  KEY `FK4w7t4sssn24b03hkuj58jp15b` (`user_id`),
+  CONSTRAINT `FK4w7t4sssn24b03hkuj58jp15b` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FK5tdt9miuoj7n32u3x90qofqlf` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_invite_rewards` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `reward_status` varchar(20) DEFAULT NULL,
+  `invitee_id` bigint NOT NULL,
+  `inviter_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FK4fyw4tkkrua6kpvy30sseyfgy` (`invitee_id`),
+  KEY `FK1epngqia5q7ageic21kkbj35x` (`inviter_id`),
+  CONSTRAINT `FK1epngqia5q7ageic21kkbj35x` FOREIGN KEY (`inviter_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FK4fyw4tkkrua6kpvy30sseyfgy` FOREIGN KEY (`invitee_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_recommendation_feedbacks` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `action` varchar(20) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `product_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKng3f7xovip5he0ap29sy94q2i` (`product_id`),
+  KEY `FKajvohpdipok1v7gdq0tjp6w3a` (`user_id`),
+  CONSTRAINT `FKajvohpdipok1v7gdq0tjp6w3a` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FKng3f7xovip5he0ap29sy94q2i` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_search_histories` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) NOT NULL,
+  `keyword` varchar(100) NOT NULL,
+  `type` varchar(20) DEFAULT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKad8nm10xcsrqff6dolyv1cpdt` (`user_id`),
+  CONSTRAINT `FKad8nm10xcsrqff6dolyv1cpdt` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_share_rewards` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `reward_type` varchar(20) DEFAULT NULL,
+  `reward_value` varchar(100) DEFAULT NULL,
+  `share_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKp6e2emo9ef34j0v4q5ysg25he` (`user_id`),
+  CONSTRAINT `FKp6e2emo9ef34j0v4q5ysg25he` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_shares` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `channel` varchar(20) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `invite_code` varchar(50) DEFAULT NULL,
+  `target_id` bigint DEFAULT NULL,
+  `type` varchar(20) NOT NULL,
+  `user_id` bigint NOT NULL,
+  `share_channel` varchar(20) DEFAULT NULL,
+  `share_type` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `FKalnl0jer446v0969es9irm8y6` (`user_id`),
+  CONSTRAINT `FKalnl0jer446v0969es9irm8y6` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_tag_relation` (
+  `tag_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  PRIMARY KEY (`tag_id`,`user_id`),
+  KEY `FK1803w78nvxka0303attiu5yf` (`user_id`),
+  CONSTRAINT `FK1803w78nvxka0303attiu5yf` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `FK1dnxos4a1gxeijurhogtj9o6k` FOREIGN KEY (`tag_id`) REFERENCES `user_tags` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_tags` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL,
+  `type` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `users` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `avatar_url` varchar(255) DEFAULT NULL,
+  `balance` decimal(10,2) NOT NULL,
+  `birthday` date DEFAULT NULL,
+  `city` varchar(50) DEFAULT NULL,
+  `country` varchar(50) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `gender` int DEFAULT NULL,
+  `growth_value` int NOT NULL,
+  `is_active` bit(1) NOT NULL,
+  `last_login_at` datetime(6) DEFAULT NULL,
+  `member_card_expire_date` date DEFAULT NULL,
+  `member_card_no` varchar(50) DEFAULT NULL,
+  `member_card_status` varchar(20) DEFAULT NULL,
+  `nickname` varchar(50) NOT NULL,
+  `password_hash` varchar(255) DEFAULT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `points` int NOT NULL,
+  `province` varchar(50) DEFAULT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `username` varchar(50) DEFAULT NULL,
+  `wechat_openid` varchar(64) DEFAULT NULL,
+  `member_level_id` bigint DEFAULT NULL,
+  `password` varchar(255) NOT NULL,
+  `registration_time` datetime(6) NOT NULL,
+  `status` varchar(20) NOT NULL,
+  `wechat_unionid` varchar(64) DEFAULT NULL,
+  `inviter_id` bigint DEFAULT NULL,
+  `invite_code` varchar(20) DEFAULT NULL,
+  `push_marketing` bit(1) DEFAULT NULL,
+  `push_notification_enabled` bit(1) DEFAULT NULL,
+  `push_order_update` bit(1) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `UK_6dotkott2kjsp8vw4d0m25fb7` (`email`),
+  UNIQUE KEY `UK_iix8tsqjhksjr3p872k05i5d` (`member_card_no`),
+  UNIQUE KEY `UK_du5v5sr43g5bfnji4vb8hg5s3` (`phone`),
+  UNIQUE KEY `UK_r43af9ap4edm43mmtq01oddj6` (`username`),
+  UNIQUE KEY `UK_5y087isj5tb7ydwwgb1fqcul8` (`wechat_openid`),
+  UNIQUE KEY `UK_6hglwlkeap17hv0j2n8gqi2q` (`invite_code`),
+  UNIQUE KEY `uk_invite_code` (`invite_code`),
+  KEY `FKd8ssleprm03mn0a4s04swxobu` (`member_level_id`),
+  KEY `FKsd1au0076ct861gmth64xlln` (`inviter_id`),
+  CONSTRAINT `FKd8ssleprm03mn0a4s04swxobu` FOREIGN KEY (`member_level_id`) REFERENCES `member_levels` (`id`),
+  CONSTRAINT `FKsd1au0076ct861gmth64xlln` FOREIGN KEY (`inviter_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `verification_codes` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `code` varchar(10) NOT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `expires_at` datetime(6) NOT NULL,
+  `is_used` bit(1) NOT NULL,
+  `phone` varchar(20) NOT NULL,
+  `sent_at` datetime(6) NOT NULL,
+  `type` varchar(20) NOT NULL,
+  `expire_time` datetime(6) NOT NULL,
+  `used` bit(1) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

@@ -97,6 +97,13 @@ public class Store {
 
     @Column(name = "current_wait_time")
     private Integer currentWaitTime = 0;
+
+    @Column(name = "open_time")
+    private String openTime;
+
+    @Column(name = "close_time")
+    private String closeTime;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 

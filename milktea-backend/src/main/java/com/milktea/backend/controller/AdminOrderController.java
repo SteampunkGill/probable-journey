@@ -45,6 +45,18 @@ public class AdminOrderController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @PostMapping("/orders/{orderNo}/complete")
+    public ResponseEntity<ApiResponse<Void>> completeOrder(@PathVariable String orderNo) {
+        adminOrderService.completeOrder(orderNo);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PostMapping("/orders/{orderNo}/deliver")
+    public ResponseEntity<ApiResponse<Void>> deliverOrder(@PathVariable String orderNo) {
+        adminOrderService.deliverOrder(orderNo);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     @PostMapping("/orders/batch-accept")
     public ResponseEntity<ApiResponse<Void>> batchAccept(@RequestBody List<String> orderNos) {
         adminOrderService.batchAccept(orderNos);
@@ -108,6 +120,12 @@ public class AdminOrderController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @PostMapping("/orders/{orderNo}/refund-approve")
+    public ResponseEntity<ApiResponse<Void>> approveRefund(@PathVariable String orderNo) {
+        adminOrderService.approveRefundByOrderNo(orderNo);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     @GetMapping("/complaints")
     public ResponseEntity<ApiResponse<List<Complaint>>> getComplaints() {
         return ResponseEntity.ok(ApiResponse.success(adminOrderService.getComplaints()));
@@ -116,6 +134,17 @@ public class AdminOrderController {
     @PostMapping("/complaints/{id}/handle")
     public ResponseEntity<ApiResponse<Void>> handleComplaint(@PathVariable Long id, @RequestBody ComplaintHandleDTO dto) {
         adminOrderService.handleComplaint(id, dto);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @GetMapping("/appeals")
+    public ResponseEntity<ApiResponse<List<com.milktea.milktea_backend.model.entity.OrderAppeal>>> getAppeals() {
+        return ResponseEntity.ok(ApiResponse.success(adminOrderService.getAppeals()));
+    }
+
+    @PostMapping("/appeals/{id}/refund")
+    public ResponseEntity<ApiResponse<Void>> refundAppeal(@PathVariable Long id) {
+        adminOrderService.refundAppeal(id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

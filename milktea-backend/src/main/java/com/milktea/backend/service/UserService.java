@@ -143,7 +143,8 @@ public class UserService {
             user.setNickname(userDetails.getNickname());
             changed = true;
         }
-        if (StringUtils.hasText(userDetails.getAvatarUrl())) {
+        if (StringUtils.hasText(userDetails.getAvatarUrl()) && !userDetails.getAvatarUrl().equals(user.getAvatarUrl())) {
+            System.out.println("[DEBUG] Updating avatar to: " + userDetails.getAvatarUrl());
             user.setAvatarUrl(userDetails.getAvatarUrl());
             changed = true;
         }

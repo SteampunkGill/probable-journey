@@ -66,6 +66,12 @@ public class CouponService {
         userCoupon.setUsed(false);
         userCoupon.setStatus("UNUSED");
         userCoupon.setReceiveTime(LocalDateTime.now());
+        // 设置使用次数，如果是活动打折逻辑，可以设置更多次数
+        if (template.getRuleJson() != null && template.getRuleJson().contains("999")) {
+            userCoupon.setRemainingUses(999);
+        } else {
+            userCoupon.setRemainingUses(1);
+        }
 
         if (template.getValidityType() == CouponTemplate.ValidityType.FIXED_DAYS) {
             userCoupon.setStartTime(LocalDateTime.now());
@@ -153,6 +159,12 @@ public class CouponService {
             userCoupon.setUsed(false);
             userCoupon.setStatus("UNUSED");
             userCoupon.setReceiveTime(LocalDateTime.now());
+            // 设置使用次数，如果是活动打折逻辑，可以设置更多次数
+            if (template.getRuleJson() != null && template.getRuleJson().contains("999")) {
+                userCoupon.setRemainingUses(999);
+            } else {
+                userCoupon.setRemainingUses(1);
+            }
             
             if (template.getValidityType() == CouponTemplate.ValidityType.FIXED_DAYS) {
                 userCoupon.setStartTime(LocalDateTime.now());

@@ -45,6 +45,9 @@ public class UserCoupon {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime; // 有效期结束时间
 
+    @Column(name = "remaining_uses", nullable = false)
+    private Integer remainingUses = 1; // 剩余使用次数
+
     @Column(name = "used_order_id")
     private Long usedOrderId;
 }

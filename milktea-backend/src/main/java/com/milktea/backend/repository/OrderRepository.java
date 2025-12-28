@@ -17,39 +17,38 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     /**
      * 根据用户ID查找订单
-     * @param userId 用户ID
-     * @return 订单列表
      */
     List<Order> findByUserId(Long userId);
+
+    /**
+     * 根据用户ID查找订单，按时间倒序
+     */
+    List<Order> findByUserIdOrderByOrderTimeDesc(Long userId);
     
     /**
      * 根据店铺ID查找订单
-     * @param storeId 店铺ID
-     * @return 订单列表
      */
     List<Order> findByStoreId(Long storeId);
     
     /**
      * 根据订单号查找订单
-     * @param orderNo 订单号
-     * @return 订单Optional
      */
     Optional<Order> findByOrderNo(String orderNo);
     
     /**
      * 根据状态查找订单
-     * @param status 状态
-     * @return 订单列表
      */
     List<Order> findByStatus(String status);
     
     /**
      * 根据用户ID和状态查找订单
-     * @param userId 用户ID
-     * @param status 状态
-     * @return 订单列表
      */
     List<Order> findByUserIdAndStatus(Long userId, String status);
+
+    /**
+     * 根据用户ID和状态查找订单，按时间倒序
+     */
+    List<Order> findByUserIdAndStatusOrderByOrderTimeDesc(Long userId, String status);
     
     /**
      * 根据店铺ID和状态查找订单
@@ -208,22 +207,24 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * 统计核心用户 (RFM)
+     * 使用原生SQL确保在无数据时返回0，且正确计算满足条件的用户总数
      */
-    @Query("SELECT COUNT(DISTINCT o.user.id) FROM Order o " +
-           "WHERE o.orderTime >= :since " +
-           "GROUP BY o.user.id " +
-           "HAVING COUNT(o.id) >= :minFrequency AND SUM(o.actualAmount) >= :minMonetary")
+    @Query(value = "SELECT COUNT(*) FROM (SELECT o.user_id FROM orders o " +
+           "WHERE o.order_time >= :since " +
+           "GROUP BY o.user_id " +
+           "HAVING COUNT(o.id) >= :minFrequency AND SUM(o.actual_amount) >= :minMonetary) AS t", nativeQuery = true)
     long countCoreUsers(@Param("since") LocalDateTime since,
                         @Param("minFrequency") long minFrequency,
                         @Param("minMonetary") BigDecimal minMonetary);
 
     /**
      * 统计潜力用户
+     * 使用原生SQL确保在无数据时返回0，且正确计算满足条件的用户总数
      */
-    @Query("SELECT COUNT(DISTINCT o.user.id) FROM Order o " +
-           "WHERE o.orderTime >= :since " +
-           "GROUP BY o.user.id " +
-           "HAVING SUM(o.actualAmount) >= :minMonetary")
+    @Query(value = "SELECT COUNT(*) FROM (SELECT o.user_id FROM orders o " +
+           "WHERE o.order_time >= :since " +
+           "GROUP BY o.user_id " +
+           "HAVING SUM(o.actual_amount) >= :minMonetary) AS t", nativeQuery = true)
     long countPotentialUsers(@Param("since") LocalDateTime since,
                              @Param("minMonetary") BigDecimal minMonetary);
 

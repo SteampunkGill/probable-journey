@@ -24,5 +24,9 @@ public class StoreDTO {
     private BigDecimal minOrderAmount;
     private Boolean isAutoAccept;
     private Boolean isOnlinePayment;
-    private List<BusinessHourDTO> businessHours;
+    private String businessHours; // 兼容实体中的 String 类型
+    private List<BusinessHourDTO> businessHoursList;
+    private String openTime;
+    private String closeTime;
+    private Integer businessStatus;
 }

@@ -73,7 +73,7 @@
         <h3 class="section-title">商品清单</h3>
         <div class="goods-list">
           <div class="goods-item" v-for="item in order.items" :key="item.id">
-            <img class="goods-image" :src="item.image || item.product?.mainImageUrl || item.product?.imageUrl" />
+            <img class="goods-image" :src="formatImageUrl(item.image || item.product?.mainImageUrl || item.product?.imageUrl)" />
             <div class="goods-info">
               <h4 class="goods-name">{{ item.name }}</h4>
               <div class="goods-specs" v-if="item.customizations">
@@ -185,6 +185,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { formatImageUrl } from '../../utils/util'
 
 const route = useRoute()
 const router = useRouter()

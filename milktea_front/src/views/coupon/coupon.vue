@@ -13,7 +13,17 @@
     </div>
 
     <div class="coupon-list" v-if="coupons.length > 0">
-      <div class="coupon-item" v-for="item in coupons" :key="item.id">
+      <div
+        class="coupon-item"
+        :class="{
+          'recommend-item': item._recommend,
+          'best-item': item._recommendText === '省最多',
+          'disabled-item': item._isUsable === false
+        }"
+        v-for="item in coupons"
+        :key="item.id"
+      >
+        <div class="recommend-tag" v-if="item._recommend">{{ item._recommendText }}</div>
         <div class="coupon-left">
           <div class="value">¥{{ item.value }}</div>
           <div class="condition">满{{ item.minAmount }}元可用</div>
@@ -22,37 +32,44 @@
           <h3 class="name">{{ item.name }}</h3>
           <p class="desc">{{ item.description }}</p>
           <p class="expire">有效期至{{ item.expireTime }}</p>
-          <button 
-            class="use-btn" 
-            v-if="activeTab === 'available'" 
+          <button
+            class="use-btn"
+            v-if="activeTab === 'available'"
             @click="useCoupon(item.id)"
-          >立即使用</button>
+          >{{ mode === 'select' ? '确认选择' : '立即使用' }}</button>
         </div>
       </div>
     </div>
 
     <div class="empty-state" v-else>
-      <div class="empty-icon">🎫</div>
+      <div class="empty-icon">🧋</div>
       <p>暂无优惠券</p>
+      <p class="empty-hint">快去领取专属奶茶优惠吧！</p>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { couponApi } from '../../utils/api'
 
 const router = useRouter()
+const route = useRoute()
+
+const mode = ref(route.query.mode || 'list')
 
 const tabs = [
   { key: 'available', name: '可使用' },
   { key: 'used', name: '已使用' },
   { key: 'expired', name: '已过期' }
 ]
-const activeTab = ref('center')
+const activeTab = ref('available')
 const coupons = ref([])
 const loading = ref(false)
+
+// 获取订单金额用于计算折扣
+const orderAmount = ref(parseFloat(route.query.amount || 0))
 
 onMounted(() => {
   loadCoupons()
@@ -61,6 +78,19 @@ onMounted(() => {
 const switchTab = (key) => {
   activeTab.value = key
   loadCoupons()
+}
+
+const calculateDiscount = (coupon) => {
+  if (!orderAmount.value) return 0
+  let discount = 0
+  const type = coupon.type?.toUpperCase()
+  if (type === 'REDUCTION' || type === 'DISCOUNT_FIXED' || coupon.type === 'discount') {
+    discount = coupon.value
+  } else if (type === 'DISCOUNT' || type === 'PERCENTAGE' || coupon.type === 'percentage') {
+    const rate = coupon.value < 1 ? coupon.value : coupon.value / 100
+    discount = orderAmount.value * (1 - rate)
+  }
+  return discount
 }
 
 const loadCoupons = async () => {
@@ -74,7 +104,31 @@ const loadCoupons = async () => {
         'used': 'USED',
         'expired': 'EXPIRED'
       }
-      coupons.value = allCoupons.filter(c => c.status === statusMap[activeTab.value])
+      let filtered = allCoupons.filter(c => c.status === statusMap[activeTab.value])
+      
+      // 如果是选择模式且有订单金额，进行智能排序和推荐
+      if (mode.value === 'select' && activeTab.value === 'available' && orderAmount.value > 0) {
+        filtered = filtered.map(c => ({
+          ...c,
+          _discount: calculateDiscount(c),
+          _isUsable: orderAmount.value >= c.minAmount
+        }))
+
+        // 排序：可用优先，折扣金额降序
+        filtered.sort((a, b) => {
+          if (a._isUsable !== b._isUsable) return b._isUsable ? 1 : -1
+          return b._discount - a._discount
+        })
+
+        // 标记前三名
+        const usableCoupons = filtered.filter(c => c._isUsable)
+        usableCoupons.slice(0, 3).forEach((c, index) => {
+          c._recommend = true
+          c._recommendText = index === 0 ? '省最多' : '推荐'
+        })
+      }
+      
+      coupons.value = filtered
     }
   } catch (error) {
     console.error('加载优惠券失败:', error)
@@ -84,160 +138,363 @@ const loadCoupons = async () => {
 }
 
 const useCoupon = (id) => {
-  router.push('/order')
+  if (mode.value === 'select') {
+    const coupon = coupons.value.find(c => c.id === id)
+    if (coupon && coupon._isUsable === false) {
+      alert('订单金额未满' + coupon.minAmount + '元，不可使用该优惠券')
+      return
+    }
+    localStorage.setItem('selectedCoupon', JSON.stringify(coupon))
+    router.back()
+  } else {
+    router.push('/order')
+  }
 }
 </script>
 <style scoped>
 .coupon-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8f4e6 0%, #f0f0f0 100%);
+  background-color: var(--background-color);
+  padding: var(--spacing-md);
+  font-family: 'Nunito', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .tabs {
   display: flex;
-  background: rgba(255, 255, 255, 0.9);
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-xl);
+  padding: var(--spacing-xs);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
   position: sticky;
-  top: 0;
+  top: var(--spacing-md);
   z-index: 10;
-  backdrop-filter: blur(5px);
-  border-bottom: 1px solid rgba(46, 92, 138, 0.1);
+  backdrop-filter: blur(10px);
+  border: 2px solid var(--border-color);
 }
 
 .tab {
   flex: 1;
   text-align: center;
-  padding: 20px 0;
+  padding: var(--spacing-md) 0;
   font-size: 15px;
-  color: #2e5c8a;
+  color: var(--text-color-medium);
   position: relative;
   cursor: pointer;
-  font-family: "STKaiti", "KaiTi", "楷体", cursive;
-  letter-spacing: 0.05em;
-  opacity: 0.7;
-  transition: all 0.3s ease;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+  transition: all var(--transition-normal) ease-out;
+  border-radius: var(--border-radius-lg);
+  margin: 0 var(--spacing-xs);
+}
+
+.tab:hover {
+  opacity: 1;
+  background-color: rgba(255, 248, 220, 0.3);
+  transform: translateY(-1px);
 }
 
 .tab.active {
-  color: #1687a7;
-  font-weight: bold;
+  color: var(--primary-color);
+  font-weight: 700;
   opacity: 1;
+  background-color: var(--accent-cream);
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.15);
+  transform: translateY(-2px);
 }
 
 .tab.active::after {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 25%;
-  right: 25%;
-  height: 2px;
-  background: linear-gradient(90deg, #1687a7 0%, #2e5c8a 100%);
-  border-radius: 2px;
+  bottom: -6px;
+  left: 20%;
+  right: 20%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-pink) 100%);
+  border-radius: var(--border-radius-sm);
+  box-shadow: 0 2px 6px rgba(160, 82, 45, 0.25);
 }
 
 .coupon-list {
-  padding: 20px;
+  padding: var(--spacing-sm);
 }
 
 .coupon-item {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 2px;
+  background-color: var(--surface-color);
+  border-radius: var(--border-radius-lg);
   display: flex;
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg);
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(22, 135, 167, 0.05);
-  border: 1px solid rgba(46, 92, 138, 0.08);
-  backdrop-filter: blur(4px);
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-md);
+  border: 2px solid var(--border-color);
+  backdrop-filter: blur(8px);
+  transition: all var(--transition-normal) ease-out;
+  position: relative;
+}
+
+.coupon-item:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
+}
+
+.recommend-item {
+  border-color: var(--accent-pink);
+  background-color: rgba(255, 192, 203, 0.05);
+}
+
+.best-item {
+  border-color: #ff4d4f;
+  box-shadow: 0 0 15px rgba(255, 77, 79, 0.2);
+}
+
+.disabled-item {
+  opacity: 0.6;
+  filter: grayscale(0.5);
+}
+
+.recommend-tag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: linear-gradient(135deg, #ff7875 0%, #ff4d4f 100%);
+  color: white;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 0 0 0 12px;
+  z-index: 2;
+  font-weight: bold;
+  box-shadow: -2px 2px 5px rgba(0,0,0,0.1);
+}
+
+.best-item .recommend-tag {
+  background: linear-gradient(135deg, #f5222d 0%, #cf1322 100%);
 }
 
 .coupon-left {
-  width: 120px;
-  background: linear-gradient(135deg, #1687a7 0%, #2e5c8a 100%);
-  color: #f8f4e6;
+  width: 140px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: var(--accent-cream);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px 0;
+  padding: var(--spacing-lg) 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.coupon-left::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.3;
+  animation: bubble-float 20s linear infinite;
+}
+
+@keyframes bubble-float {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-20px) rotate(360deg); }
 }
 
 .value {
-  font-size: 28px;
-  font-weight: bold;
-  font-family: "STKaiti", "KaiTi", "楷体", cursive;
-  letter-spacing: 0.05em;
+  font-size: 36px;
+  font-weight: 800;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  position: relative;
+  z-index: 1;
 }
 
 .condition {
-  font-size: 12px;
-  opacity: 0.9;
-  margin-top: 6px;
-  font-family: "Microsoft YaHei", "SimSun", "宋体", serif;
+  font-size: 13px;
+  opacity: 0.95;
+  margin-top: var(--spacing-xs);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
   letter-spacing: 0.03em;
+  font-weight: 500;
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: var(--border-radius-sm);
+  position: relative;
+  z-index: 1;
 }
 
 .coupon-right {
   flex: 1;
-  padding: 20px;
+  padding: var(--spacing-lg);
   position: relative;
+  background-color: rgba(255, 255, 255, 0.7);
 }
 
 .name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-color-dark);
+  margin-bottom: var(--spacing-sm);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.name::before {
+  content: '🍵';
   font-size: 16px;
-  font-weight: bold;
-  color: #3a3a3a;
-  margin-bottom: 8px;
-  font-family: "STKaiti", "KaiTi", "楷体", cursive;
-  letter-spacing: 0.05em;
 }
 
 .desc {
-  font-size: 13px;
-  color: #2c9678;
-  margin-bottom: 12px;
-  font-family: "Microsoft YaHei", "SimSun", "宋体", serif;
-  letter-spacing: 0.03em;
-  opacity: 0.8;
+  font-size: 14px;
+  color: var(--text-color-medium);
+  margin-bottom: var(--spacing-md);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.02em;
+  opacity: 0.9;
+  line-height: 1.5;
+  padding-left: var(--spacing-md);
+  border-left: 3px solid var(--accent-pink);
+  background-color: rgba(255, 192, 203, 0.1);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
 }
 
 .expire {
-  font-size: 12px;
-  color: #d6b85a;
-  font-family: "Microsoft YaHei", "SimSun", "宋体", serif;
-  letter-spacing: 0.03em;
-  opacity: 0.7;
+  font-size: 13px;
+  color: var(--primary-dark);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
+}
+
+.expire::before {
+  content: '⏰';
+  font-size: 14px;
 }
 
 .use-btn {
   position: absolute;
-  right: 20px;
-  bottom: 20px;
-  background: linear-gradient(135deg, #1687a7 0%, #2e5c8a 100%);
-  color: #f8f4e6;
+  right: var(--spacing-lg);
+  bottom: var(--spacing-lg);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: var(--accent-cream);
   border: none;
-  padding: 6px 20px;
-  border-radius: 2px;
-  font-size: 13px;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border-radius: var(--border-radius-xl);
+  font-size: 14px;
   cursor: pointer;
-  font-family: "STKaiti", "KaiTi", "楷体", cursive;
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  font-weight: 700;
   letter-spacing: 0.03em;
-  box-shadow: 0 2px 8px rgba(22, 135, 167, 0.2);
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(160, 82, 45, 0.3);
+  transition: all var(--transition-normal) ease-out;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.use-btn::before {
+  content: '🎁';
+  font-size: 16px;
+}
+
+.use-btn:hover {
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 6px 20px rgba(160, 82, 45, 0.4);
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+}
+
+.use-btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 6px rgba(160, 82, 45, 0.3);
 }
 
 .empty-state {
-  padding-top: 120px;
+  padding-top: 80px;
   text-align: center;
-  color: #2c9678;
-  font-family: "STKaiti", "KaiTi", "楷体", cursive;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
+  color: var(--text-color-medium);
+  font-family: 'Nunito', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.02em;
+  opacity: 0.7;
+  padding: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
 }
 
 .empty-icon {
-  font-size: 72px;
-  margin-bottom: 24px;
-  opacity: 0.3;
-  filter: grayscale(0.8);
+  font-size: 80px;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.4;
+  filter: grayscale(0.7);
+  animation: float 3s ease-in-out infinite;
+}
+
+.empty-hint {
+  font-size: 14px;
+  color: var(--text-color-light);
+  margin-top: var(--spacing-sm);
+  opacity: 0.6;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .coupon-page {
+    padding: var(--spacing-sm);
+  }
+  
+  .tabs {
+    border-radius: var(--border-radius-lg);
+    padding: 4px;
+  }
+  
+  .tab {
+    padding: var(--spacing-sm) 0;
+    font-size: 14px;
+    margin: 0 2px;
+  }
+  
+  .coupon-item {
+    flex-direction: column;
+  }
+  
+  .coupon-left {
+    width: 100%;
+    padding: var(--spacing-md) 0;
+    flex-direction: row;
+    justify-content: space-around;
+  }
+  
+  .value {
+    font-size: 32px;
+  }
+  
+  .condition {
+    font-size: 12px;
+  }
+  
+  .use-btn {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    margin-top: var(--spacing-md);
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>

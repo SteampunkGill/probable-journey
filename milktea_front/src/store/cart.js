@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { cartApi } from '../utils/api.js'
+import { formatImageUrl } from '../utils/util.js'
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
@@ -15,14 +16,13 @@ export const useCartStore = defineStore('cart', {
         const res = await cartApi.getCart()
         const data = res.data || res
         this.items = (Array.isArray(data) ? data : []).map(item => {
-          let imageUrl = item.image || item.product?.mainImageUrl || item.product?.imageUrl
-          if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-            const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-            imageUrl = `http://localhost:8081${path}`
-          }
+          // 兼容后端不同的字段名 (image/productImage, name/productName)
+          const imageUrl = item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl
+          const name = item.name || item.productName || item.product?.name
           return {
             ...item,
-            image: imageUrl,
+            name: name,
+            image: formatImageUrl(imageUrl),
             selected: true,
             cartItemId: item.id
           }
@@ -51,6 +51,10 @@ export const useCartStore = defineStore('cart', {
         console.error('添加购物车失败', error)
         throw error
       }
+    },
+    // 兼容旧代码调用的 addItem 方法
+    async addItem(product) {
+      return this.addToCart(product)
     },
     async removeFromCart(cartItemId) {
       try {

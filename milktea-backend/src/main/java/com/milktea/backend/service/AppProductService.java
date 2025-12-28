@@ -21,6 +21,9 @@ public class AppProductService {
     private final ProductSpecRepository productSpecRepository;
     private final ProductOptionRepository productOptionRepository;
     private final OrderReviewRepository orderReviewRepository;
+    private final ProductImageRepository productImageRepository;
+    private final ProductNutritionRepository productNutritionRepository;
+    private final ProductSpecItemRepository productSpecItemRepository;
 
     public List<Category> getCategories() {
         return categoryRepository.findAll();

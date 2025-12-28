@@ -1,0 +1,97 @@
+<view class="store-management">
+  <view class="page-header">
+    <text class="title">门店管理</text>
+    <button class="btn-primary" bindtap="showCreateDialog">创建门店</button>
+  </view>
+
+  <view class="filter-section">
+    <input class="search-input" value="{{searchQuery}}" placeholder="搜索门店名称/地址..." bindinput="onSearchInput" />
+    <picker bindchange="onStatusFilterChange" value="{{statusIndex}}" range="{{statusOptions}}" range-key="label">
+      <view class="status-picker">
+        {{statusOptions[statusIndex].label}}
+      </view>
+    </picker>
+  </view>
+
+  <view class="store-list">
+    <view class="store-card" wx:for="{{filteredStores}}" wx:key="id">
+      <view class="store-info">
+        <view class="store-name-row">
+          <text class="store-name">{{item.name}}</text>
+          <text class="status-tag {{item.statusClass}}">{{item.statusText}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">编码：</text>
+          <text class="value">{{item.code}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">地址：</text>
+          <text class="value">{{item.address}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">电话：</text>
+          <text class="value">{{item.phone}}</text>
+        </view>
+      </view>
+      <view class="store-actions">
+        <view class="action-btn edit" bindtap="editStore" data-item="{{item}}">编辑</view>
+        <view class="action-btn delete" bindtap="confirmDelete" data-item="{{item}}">删除</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 创建/编辑弹窗 -->
+  <view wx:if="{{dialogVisible}}" class="dialog-overlay">
+    <view class="dialog">
+      <view class="dialog-title">{{isEdit ? '编辑门店' : '创建门店'}}</view>
+      <scroll-view scroll-y class="dialog-content">
+        <view class="form-group">
+          <text class="form-label">门店名称</text>
+          <input class="form-input" value="{{form.name}}" bindinput="onFormInput" data-field="name" placeholder="请输入门店名称" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">门店编码</text>
+          <input class="form-input" value="{{form.code}}" bindinput="onFormInput" data-field="code" placeholder="请输入门店编码" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">所在地区</text>
+          <picker mode="region" bindchange="onRegionChange" value="{{[form.province, form.city, form.district]}}">
+            <view class="region-picker">
+              {{form.province ? form.province + ' ' + form.city + ' ' + form.district : '请选择省市区'}}
+            </view>
+          </picker>
+        </view>
+        <view class="form-group">
+          <text class="form-label">详细地址</text>
+          <input class="form-input" value="{{form.address}}" bindinput="onFormInput" data-field="address" placeholder="请输入详细地址" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">电话</text>
+          <input class="form-input" value="{{form.phone}}" bindinput="onFormInput" data-field="phone" placeholder="请输入电话" />
+        </view>
+        <view class="form-row">
+          <view class="form-group">
+            <text class="form-label">经度</text>
+            <input class="form-input" type="digit" value="{{form.longitude}}" bindinput="onFormInput" data-field="longitude" />
+          </view>
+          <view class="form-group">
+            <text class="form-label">纬度</text>
+            <input class="form-input" type="digit" value="{{form.latitude}}" bindinput="onFormInput" data-field="latitude" />
+          </view>
+        </view>
+        <view class="form-group">
+          <text class="form-label">状态</text>
+          <picker bindchange="onFormStatusChange" value="{{formStatusIndex}}" range="{{formStatusOptions}}" range-key="label">
+            <view class="status-picker">
+              {{formStatusOptions[formStatusIndex].label}}
+            </view>
+          </picker>
+        </view>
+      </scroll-view>
+      <view class="dialog-footer">
+        <button class="btn-cancel" bindtap="hideDialog">取消</button>
+        <button class="btn-save" bindtap="saveStore">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

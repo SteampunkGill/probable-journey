@@ -58,6 +58,7 @@ public class AdminStoreController {
         return ApiResponse.success(null);
     }
 
+
     private StoreDTO convertToDTO(Store store) {
         if (store == null) return null;
         StoreDTO dto = new StoreDTO();
@@ -76,6 +77,10 @@ public class AdminStoreController {
         dto.setMinOrderAmount(store.getMinOrderAmount());
         dto.setIsAutoAccept(store.getIsAutoAccept() != null ? store.getIsAutoAccept() : false);
         dto.setIsOnlinePayment(store.getIsOnlinePayment() != null ? store.getIsOnlinePayment() : true);
+        dto.setBusinessHours(store.getBusinessHours());
+        dto.setOpenTime(store.getOpenTime());
+        dto.setCloseTime(store.getCloseTime());
+        dto.setBusinessStatus(store.getBusinessStatus());
         return dto;
     }
 
@@ -96,6 +101,7 @@ public class AdminStoreController {
         store.setMinOrderAmount(dto.getMinOrderAmount());
         store.setIsAutoAccept(dto.getIsAutoAccept());
         store.setIsOnlinePayment(dto.getIsOnlinePayment());
+        store.setBusinessHours(dto.getBusinessHours());
         
         // 设置实体中必填但DTO中没有的字段默认值，防止数据库约束错误
         if (store.getStatus() == null) store.setStatus("OPEN");

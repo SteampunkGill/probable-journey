@@ -140,7 +140,9 @@
               v-for="item in filteredProducts"
               :key="item.id"
               :product="item"
+              :isFavorite="favoriteIds.has(item.id)"
               @click="onProductTap(item.id)"
+              @favorite-change="onFavoriteChange"
             />
           </div>
         </div>
@@ -185,29 +187,39 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import ProductCard from '@/components/ProductCard.vue'
-import { productApi, searchApi } from '@/utils/api.js'
+import { productApi, searchApi, favoriteApi } from '@/utils/api.js'
 
 const router = useRouter()
 const route = useRoute()
 
 const searchKeyword = ref('')
+const searchType = ref('product')
 const showResults = ref(false)
 const showSuggest = ref(false)
 const searchHistory = ref([])
 const hotKeywords = ref([])
 const searchSuggest = ref([])
 const searchResults = ref([])
+const storeResults = ref([])
+const favoriteIds = ref(new Set())
 const sortBy = ref('default')
 const activeCategory = ref('')
 const categories = ref([])
 
 onMounted(async () => {
   try {
-    const [historyRes, hotRes, categoriesRes] = await Promise.all([
+    const [historyRes, hotRes, categoriesRes, favoritesRes] = await Promise.all([
       productApi.getSearchHistory(),
       productApi.getHotKeywords(),
-      productApi.getCategories()
+      productApi.getCategories(),
+      favoriteApi.getFavorites({ page: 1, size: 100 })
     ])
+
+    if (favoritesRes && favoritesRes.data && favoritesRes.data.content) {
+      favoritesRes.data.content.forEach(item => {
+        favoriteIds.value.add(item.product.id)
+      })
+    }
     
     if (historyRes.code === 200) {
       searchHistory.value = historyRes.data || []
@@ -244,16 +256,16 @@ watch(searchKeyword, (newVal) => {
   }
 })
 
-const filteredResults = computed(() => {
+const filteredProducts = computed(() => {
   let results = [...searchResults.value]
   
   if (activeCategory.value) {
-    results = results.filter(item => item.category === activeCategory.value)
+    results = results.filter(item => item.categoryId === activeCategory.value || item.category === activeCategory.value)
   }
   
   switch (sortBy.value) {
     case 'sales':
-      results.sort((a, b) => b.sales - a.sales)
+      results.sort((a, b) => (b.sales || 0) - (a.sales || 0))
       break
     case 'price_asc':
       results.sort((a, b) => a.price - b.price)
@@ -266,23 +278,36 @@ const filteredResults = computed(() => {
   return results
 })
 
+const filteredStores = computed(() => {
+  return storeResults.value
+})
+
 const onSearch = async () => {
   const keyword = searchKeyword.value.trim()
   if (!keyword) return
   
   try {
-    const res = await productApi.searchProducts(keyword)
-    if (res.code === 200) {
-      searchResults.value = res.data.list || res.data || []
-      showResults.value = true
-      showSuggest.value = false
+    const [productRes, storeRes] = await Promise.all([
+      productApi.searchProducts(keyword),
+      searchApi.searchStores(keyword)
+    ])
+
+    if (productRes.code === 200) {
+      searchResults.value = productRes.data.list || productRes.data || []
+    }
+
+    if (storeRes.code === 200) {
+      storeResults.value = storeRes.data.list || storeRes.data || []
+    }
+
+    showResults.value = true
+    showSuggest.value = false
       
       // 重新加载历史记录（后端已保存）
       const historyRes = await productApi.getSearchHistory()
       if (historyRes.code === 200) {
         searchHistory.value = historyRes.data || []
       }
-    }
   } catch (error) {
     console.error('搜索失败:', error)
   }
@@ -317,6 +342,25 @@ const changeSort = (sort) => {
 
 const onProductTap = (id) => {
   router.push(`/product/${id}`)
+}
+
+const onFavoriteChange = async ({ id, isFavorite }) => {
+  try {
+    if (isFavorite) {
+      await favoriteApi.addFavorite(id)
+      favoriteIds.value.add(id)
+    } else {
+      await favoriteApi.removeFavorite(id)
+      favoriteIds.value.delete(id)
+    }
+  } catch (error) {
+    console.error('操作收藏失败:', error)
+    alert('操作失败，请稍后重试')
+  }
+}
+
+const onStoreTap = (id) => {
+  router.push(`/order?storeId=${id}`)
 }
 
 const resetSearch = () => {
