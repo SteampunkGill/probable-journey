@@ -1,0 +1,43 @@
+.favorite-page {
+  min-height: 100vh;
+  background: var(--background-color);
+  padding: 20rpx;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+}
+
+.load-more, .no-more {
+  text-align: center;
+  padding: 40rpx;
+  font-size: 24rpx;
+  color: var(--text-color-light);
+}
+
+.empty-state {
+  padding-top: 200rpx;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 120rpx;
+  margin-bottom: 40rpx;
+  opacity: 0.2;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-color-medium);
+  margin-bottom: 60rpx;
+}
+
+.go-btn {
+  width: 240rpx;
+  background: var(--primary-color);
+  color: #ffffff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+}

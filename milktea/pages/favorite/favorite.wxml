@@ -1,0 +1,21 @@
+<view class="favorite-page">
+  <view class="favorite-list" wx:if="{{favorites.length > 0}}">
+    <view class="product-grid">
+      <product-card
+        wx:for="{{favorites}}"
+        wx:key="id"
+        product="{{item.product || item}}"
+        bindtap="onProductTap"
+        data-id="{{item.product.id || item.id}}"
+      />
+    </view>
+    <view class="load-more" wx:if="{{hasMore}}">正在加载...</view>
+    <view class="no-more" wx:else>没有更多了</view>
+  </view>
+
+  <view class="empty-state" wx:else>
+    <view class="empty-icon">❤️</view>
+    <view class="empty-text">还没有收藏任何商品哦</view>
+    <button class="go-btn" bindtap="goShopping">去逛逛</button>
+  </view>
+</view>

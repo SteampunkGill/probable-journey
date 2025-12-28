@@ -1,4 +1,4 @@
-const { get, post, put, del, commonGet, commonPost } = require('./request.js')
+const { get, post, put, del, commonGet, commonPost, uploadFile } = require('./request.js')
 
 // 用户认证相关
 const authApi = {
@@ -7,7 +7,10 @@ const authApi = {
   getUserProfile: () => get('/user/profile'),
   updateUserProfile: (data) => put('/user/profile', data),
   getCardBalance: () => get('/user/card-balance'),
-  bindCard: (cardNumber) => post('/user/bind-card', { cardNumber })
+  bindCard: (cardNumber) => post('/user/bind-card', { cardNumber }),
+  register: (data) => post('/auth/register', data),
+  changePassword: (oldPassword, newPassword) => post('/auth/change-password', { oldPassword, newPassword }),
+  deactivate: () => post('/user/deactivate')
 }
 
 // 首页相关
@@ -22,6 +25,9 @@ const productApi = {
   getCategories: () => get('/categories'),
   getProducts: (categoryId, params) => get('/products', { categoryId, ...params }),
   getProductDetail: (id) => get(`/products/${id}`),
+  getProductReviews: (id) => get(`/products/${id}/reviews`),
+  getProductCustomizations: (id) => get(`/products/${id}/customizations`),
+  calculateProductPrice: (id, data) => post(`/products/${id}/calculate-price`, data),
   searchProducts: (keyword, params) => get('/search', { keyword, ...params }),
   getHotKeywords: () => get('/search/hot')
 }
@@ -33,6 +39,7 @@ const cartApi = {
   updateCartItem: (id, data) => put('/cart/update-quantity', { id, ...data }),
   deleteCartItem: (id) => del(`/cart/remove/${id}`),
   getCheckoutInfo: () => post('/cart/checkout'),
+  autoMatchCoupons: (data) => post('/cart/auto-match-coupons', data),
   clearCart: () => del('/cart/clear')
 }
 
@@ -43,7 +50,9 @@ const orderApi = {
   getOrderDetail: (orderNo) => get(`/orders/${orderNo}`),
   cancelOrder: (orderNo) => post(`/orders/${orderNo}/cancel`),
   confirmOrder: (orderNo) => post(`/orders/${orderNo}/confirm`),
-  remindOrder: (orderNo) => post(`/orders/${orderNo}/remind`)
+  remindOrder: (orderNo) => post(`/orders/${orderNo}/remind`),
+  applyRefund: (orderNo, reason) => post(`/orders/${orderNo}/refund`, { reason }),
+  rateOrder: (orderNo, data) => post(`/orders/${orderNo}/review`, data)
 }
 
 // 地址相关
@@ -51,7 +60,8 @@ const addressApi = {
   getAddressList: () => get('/address/list'),
   addAddress: (data) => post('/address/add', data),
   updateAddress: (id, data) => put(`/address/update/${id}`, data),
-  deleteAddress: (id) => del(`/address/delete/${id}`)
+  deleteAddress: (id) => del(`/address/delete/${id}`),
+  getAddressByLocation: (lat, lng) => get('/address/geolocation', { lat, lng })
 }
 
 // 优惠券相关
@@ -61,16 +71,49 @@ const couponApi = {
   getMyCoupons: () => get('/coupons/my')
 }
 
+// 积分相关
+const pointsApi = {
+  getPointsTransactions: (page = 1, size = 10) => get('/member/points', { page, size }),
+  getPointsRules: () => get('/member/points-rules'),
+  getPointsProducts: (page = 1, size = 10, category) => get('/member/mall/items', { page, size, category }),
+  getPointsCategories: () => get('/member/mall/categories'),
+  exchangeProduct: (productId) => post('/member/mall/exchange', { productId }),
+  signIn: () => post('/member/mall/sign-in')
+}
+
+// 会员相关
+const memberApi = {
+  getMemberInfo: () => get('/member/level'),
+  applyCard: (data) => post('/user/apply-card', data),
+  getExclusiveProducts: () => get('/member/exclusive-products')
+}
+
 // 门店相关
 const storeApi = {
   getNearbyStores: (params) => get('/stores/nearby', params),
   getStoreDetail: (id) => get(`/stores/${id}`)
 }
 
+// 支付相关
+const paymentApi = {
+  initiatePayment: (orderNo, method = 'WECHAT') => post('/payment/initiate', { orderNo, method }),
+  confirmPayment: (orderNo, method = 'BALANCE') => post('/payment/confirm', { orderNo, method }),
+  getPaymentStatus: (orderNo) => get(`/payment/status/${orderNo}`)
+}
+
+// 收藏相关
+const favoriteApi = {
+  getFavorites: (params) => get('/favorites', params),
+  addFavorite: (productId) => post('/favorites/add', { productId }),
+  removeFavorite: (productId) => del(`/favorites/remove/${productId}`),
+  checkFavorite: (productId) => get(`/favorites/check/${productId}`)
+}
+
 // 公共接口
 const commonApi = {
   getStores: () => commonGet('/stores'),
-  getRegions: () => commonGet('/regions')
+  getRegions: () => commonGet('/regions'),
+  uploadImage: (filePath) => uploadFile('/upload/image', filePath)
 }
 
 module.exports = {
@@ -81,6 +124,10 @@ module.exports = {
   orderApi,
   addressApi,
   couponApi,
+  pointsApi,
+  memberApi,
   storeApi,
+  paymentApi,
+  favoriteApi,
   commonApi
 }

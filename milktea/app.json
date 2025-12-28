@@ -16,7 +16,11 @@
     "pages/admin/order/index",
     "pages/admin/member/index",
     "pages/admin/marketing/index",
-    "pages/admin/system/index"
+    "pages/admin/system/index",
+    "pages/search/search",
+    "pages/favorite/favorite",
+    "pages/order-list/order-list",
+    "pages/order/detail"
   ],
   "window": {
     "backgroundTextStyle": "light",
