@@ -1,10 +1,8 @@
 .search-page {
   min-height: 100vh;
   background: var(--background-color);
-  color: var(--text-color-dark);
 }
 
-/* 搜索头部 */
 .search-header {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   padding: 20rpx 30rpx;
@@ -14,99 +12,69 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: var(--shadow-md);
 }
 
 .search-input-wrapper {
   flex: 1;
-  height: 80rpx;
-  background: var(--accent-cream);
-  border-radius: 40rpx;
+  height: 72rpx;
+  background: #ffffff;
+  border-radius: 36rpx;
   display: flex;
   align-items: center;
   padding: 0 30rpx;
   position: relative;
-  box-shadow: 0 4rpx 16rpx rgba(139, 69, 19, 0.15);
 }
 
 .search-input-wrapper input {
   flex: 1;
-  background: transparent;
-  border: none;
   font-size: 28rpx;
   color: var(--text-color-dark);
-  padding-right: 20rpx;
 }
 
 .close-icon {
-  font-size: 28rpx;
-  color: var(--text-color-medium);
-  width: 40rpx;
-  height: 40rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.8);
+  font-size: 24rpx;
+  color: var(--text-color-light);
+  padding: 10rpx;
 }
 
 .search-action {
-  width: 80rpx;
-  height: 80rpx;
-  background: var(--accent-cream);
-  border-radius: 50%;
+  width: 72rpx;
+  height: 72rpx;
+  background: #ffffff;
+  border-radius: 36rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(139, 69, 19, 0.15);
 }
 
 .search-icon {
-  font-size: 36rpx;
+  font-size: 32rpx;
   color: var(--primary-color);
 }
 
-/* 搜索历史和热门搜索 */
 .search-history, .hot-search {
   background: #ffffff;
   padding: 30rpx;
   margin: 20rpx;
   border-radius: 24rpx;
-  box-shadow: var(--shadow-sm);
-  border: 1rpx solid var(--border-color);
 }
 
 .history-header, .hot-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24rpx;
+  margin-bottom: 30rpx;
 }
 
 .history-title, .hot-title {
   font-size: 30rpx;
-  font-weight: 600;
-  color: var(--primary-dark);
-  position: relative;
-  padding-left: 20rpx;
-}
-
-.history-title::before, .hot-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 6rpx;
-  height: 30rpx;
-  background: var(--primary-color);
-  border-radius: 3rpx;
+  font-weight: bold;
+  color: var(--text-color-dark);
 }
 
 .delete-icon {
-  font-size: 36rpx;
-  color: var(--text-color-medium);
-  padding: 10rpx;
+  font-size: 32rpx;
+  color: var(--text-color-light);
 }
 
 .history-tags, .hot-tags {
@@ -116,78 +84,30 @@
 }
 
 .history-tag, .hot-tag {
-  background: var(--accent-cream);
+  background: #f5f5f5;
   padding: 12rpx 30rpx;
-  border-radius: 40rpx;
+  border-radius: 30rpx;
   font-size: 26rpx;
   color: var(--text-color-medium);
-  border: 1rpx solid var(--border-color);
 }
 
 .hot-tag.hot {
   color: #ff6b6b;
   background: rgba(255, 107, 107, 0.1);
-  border-color: rgba(255, 107, 107, 0.3);
-  font-weight: 500;
 }
 
-/* 搜索建议 */
-.search-suggest {
-  position: absolute;
-  top: 120rpx;
-  left: 20rpx;
-  right: 20rpx;
-  background: #ffffff;
-  border-radius: 24rpx;
-  box-shadow: var(--shadow-md);
-  border: 1rpx solid var(--border-color);
-  z-index: 90;
-  overflow: hidden;
-}
-
-.suggest-item {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  padding: 30rpx;
-  border-bottom: 1rpx solid var(--border-color);
-}
-
-.suggest-item:last-child {
-  border-bottom: none;
-}
-
-.suggest-icon {
-  font-size: 28rpx;
-  color: var(--text-color-light);
-}
-
-.suggest-text {
-  font-size: 28rpx;
-  color: var(--text-color-dark);
-  flex: 1;
-}
-
-/* 搜索结果区域 */
-.search-results {
-  padding: 20rpx;
-}
-
-/* 搜索标签页 */
 .search-tabs {
   display: flex;
   background: #ffffff;
   border-radius: 24rpx;
   padding: 10rpx;
   margin-bottom: 30rpx;
-  box-shadow: var(--shadow-sm);
-  border: 1rpx solid var(--border-color);
 }
 
 .tab-item {
   flex: 1;
   text-align: center;
-  padding: 20rpx;
+  padding: 20rpx 0;
   font-size: 28rpx;
   color: var(--text-color-medium);
   border-radius: 16rpx;
@@ -195,49 +115,41 @@
 
 .tab-item.active {
   color: #ffffff;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  background: var(--primary-color);
 }
 
-/* 排序选项 */
 .results-header {
   background: #ffffff;
   padding: 20rpx 30rpx;
   border-radius: 24rpx;
   margin-bottom: 20rpx;
-  box-shadow: var(--shadow-sm);
-  border: 1rpx solid var(--border-color);
 }
 
 .sort-options {
   display: flex;
-  justify-content: space-between;
+  gap: 40rpx;
 }
 
 .sort-option {
   font-size: 26rpx;
   color: var(--text-color-medium);
-  padding: 10rpx 20rpx;
 }
 
 .sort-option.active {
   color: var(--primary-color);
-  font-weight: 600;
+  font-weight: bold;
 }
 
-/* 商品列表 */
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20rpx;
 }
 
-/* 门店列表 */
 .store-list {
   background: #ffffff;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  border: 1rpx solid var(--border-color);
 }
 
 .store-item {
@@ -257,15 +169,14 @@
 
 .store-name {
   font-size: 30rpx;
-  font-weight: 600;
-  color: var(--text-color-dark);
+  font-weight: bold;
   margin-bottom: 10rpx;
 }
 
 .store-address {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: var(--text-color-medium);
-  margin-bottom: 16rpx;
+  margin-bottom: 10rpx;
 }
 
 .store-status {
@@ -275,9 +186,9 @@
 }
 
 .status-tag {
-  font-size: 22rpx;
-  padding: 4rpx 16rpx;
-  border-radius: 8rpx;
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 4rpx;
 }
 
 .status-tag.OPEN {
@@ -291,32 +202,26 @@
 }
 
 .distance {
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: var(--text-color-light);
 }
 
 .go-btn {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  background: var(--primary-color);
   color: #ffffff;
-  padding: 12rpx 30rpx;
-  border-radius: 40rpx;
+  padding: 10rpx 30rpx;
+  border-radius: 30rpx;
   font-size: 24rpx;
-  font-weight: 500;
 }
 
-/* 空状态 */
 .empty-results {
-  padding: 80rpx 30rpx;
+  padding: 100rpx 0;
   text-align: center;
-  color: var(--text-color-medium);
+  color: var(--text-color-light);
 }
 
 .empty-icon {
   font-size: 100rpx;
-  margin-bottom: 30rpx;
-  opacity: 0.3;
-}
-
-.empty-text {
-  font-size: 30rpx;
+  margin-bottom: 20rpx;
+  opacity: 0.2;
 }

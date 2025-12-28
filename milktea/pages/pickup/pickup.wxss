@@ -1,0 +1,384 @@
+.pickup-page {
+  min-height: 100vh;
+  background: var(--background-color);
+  padding: 20rpx;
+  padding-bottom: 60rpx;
+}
+
+.loading {
+  padding-top: 200rpx;
+  text-align: center;
+  color: var(--text-color-medium);
+}
+
+.loading-icon {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #f3f3f3;
+  border-top: 4rpx solid var(--primary-color);
+  border-radius: 50%;
+  margin: 0 auto 20rpx;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pickup-card {
+  background: #ffffff;
+  border-radius: 32rpx;
+  padding: 40rpx;
+  margin-bottom: 40rpx;
+  box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.status-badge {
+  font-size: 24rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 20rpx;
+  background: rgba(160, 82, 45, 0.1);
+  color: var(--primary-color);
+}
+
+.status-badge.READY {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4CAF50;
+}
+
+.order-no {
+  font-size: 24rpx;
+  color: var(--text-color-light);
+}
+
+.pickup-code-section {
+  text-align: center;
+  padding: 40rpx 0;
+  border-bottom: 2rpx dashed var(--border-color);
+  margin-bottom: 40rpx;
+}
+
+.label {
+  font-size: 28rpx;
+  color: var(--text-color-medium);
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.pickup-code {
+  font-size: 80rpx;
+  font-weight: bold;
+  color: var(--primary-color);
+  display: block;
+  margin-bottom: 20rpx;
+  letter-spacing: 4rpx;
+}
+
+.hint {
+  font-size: 24rpx;
+  color: var(--text-color-light);
+}
+
+.order-info {
+  margin-bottom: 40rpx;
+}
+
+.info-item {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.icon {
+  font-size: 32rpx;
+}
+
+.info-detail {
+  flex: 1;
+}
+
+.store-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.store-address {
+  font-size: 24rpx;
+  color: var(--text-color-medium);
+}
+
+.time-label {
+  font-size: 26rpx;
+  color: var(--text-color-medium);
+  margin-right: 20rpx;
+}
+
+.time-value {
+  font-size: 26rpx;
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.order-items {
+  background: #f9f9f9;
+  border-radius: 24rpx;
+  padding: 30rpx;
+  margin-bottom: 40rpx;
+}
+
+.items-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 26rpx;
+  color: var(--text-color-medium);
+  margin-bottom: 20rpx;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.item:last-child {
+  margin-bottom: 0;
+}
+
+.item-image {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 12rpx;
+}
+
+.item-info {
+  flex: 1;
+}
+
+.item-name {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: var(--text-color-dark);
+  margin-bottom: 4rpx;
+}
+
+.item-specs {
+  font-size: 22rpx;
+  color: var(--text-color-light);
+}
+
+.item-quantity {
+  font-size: 26rpx;
+  color: var(--text-color-medium);
+}
+
+.card-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.action-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  background: #f5f5f5;
+  color: var(--text-color-dark);
+  border: none;
+  padding: 0;
+}
+
+.action-btn.primary {
+  background: var(--primary-color);
+  color: #ffffff;
+}
+
+.action-btn .icon {
+  margin-right: 10rpx;
+}
+
+.other-orders {
+  margin-bottom: 40rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  margin-bottom: 20rpx;
+  color: var(--text-color-dark);
+}
+
+.order-list {
+  display: flex;
+  gap: 20rpx;
+  overflow-x: auto;
+  padding-bottom: 10rpx;
+}
+
+.order-item {
+  flex-shrink: 0;
+  width: 240rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 20rpx;
+  border: 2rpx solid transparent;
+}
+
+.order-item.active {
+  border-color: var(--primary-color);
+  background: rgba(160, 82, 45, 0.05);
+}
+
+.pickup-code-small {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: var(--primary-color);
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.order-item .status {
+  font-size: 20rpx;
+  color: var(--text-color-light);
+}
+
+.order-item .order-no {
+  font-size: 20rpx;
+  color: var(--text-color-light);
+  display: block;
+  margin-top: 10rpx;
+}
+
+.scan-section {
+  background: #ffffff;
+  border-radius: 32rpx;
+  padding: 40rpx;
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.scan-btn {
+  width: 300rpx;
+  height: 100rpx;
+  background: var(--primary-color);
+  color: #ffffff;
+  border-radius: 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20rpx;
+  font-size: 30rpx;
+}
+
+.scan-btn .icon {
+  margin-right: 16rpx;
+  font-size: 40rpx;
+}
+
+.scan-hint {
+  font-size: 24rpx;
+  color: var(--text-color-light);
+}
+
+.history-section {
+  margin-bottom: 40rpx;
+}
+
+.history-list {
+  background: #ffffff;
+  border-radius: 32rpx;
+  overflow: hidden;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.pickup-code-text {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: var(--text-color-dark);
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.order-no-text {
+  font-size: 22rpx;
+  color: var(--text-color-light);
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.picked-time {
+  font-size: 22rpx;
+  color: var(--text-color-light);
+}
+
+.history-right {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.amount {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: var(--text-color-dark);
+}
+
+.arrow {
+  color: var(--text-color-light);
+  font-size: 32rpx;
+}
+
+.empty-state {
+  padding-top: 100rpx;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 120rpx;
+  margin-bottom: 40rpx;
+  opacity: 0.2;
+}
+
+.empty-text {
+  font-size: 30rpx;
+  color: var(--text-color-medium);
+  margin-bottom: 60rpx;
+  display: block;
+}
+
+.go-order-btn {
+  width: 240rpx;
+  height: 80rpx;
+  background: var(--primary-color);
+  color: #ffffff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}

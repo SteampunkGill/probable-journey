@@ -1,83 +1,58 @@
-const { productApi, storeApi } = require('../../utils/api.js');
-const storage = require('../../utils/storage.js');
+const { productApi, searchApi, favoriteApi } = require('../../utils/api.js');
 
 Page({
   data: {
     searchKeyword: '',
-    searchType: 'product', // product | store
+    searchType: 'product',
     showResults: false,
-    showSuggest: false,
     searchHistory: [],
-    hotKeywords: [
-      { word: '杨枝甘露' },
-      { word: '多肉葡萄' },
-      { word: '芝芝莓莓' },
-      { word: '烤奶' },
-      { word: '珍珠奶茶' }
-    ],
-    searchSuggest: [],
+    hotKeywords: [],
     searchResults: [],
     storeResults: [],
+    favoriteIds: {},
     sortBy: 'default',
     filteredProducts: [],
     filteredStores: []
   },
 
   onLoad(options) {
-    this.loadSearchHistory();
+    this.loadInitData();
     if (options.keyword) {
       this.setData({ searchKeyword: options.keyword });
       this.onSearch();
     }
   },
 
-  loadSearchHistory() {
-    const history = storage.getSearchHistory();
-    this.setData({ searchHistory: history });
+  async loadInitData() {
+    try {
+      const [historyRes, hotRes, favoritesRes] = await Promise.all([
+        productApi.getSearchHistory(),
+        productApi.getHotKeywords(),
+        favoriteApi.getFavorites({ page: 1, size: 100 })
+      ]);
+
+      const favIds = {};
+      if (favoritesRes?.data?.content) {
+        favoritesRes.data.content.forEach(item => {
+          favIds[item.product.id] = true;
+        });
+      }
+
+      this.setData({
+        searchHistory: historyRes.data || [],
+        hotKeywords: hotRes.data || [],
+        favoriteIds: favIds
+      });
+    } catch (error) {
+      console.error('加载初始化数据失败:', error);
+    }
   },
 
   onInput(e) {
-    const keyword = e.detail.value;
-    this.setData({ 
-      searchKeyword: keyword,
-      showSuggest: !!keyword,
-      showResults: !keyword ? false : this.data.showResults,
-      searchSuggest: keyword ? [
-        `${keyword}奶茶`,
-        `${keyword}拿铁`,
-        `${keyword}冰淇淋`
-      ] : []
-    });
-  },
-
-  clearKeyword() {
-    this.setData({
-      searchKeyword: '',
-      showResults: false,
-      showSuggest: false
-    });
-  },
-
-  clearHistory() {
-    wx.showModal({
-      title: '提示',
-      content: '确定要清除搜索历史吗？',
-      success: (res) => {
-        if (res.confirm) {
-          storage.clearSearchHistory();
-          this.setData({ searchHistory: [] });
-        }
-      }
-    });
-  },
-
-  searchByKeyword(e) {
-    const keyword = e.currentTarget.dataset.keyword;
-    this.setData({ 
-      searchKeyword: keyword,
-      showSuggest: false
-    });
-    this.onSearch();
+    this.setData({ searchKeyword: e.detail.value });
+    if (!e.detail.value) {
+      this.setData({ showResults: false });
+    }
   },
 
   async onSearch() {
@@ -86,56 +61,82 @@ Page({
 
     wx.showLoading({ title: '搜索中...' });
     try {
-      // 保存搜索历史
-      storage.addSearchHistory(keyword);
-      this.loadSearchHistory();
-
       const [productRes, storeRes] = await Promise.all([
         productApi.searchProducts(keyword),
-        storeApi.getNearbyStores({ keyword })
+        searchApi.searchStores(keyword)
       ]);
 
       this.setData({
-        searchResults: productRes.data || [],
-        storeResults: storeRes.data || [],
-        showResults: true,
-        showSuggest: false
+        searchResults: productRes.data.list || productRes.data || [],
+        storeResults: storeRes.data.list || storeRes.data || [],
+        showResults: true
+      }, () => {
+        this.filterResults();
       });
-      
-      this.applyFilter();
+
+      // 刷新历史记录
+      const historyRes = await productApi.getSearchHistory();
+      this.setData({ searchHistory: historyRes.data || [] });
     } catch (error) {
       console.error('搜索失败:', error);
-      wx.showToast({ title: '搜索失败', icon: 'none' });
     } finally {
       wx.hideLoading();
     }
   },
 
-  switchTab(e) {
-    const type = e.currentTarget.dataset.type;
-    this.setData({ searchType: type });
-    this.applyFilter();
+  searchByKeyword(e) {
+    this.setData({ searchKeyword: e.currentTarget.dataset.keyword }, () => {
+      this.onSearch();
+    });
+  },
+
+  clearKeyword() {
+    this.setData({ searchKeyword: '', showResults: false });
+  },
+
+  async clearHistory() {
+    wx.showModal({
+      title: '提示',
+      content: '确定要清除搜索历史吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await productApi.clearSearchHistory();
+            this.setData({ searchHistory: [] });
+          } catch (error) {
+            console.error('清空历史失败:', error);
+          }
+        }
+      }
+    });
+  },
+
+  switchType(e) {
+    this.setData({ searchType: e.currentTarget.dataset.type }, () => {
+      this.filterResults();
+    });
   },
 
   changeSort(e) {
-    const sort = e.currentTarget.dataset.sort;
-    this.setData({ sortBy: sort });
-    this.applyFilter();
+    this.setData({ sortBy: e.currentTarget.dataset.sort }, () => {
+      this.filterResults();
+    });
   },
 
-  applyFilter() {
+  filterResults() {
     let products = [...this.data.searchResults];
-    
-    switch (this.data.sortBy) {
-      case 'sales':
-        products.sort((a, b) => (b.sales || 0) - (a.sales || 0));
-        break;
-      case 'price_asc':
-        products.sort((a, b) => a.price - b.price);
-        break;
-      case 'price_desc':
-        products.sort((a, b) => b.price - a.price);
-        break;
+    if (this.data.searchType === 'product') {
+      switch (this.data.sortBy) {
+        case 'sales':
+          products.sort((a, b) => (b.sales || 0) - (a.sales || 0));
+          break;
+        case 'price_asc':
+          products.sort((a, b) => a.price - b.price);
+          break;
+        case 'price_desc':
+          products.sort((a, b) => b.price - a.price);
+          break;
+      }
     }
 
     this.setData({
@@ -145,21 +146,26 @@ Page({
   },
 
   onProductTap(e) {
-    const id = e.currentTarget.dataset.id;
-    wx.navigateTo({
-      url: `/pages/product/detail?id=${id}`
-    });
+    wx.navigateTo({ url: `/pages/product/detail?id=${e.currentTarget.dataset.id}` });
   },
 
   onStoreTap(e) {
-    const id = e.currentTarget.dataset.id;
-    // 切换门店并跳转点单页
-    const app = getApp();
-    if (app.globalData) {
-      app.globalData.selectedStoreId = id;
+    wx.navigateTo({ url: `/pages/index/index?storeId=${e.currentTarget.dataset.id}` });
+  },
+
+  async onFavoriteChange(e) {
+    const { id, isFavorite } = e.detail;
+    try {
+      if (isFavorite) {
+        await favoriteApi.addFavorite(id);
+      } else {
+        await favoriteApi.removeFavorite(id);
+      }
+      const favIds = { ...this.data.favoriteIds };
+      favIds[id] = isFavorite;
+      this.setData({ favoriteIds: favIds });
+    } catch (error) {
+      wx.showToast({ title: '操作失败', icon: 'none' });
     }
-    wx.switchTab({
-      url: '/pages/order/order'
-    });
   }
 });

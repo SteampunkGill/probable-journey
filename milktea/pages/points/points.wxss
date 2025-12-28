@@ -1,0 +1,141 @@
+.points-page {
+  min-height: 100vh;
+  background: var(--background-color);
+  padding-bottom: 40rpx;
+}
+
+.points-card {
+  height: 360rpx;
+  position: relative;
+  margin: 30rpx;
+  border-radius: 32rpx;
+  overflow: hidden;
+  color: white;
+  box-shadow: var(--shadow-lg);
+}
+
+.card-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+}
+
+.card-content {
+  position: relative;
+  height: 100%;
+  padding: 40rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 1;
+}
+
+.points-label {
+  font-size: 26rpx;
+  opacity: 0.9;
+}
+
+.points-value {
+  font-size: 80rpx;
+  font-weight: bold;
+  margin-top: 10rpx;
+}
+
+.card-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  font-size: 26rpx;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 12rpx 30rpx;
+  border-radius: 40rpx;
+  backdrop-filter: blur(5px);
+}
+
+.records-section {
+  background: #ffffff;
+  margin: 20rpx;
+  border-radius: 24rpx;
+  padding: 30rpx;
+  box-shadow: var(--shadow-sm);
+}
+
+.section-header {
+  margin-bottom: 30rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-color-dark);
+}
+
+.record-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.record-item:last-child {
+  border-bottom: none;
+}
+
+.record-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.record-type {
+  font-size: 28rpx;
+  color: var(--text-color-dark);
+}
+
+.record-time {
+  font-size: 24rpx;
+  color: var(--text-color-light);
+}
+
+.record-amount {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.record-amount.plus {
+  color: #4CAF50;
+}
+
+.record-amount.minus {
+  color: #F44336;
+}
+
+.load-more, .no-more {
+  text-align: center;
+  padding: 30rpx;
+  font-size: 24rpx;
+  color: var(--text-color-light);
+}
+
+.empty-records {
+  padding: 100rpx 0;
+  text-align: center;
+  color: var(--text-color-light);
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+  opacity: 0.3;
+}

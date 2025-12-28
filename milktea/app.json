@@ -20,7 +20,13 @@
     "pages/search/search",
     "pages/favorite/favorite",
     "pages/order-list/order-list",
-    "pages/order/detail"
+    "pages/order/detail",
+    "pages/points/points",
+    "pages/points/mall",
+    "pages/wallet/wallet",
+    "pages/wallet/gift-card",
+    "pages/pickup/pickup",
+    "pages/review/review"
   ],
   "window": {
     "backgroundTextStyle": "light",

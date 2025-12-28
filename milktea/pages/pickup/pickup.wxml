@@ -1,0 +1,133 @@
+<view class="pickup-page">
+  <!-- 加载状态 -->
+  <view class="loading" wx:if="{{loading}}">
+    <view class="loading-icon"></view>
+    <text>加载中...</text>
+  </view>
+
+  <view wx:else>
+    <!-- 待取餐订单 -->
+    <view class="pending-section" wx:if="{{pendingOrders.length > 0}}">
+      <!-- 取餐码大卡片 -->
+      <view class="pickup-card" wx:if="{{activeOrder}}">
+        <view class="card-header">
+          <view class="status-badge {{activeOrder.status}}">{{ activeOrder.statusText }}</view>
+          <text class="order-no">{{ activeOrder.orderNo }}</text>
+        </view>
+
+        <view class="pickup-code-section">
+          <text class="label">取餐码</text>
+          <text class="pickup-code">{{ activeOrder.pickupCode }}</text>
+          <text class="hint">请出示此码给店员</text>
+        </view>
+
+        <view class="order-info">
+          <view class="info-item">
+            <text class="icon">🏪</text>
+            <view class="info-detail">
+              <text class="store-name">{{ activeOrder.store.name }}</text>
+              <text class="store-address">{{ activeOrder.store.address }}</text>
+            </view>
+          </view>
+          
+          <view class="info-item" wx:if="{{activeOrder.status === 'READY'}}">
+            <text class="icon">⏰</text>
+            <view class="info-detail">
+              <text class="time-label">已备餐</text>
+              <text class="time-value">请尽快前往取餐</text>
+            </view>
+          </view>
+
+          <view class="info-item" wx:if="{{activeOrder.status === 'MAKING' || activeOrder.status === 'ACCEPTED'}}">
+            <text class="icon">⏰</text>
+            <view class="info-detail">
+              <text class="time-label">预计完成</text>
+              <text class="time-value">{{ activeOrder.estimatedTime || '制作中' }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="order-items">
+          <view class="items-header">
+            <text>商品清单</text>
+            <text class="item-count">共{{ activeOrder.itemCount || activeOrder.items.length }}件</text>
+          </view>
+          <view class="item" wx:for="{{activeOrder.items}}" wx:key="id">
+            <image class="item-image" src="{{item.image}}" mode="aspectFill" />
+            <view class="item-info">
+              <text class="item-name">{{ item.name }}</text>
+              <text class="item-specs" wx:if="{{item.customizations}}">{{ item.customizations }}</text>
+            </view>
+            <text class="item-quantity">×{{ item.quantity }}</text>
+          </view>
+        </view>
+
+        <view class="card-actions">
+          <button class="action-btn" bindtap="callStore" data-phone="{{activeOrder.store.phone}}">
+            <text class="icon">📞</text>
+            <text>联系门店</text>
+          </button>
+          <button class="action-btn" wx:if="{{activeOrder.status === 'MAKING' || activeOrder.status === 'ACCEPTED'}}" bindtap="remindOrder" data-id="{{activeOrder.id}}">
+            <text class="icon">⏰</text>
+            <text>催单</text>
+          </button>
+          <button class="action-btn primary" bindtap="goToOrderDetail" data-id="{{activeOrder.id}}">
+            <text>查看详情</text>
+          </button>
+        </view>
+      </view>
+
+      <!-- 其他待取餐订单 -->
+      <view class="other-orders" wx:if="{{pendingOrders.length > 1}}">
+        <view class="section-title">其他待取餐订单</view>
+        <view class="order-list">
+          <view class="order-item {{ activeOrder.id === item.id ? 'active' : '' }}" 
+                wx:for="{{pendingOrders}}" 
+                wx:key="id"
+                bindtap="selectOrder"
+                data-order="{{item}}">
+            <view class="order-header">
+              <text class="pickup-code-small">{{ item.pickupCode }}</text>
+              <text class="status">{{ item.statusText }}</text>
+            </view>
+            <text class="order-no">{{ item.orderNo }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 扫码取餐 -->
+    <view class="scan-section">
+      <button class="scan-btn" bindtap="scanToPickup">
+        <text class="icon">📷</text>
+        <text class="text">扫码取餐</text>
+      </button>
+      <text class="scan-hint">扫描门店二维码快速取餐</text>
+    </view>
+
+    <!-- 历史订单 -->
+    <view class="history-section" wx:if="{{historyOrders.length > 0}}">
+      <view class="section-title">历史取餐记录</view>
+      <view class="history-list">
+        <view class="history-item" wx:for="{{historyOrders}}" wx:key="id" bindtap="goToOrderDetail" data-id="{{item.id}}">
+          <view class="history-left">
+            <text class="pickup-code-text">{{ item.pickupCode }}</text>
+            <text class="order-no-text">{{ item.orderNo }}</text>
+            <text class="picked-time">{{ item.pickedTime }}</text>
+          </view>
+          <view class="history-right">
+            <text class="amount">¥{{ item.totalAmount }}</text>
+            <text class="arrow">›</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{pendingOrders.length === 0 && historyOrders.length === 0}}">
+      <view class="empty-icon">🥤</view>
+      <text class="empty-text">暂无取餐订单</text>
+      <button class="go-order-btn" bindtap="goToOrder">去点单</button>
+    </view>
+  </view>
+</view>

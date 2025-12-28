@@ -1,0 +1,46 @@
+<view class="points-page">
+  <!-- 积分卡片 -->
+  <view class="points-card">
+    <view class="card-bg"></view>
+    <view class="card-content">
+      <view class="points-info">
+        <text class="points-label">我的积分</text>
+        <view class="points-value">{{ userPoints }}</view>
+      </view>
+      <view class="card-actions">
+        <view class="action-btn" bindtap="goToMall">
+          <text class="action-icon">🎁</text>
+          <text>积分商城</text>
+        </view>
+        <view class="action-btn" bindtap="goToRules">
+          <text class="action-icon">ℹ️</text>
+          <text>积分规则</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 积分明细 -->
+  <view class="records-section">
+    <view class="section-header">
+      <text class="section-title">积分明细</text>
+    </view>
+    <view class="records-list" wx:if="{{records.length > 0}}">
+      <view class="record-item" wx:for="{{records}}" wx:key="id">
+        <view class="record-info">
+          <text class="record-type">{{item.typeDesc || item.type}}</text>
+          <text class="record-time">{{item.createTime}}</text>
+        </view>
+        <view class="record-amount {{item.amount > 0 ? 'plus' : 'minus'}}">
+          {{item.amount > 0 ? '+' : ''}}{{item.amount}}
+        </view>
+      </view>
+      <view class="load-more" wx:if="{{hasMore}}">正在加载...</view>
+      <view class="no-more" wx:else>没有更多了</view>
+    </view>
+    <view class="empty-records" wx:else>
+      <view class="empty-icon">📜</view>
+      <text>暂无积分记录</text>
+    </view>
+  </view>
+</view>

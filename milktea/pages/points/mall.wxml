@@ -1,0 +1,71 @@
+<view class="mall-page">
+  <!-- 积分信息卡片 -->
+  <view class="mall-header">
+    <view class="points-info-card">
+      <view class="points-main">
+        <view class="points-left">
+          <text class="points-label">当前积分</text>
+          <view class="points-value">
+            <text class="points-number">{{ points }}</text>
+            <text class="points-unit">积分</text>
+          </view>
+        </view>
+        <view class="points-right" bindtap="signIn">
+          <text class="exchange-label">{{ signedIn ? '今日已签到' : '今日签到' }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分类标签 -->
+  <scroll-view class="categories-section" scroll-x="{{true}}">
+    <view class="categories-scroll">
+      <view 
+        wx:for="{{categories}}"
+        wx:key="id"
+        class="category-item {{activeCategoryId === item.id ? 'active' : ''}}"
+        bindtap="selectCategory"
+        data-id="{{item.id}}"
+      >
+        {{ item.name }}
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 商品列表 -->
+  <view class="products-section">
+    <view class="products-grid" wx:if="{{products.length > 0}}">
+      <view 
+        wx:for="{{products}}"
+        wx:key="id"
+        class="product-card"
+        bindtap="viewProductDetail"
+        data-id="{{item.id}}"
+      >
+        <view class="product-image">
+          <image src="{{item.image || '/images/default-product.jpg'}}" mode="aspectFill" />
+        </view>
+        <view class="product-info">
+          <view class="product-name">{{ item.name }}</view>
+          <view class="product-points">
+            <text class="current-points">{{ item.points }}</text>
+            <text class="points-unit">积分</text>
+          </view>
+          <button 
+            class="exchange-btn" 
+            catchtap="exchangeProduct" 
+            data-product="{{item}}"
+            disabled="{{points < item.points || item.stock <= 0}}"
+          >
+            {{ item.stock > 0 ? '立即兑换' : '已兑完' }}
+          </button>
+        </view>
+      </view>
+    </view>
+    
+    <view wx:else class="empty-state">
+      <view class="empty-icon">🎁</view>
+      <view class="empty-text">暂无商品</view>
+    </view>
+  </view>
+</view>

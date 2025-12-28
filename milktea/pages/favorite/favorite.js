@@ -2,60 +2,118 @@ const { favoriteApi } = require('../../utils/api.js');
 
 Page({
   data: {
-    favorites: [],
+    favoriteList: [],
+    loading: false,
+    isEditMode: false,
     page: 1,
     size: 10,
-    hasMore: true,
-    isLoading: false
+    total: 0,
+    hasMore: false,
+    defaultImage: 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400'
   },
 
   onShow() {
-    this.setData({ 
-      favorites: [],
-      page: 1,
-      hasMore: true 
-    }, () => {
+    this.setData({ page: 1 }, () => {
       this.loadFavorites();
     });
   },
 
-  async loadFavorites() {
-    if (this.data.isLoading || !this.data.hasMore) return;
-
-    this.setData({ isLoading: true });
+  async loadFavorites(isLoadMore = false) {
+    if (this.data.loading) return;
+    
+    this.setData({ loading: true });
     try {
-      const res = await favoriteApi.getFavorites({
+      const params = {
         page: this.data.page,
         size: this.data.size
-      });
-
-      const list = res.data.content || res.data || [];
-      this.setData({
-        favorites: [...this.data.favorites, ...list],
-        hasMore: list.length === this.data.size,
-        page: this.data.page + 1
-      });
+      };
+      const res = await favoriteApi.getFavorites(params);
+      const pageData = res.data || res;
+      if (pageData && pageData.content) {
+        const list = isLoadMore ? [...this.data.favoriteList, ...pageData.content] : pageData.content;
+        this.setData({
+          favoriteList: list,
+          total: pageData.totalElements || pageData.total || 0,
+          hasMore: !pageData.last
+        });
+      }
     } catch (error) {
       console.error('加载收藏失败:', error);
+      wx.showToast({ title: '加载失败', icon: 'none' });
     } finally {
-      this.setData({ isLoading: false });
+      this.setData({ loading: false });
     }
   },
 
-  onReachBottom() {
-    this.loadFavorites();
+  loadMore() {
+    if (this.data.hasMore && !this.data.loading) {
+      this.setData({ page: this.data.page + 1 }, () => {
+        this.loadFavorites(true);
+      });
+    }
+  },
+
+  toggleEditMode() {
+    this.setData({ isEditMode: !this.data.isEditMode });
+  },
+
+  async removeFavorite(e) {
+    const productId = e.currentTarget.dataset.id;
+    wx.showModal({
+      title: '提示',
+      content: '确定要取消收藏吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await favoriteApi.removeFavorite(productId);
+            const list = this.data.favoriteList.filter(item => item.product.id !== productId);
+            this.setData({
+              favoriteList: list,
+              total: this.data.total - 1
+            });
+            wx.showToast({ title: '已取消收藏' });
+          } catch (error) {
+            console.error('取消收藏失败:', error);
+            wx.showToast({ title: '操作失败', icon: 'none' });
+          }
+        }
+      }
+    });
   },
 
   onProductTap(e) {
-    const id = e.currentTarget.dataset.id;
-    wx.navigateTo({
-      url: `/pages/product/detail?id=${id}`
+    if (this.data.isEditMode) return;
+    wx.navigateTo({ url: `/pages/product/detail?id=${e.currentTarget.dataset.id}` });
+  },
+
+  addToCart(e) {
+    wx.navigateTo({ url: `/pages/product/detail?id=${e.currentTarget.dataset.id}` });
+  },
+
+  async clearAll() {
+    wx.showModal({
+      title: '提示',
+      content: '确定要清空所有收藏吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await favoriteApi.clearFavorites();
+            this.setData({
+              favoriteList: [],
+              total: 0,
+              isEditMode: false
+            });
+            wx.showToast({ title: '已清空' });
+          } catch (error) {
+            console.error('清空收藏失败:', error);
+            wx.showToast({ title: '操作失败', icon: 'none' });
+          }
+        }
+      }
     });
   },
 
-  goShopping() {
-    wx.switchTab({
-      url: '/pages/order/order'
-    });
+  goToOrder() {
+    wx.switchTab({ url: '/pages/index/index' });
   }
 });
