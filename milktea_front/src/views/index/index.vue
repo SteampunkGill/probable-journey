@@ -451,7 +451,9 @@ const onScroll = (e) => {
 
 const selectOrderMode = (mode) => {
   localStorage.setItem('orderMode', mode)
-  router.push('/address?type=select_store')
+  userStore.setOrderType(mode)
+  // 确保跳转到点餐页面
+  router.push('/order')
 }
 
 const quickAdd = (product) => {

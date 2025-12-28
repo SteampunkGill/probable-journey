@@ -289,6 +289,20 @@ onMounted(() => {
   } else {
     loadAddressList()
   }
+  // 监听地址更新事件
+  window.addEventListener('address-updated', loadAddressList)
+  
+  // 检查是否有刷新标记
+  if (localStorage.getItem('needAddressRefresh') === 'true') {
+    localStorage.removeItem('needAddressRefresh')
+    loadAddressList()
+  }
+})
+
+// 组件卸载时移除监听
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  window.removeEventListener('address-updated', loadAddressList)
 })
 </script><style scoped>
 .address-page {

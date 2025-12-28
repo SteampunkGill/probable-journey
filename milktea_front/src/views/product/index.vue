@@ -65,6 +65,25 @@
       </div>
     </div>
 
+    <!-- 门店信息 -->
+    <div class="store-info-section card" v-if="product.store">
+      <div class="section-title">📍 供应门店</div>
+      <div class="store-card-mini" @click="router.push('/order')">
+        <div class="store-main">
+          <span class="store-name">{{ product.store.name }}</span>
+          <span class="store-distance" v-if="product.store.distance">{{ product.store.distance }}km</span>
+        </div>
+        <div class="store-address">{{ product.store.address }}</div>
+        <div class="store-footer">
+          <span class="store-status" :class="{ open: product.store.isOpen }">
+            {{ product.store.isOpen ? '营业中' : '休息中' }}
+          </span>
+          <span class="store-time">{{ product.store.businessHours }}</span>
+        </div>
+        <span class="arrow">›</span>
+      </div>
+    </div>
+
     <!-- 定制化选项 -->
     <div class="customization-section card">
       <div class="section-title">⚙ 定制你的专属饮品</div>
@@ -318,7 +337,24 @@ const toppingOptions = ref([])
 
 const maxToppings = 5
 
-const comments = ref([])
+const comments = ref([
+  {
+    id: 1,
+    userName: '茶饮爱好者',
+    userAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1',
+    rating: 5,
+    createTime: '2023-10-24',
+    content: '味道非常正宗，甜度刚刚好，珍珠很Q弹！'
+  },
+  {
+    id: 2,
+    userName: '小红薯用户',
+    userAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2',
+    rating: 4,
+    createTime: '2023-10-23',
+    content: '包装很好看，配送也很快，下次还会再点。'
+  }
+])
 
 const toppingsCost = computed(() => {
   return customizations.value.toppings.reduce((total, toppingId) => {
@@ -395,7 +431,15 @@ const fetchProductDetail = async (id) => {
       commentCount: res.commentCount || 0,
       isHot: res.isHot || false,
       isNew: res.isNew || false,
-      isRecommend: res.isRecommend || false
+      isRecommend: res.isRecommend || false,
+      store: res.store || {
+        id: 1,
+        name: '饮饮茶 (总店)',
+        address: '广州市天河区珠江新城兴盛路10号',
+        distance: '0.8',
+        isOpen: true,
+        businessHours: '09:00-22:00'
+      }
     }
 
     if (customRes && customRes.data) {
@@ -611,6 +655,83 @@ onMounted(() => {
 .card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-3px);
+}
+
+/* 门店信息 */
+.store-info-section {
+  --delay: 0.35s;
+}
+
+.store-card-mini {
+  background: var(--surface-color);
+  padding: 16px;
+  border-radius: 16px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.store-card-mini:hover {
+  background: var(--accent-cream);
+  transform: translateX(5px);
+}
+
+.store-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.store-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-color-dark);
+}
+
+.store-distance {
+  font-size: 13px;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.store-address {
+  font-size: 13px;
+  color: var(--text-color-medium);
+  margin-bottom: 8px;
+  padding-right: 20px;
+}
+
+.store-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.store-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #ccc;
+  color: white;
+}
+
+.store-status.open {
+  background: #52C41A;
+}
+
+.store-time {
+  font-size: 12px;
+  color: var(--text-color-light);
+}
+
+.store-card-mini .arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--text-color-light);
 }
 
 /* 商品基本信息卡片 */

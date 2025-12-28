@@ -40,6 +40,10 @@ public class GiftCardService {
                 .expiryTime(LocalDateTime.now().plusYears(1))
                 .build();
 
+        // 购买后直接绑定给用户并激活，方便测试和演示
+        giftCard.setUser(user);
+        giftCard.setStatus("ACTIVE");
+        
         giftCard = giftCardRepository.save(giftCard);
         return convertToDTO(giftCard);
     }

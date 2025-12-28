@@ -36,6 +36,7 @@ public class CartService {
     private CheckoutPrepareDTO.CartItemDTO convertToCartItemDTO(CartItem item) {
         CheckoutPrepareDTO.CartItemDTO dto = new CheckoutPrepareDTO.CartItemDTO();
         dto.setId(item.getId());
+        dto.setProductId(item.getProduct().getId());
         dto.setProductName(item.getProduct().getName());
         dto.setProductImage(item.getProduct().getImageUrl());
         dto.setQuantity(item.getQuantity());

@@ -339,8 +339,12 @@ const submitOrder = async () => {
       storeId: selectedStore.value?.id,
       couponId: selectedCoupon.value?.id,
       usePoints: usePoints.value ? pointsToUse.value : 0,
+      balanceDiscountAmount: 0, // 暂时传0，后续可根据余额抵扣逻辑调整
       remark: remark.value,
-      totalAmount: parseFloat(totalAmount.value)
+      // 确保 deliveryFee 始终有值，即使是 0
+      deliveryFee: parseFloat(deliveryFee.value || 0),
+      packagingFee: parseFloat(packagingFee.value || 0),
+      totalAmount: parseFloat(totalAmount.value || 0)
     }
     
     const res = await orderApi.createOrder(orderData)

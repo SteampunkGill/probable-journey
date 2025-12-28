@@ -234,8 +234,18 @@
       <div class="modal-container" style="width: 500px;">
         <h3>{{ bannerModal.isEdit ? '编辑轮播图' : '新增轮播图' }}</h3>
         <div class="form-item">
-          <label>图片URL：</label>
-          <input v-model="bannerModal.form.imageUrl" class="admin-input" placeholder="请输入图片URL" />
+          <label>图片：</label>
+          <div class="upload-container">
+            <input type="file" ref="bannerFileInput" style="display: none" accept="image/*" @change="handleBannerFileChange" />
+            <div class="upload-preview" @click="$refs.bannerFileInput.click()">
+              <img v-if="bannerModal.form.imageUrl" :src="bannerModal.form.imageUrl" class="preview-img" />
+              <div v-else class="upload-placeholder">
+                <span>+</span>
+                <p>点击上传图片</p>
+              </div>
+            </div>
+            <input v-model="bannerModal.form.imageUrl" class="admin-input" style="margin-top: 10px;" placeholder="或手动输入图片URL" />
+          </div>
         </div>
         <div class="form-item">
           <label>显示位置：</label>
@@ -294,8 +304,38 @@ const showBannerModal = (b = null) => {
   bannerModal.value.show = true
 }
 
+const handleBannerFileChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('type', 'banner')
+  
+  try {
+    // 后端接口是 /api/common/upload/image
+    const res = await post('/api/common/upload/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    if (res && res.code === 200 && res.data && res.data.url) {
+      bannerModal.value.form.imageUrl = res.data.url
+    } else if (res && res.data && res.data.url) {
+      bannerModal.value.form.imageUrl = res.data.url
+    } else if (res && res.url) {
+      bannerModal.value.form.imageUrl = res.url
+    }
+  } catch (error) {
+    console.error('上传失败:', error)
+    alert('上传失败')
+  }
+}
+
 const saveBanner = async () => {
-  await post('/api/admin/banners', bannerModal.value.form)
+  if (bannerModal.value.isEdit) {
+    await put(`/api/admin/banners/${bannerModal.value.form.id}`, bannerModal.value.form)
+  } else {
+    await post('/api/admin/banners', bannerModal.value.form)
+  }
   bannerModal.value.show = false
   loadBanners()
 }
@@ -708,6 +748,48 @@ onMounted(() => {
 .text-danger {
   color: #ff6b6b !important;
   font-weight: 700;
+}
+
+.upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-preview {
+  width: 100%;
+  height: 150px;
+  border: 2px dashed #d4c7b5;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+}
+
+.upload-preview:hover {
+  border-color: #a0522d;
+  background: rgba(255, 248, 220, 0.8);
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upload-placeholder {
+  text-align: center;
+  color: #a09080;
+}
+
+.upload-placeholder span {
+  font-size: 40px;
+  display: block;
+  margin-bottom: 5px;
 }
 
 .modal-mask {

@@ -141,15 +141,32 @@ const loadProfile = async () => {
     // 拦截器返回的是 res.data
     if (res) {
       userStore.setUserInfo(res)
+      // 优先使用 res 中的数据，如果为空则使用 store 中的数据
       form.value = {
-        nickname: res.nickname || res.username || '',
-        avatarUrl: res.avatarUrl || res.avatar || '',
-        gender: res.gender !== undefined ? res.gender : 0,
-        birthday: res.birthday || ''
+        nickname: res.nickname || res.username || userStore.userInfo?.nickname || userStore.userInfo?.username || '',
+        avatarUrl: res.avatarUrl || res.avatar || userStore.userInfo?.avatarUrl || userStore.userInfo?.avatar || '',
+        gender: res.gender !== undefined ? res.gender : (userStore.userInfo?.gender || 0),
+        birthday: res.birthday || userStore.userInfo?.birthday || ''
+      }
+    } else if (userStore.userInfo) {
+      // 如果接口没返回，使用 store 中的数据
+      form.value = {
+        nickname: userStore.userInfo.nickname || userStore.userInfo.username || '',
+        avatarUrl: userStore.userInfo.avatarUrl || userStore.userInfo.avatar || '',
+        gender: userStore.userInfo.gender !== undefined ? userStore.userInfo.gender : 0,
+        birthday: userStore.userInfo.birthday || ''
       }
     }
   } catch (error) {
     console.error('获取个人资料失败:', error)
+    if (userStore.userInfo) {
+      form.value = {
+        nickname: userStore.userInfo.nickname || userStore.userInfo.username || '',
+        avatarUrl: userStore.userInfo.avatarUrl || userStore.userInfo.avatar || '',
+        gender: userStore.userInfo.gender !== undefined ? userStore.userInfo.gender : 0,
+        birthday: userStore.userInfo.birthday || ''
+      }
+    }
   }
 }
 
@@ -172,17 +189,40 @@ const handleSave = async () => {
     console.log('提交修改数据:', submitData)
     const res = await authApi.updateUserProfile(submitData)
     
-    // 拦截器返回的是 res.data，如果成功，res 应该是更新后的用户对象
-    // 只要 res 存在，或者请求没有抛出异常，通常就代表后端处理成功了
-    if (res) {
+    // 拦截器返回的是 res 对象（包含 code, message, data）
+    if (res && res.code === 200) {
       alert('保存成功')
-      userStore.setUserInfo(res)
-      router.back()
+      const updatedUser = res.data
+      // 确保更新 store 中的用户信息，同时保留 token
+      const currentToken = userStore.token || localStorage.getItem('token')
+      const newUserInfo = { ...userStore.userInfo, ...updatedUser }
+      userStore.setUserInfo(newUserInfo)
+      
+      // 重新设置 token，防止丢失
+      if (currentToken) {
+        userStore.setToken(currentToken)
+      }
+      
+      // 延迟返回，确保 store 更新完成
+      setTimeout(() => {
+        router.back()
+      }, 100)
     } else {
-      // 某些情况下后端可能只返回 200 OK 而没有 body
+      // 如果 res 直接是数据（旧逻辑兼容）
       alert('保存成功')
-      loadProfile() // 重新加载一次数据
-      router.back()
+      const currentToken = userStore.token || localStorage.getItem('token')
+      if (res && !res.code) {
+        const newUserInfo = { ...userStore.userInfo, ...res }
+        userStore.setUserInfo(newUserInfo)
+      } else {
+        await loadProfile()
+      }
+      if (currentToken) {
+        userStore.setToken(currentToken)
+      }
+      setTimeout(() => {
+        router.back()
+      }, 100)
     }
   } catch (error) {
     console.error('更新个人资料失败:', error)

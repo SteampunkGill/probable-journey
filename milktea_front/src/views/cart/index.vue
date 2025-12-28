@@ -583,19 +583,19 @@ onMounted(() => {
 
 .bottom-settlement {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 60px; /* 向上移动，避开底部导航栏 */
+  left: 16px;
+  right: 16px;
   background: rgba(255, 255, 255, 0.95);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  box-shadow: 0 -4px 20px rgba(160, 82, 45, 0.1);
+  padding: 16px 20px;
+  box-shadow: 0 8px 32px rgba(160, 82, 45, 0.15);
   z-index: 100;
   backdrop-filter: blur(10px);
-  border-top: 1px solid var(--border-color, #d4c7b5);
-  border-radius: 20px 20px 0 0;
+  border: 1px solid var(--border-color, #d4c7b5);
+  border-radius: 24px; /* 改成悬浮圆角卡片样式 */
 }
 
 .settlement-left {

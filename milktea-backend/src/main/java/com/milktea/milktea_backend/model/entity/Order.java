@@ -49,6 +49,9 @@ public class Order {
 
     @Column(name = "discount_amount", precision = 10, scale = 2)
     private java.math.BigDecimal discountAmount;
+    @Column(name = "balance_discount_amount", precision = 10, scale = 2)
+    private java.math.BigDecimal balanceDiscountAmount; // 余额抵扣金额
+
 
     @Column(name = "delivery_fee", precision = 10, scale = 2)
     private java.math.BigDecimal deliveryFee;

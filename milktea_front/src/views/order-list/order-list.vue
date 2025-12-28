@@ -39,7 +39,7 @@
         class="order-item"
         v-for="item in filteredOrders"
         :key="item.id"
-        @click="goToOrderDetail(item.id)"
+        @click="goToOrderDetail(item.orderNo)"
       >
         <!-- 订单头部 -->
         <div class="order-header">
@@ -81,20 +81,20 @@
         <div class="order-actions">
           <!-- 待支付 -->
           <template v-if="item.status === 'pending_payment'">
-            <button class="action-btn secondary" @click.stop="cancelOrder(item.id)">取消订单</button>
-            <button class="action-btn primary" @click.stop="payOrder(item.id)">去支付</button>
+            <button class="action-btn secondary" @click.stop="cancelOrder(item.orderNo)">取消订单</button>
+            <button class="action-btn primary" @click.stop="payOrder(item)">去支付</button>
           </template>
 
           <!-- 制作中 -->
           <template v-if="item.status === 'processing'">
             <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
-            <button class="action-btn primary" @click.stop="remindOrder(item.id)">催单</button>
+            <button class="action-btn primary" @click.stop="remindOrder(item.orderNo)">催单</button>
           </template>
 
           <!-- 已完成 -->
           <template v-if="item.status === 'completed'">
             <button class="action-btn secondary" @click.stop="reorder(item)">再来一单</button>
-            <button class="action-btn primary" v-if="item.canReview" @click.stop="reviewOrder(item.id)">去评价</button>
+            <button class="action-btn primary" v-if="item.canReview" @click.stop="reviewOrder(item.orderNo)">去评价</button>
           </template>
         </div>
       </div>
@@ -242,18 +242,24 @@ const loadOrders = async () => {
   }
 }
 
-const goToOrderDetail = (id) => {
-  router.push(`/order-detail/${id}`)
+const goToOrderDetail = (orderNo) => {
+  router.push(`/order-detail/${orderNo}`)
 }
 
-const payOrder = (id) => {
-  router.push({ path: '/payment', query: { orderId: id } })
+const payOrder = (order) => {
+  router.push({
+    path: '/payment',
+    query: {
+      orderNo: order.orderNo,
+      amount: order.totalAmount
+    }
+  })
 }
 
-const cancelOrder = async (id) => {
+const cancelOrder = async (orderNo) => {
   if (!confirm('确定要取消该订单吗？')) return
   try {
-    await orderApi.cancelOrder(id)
+    await orderApi.cancelOrder(orderNo)
     alert('订单已取消')
     loadOrders()
   } catch (error) {
@@ -262,9 +268,9 @@ const cancelOrder = async (id) => {
   }
 }
 
-const remindOrder = async (id) => {
+const remindOrder = async (orderNo) => {
   try {
-    await orderApi.remindOrder(id)
+    await orderApi.remindOrder(orderNo)
     alert('已提醒商家尽快制作')
   } catch (error) {
     console.error('催单失败', error)
@@ -284,8 +290,8 @@ const reorder = (order) => {
   router.push('/cart')
 }
 
-const reviewOrder = (id) => {
-  router.push(`/review/${id}`)
+const reviewOrder = (orderNo) => {
+  router.push(`/review/${orderNo}`)
 }
 
 const contactService = () => {

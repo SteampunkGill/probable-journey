@@ -12,6 +12,8 @@ public class OrderCreateDTO {
     private String remark;
     private Integer usePoints; // 使用的积分
     private Long couponId; // 使用的优惠券ID
+    private BigDecimal balanceDiscountAmount; // 余额抵扣金额
+
     private List<OrderItemDTO> items;
 
     @Data

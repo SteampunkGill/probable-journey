@@ -22,7 +22,13 @@ public class AdminBannerController {
     }
 
     @PostMapping("/banners")
-    public ApiResponse<Banner> saveOrUpdateBanner(@RequestBody Banner banner) {
+    public ApiResponse<Banner> saveBanner(@RequestBody Banner banner) {
+        return ApiResponse.success(bannerService.saveOrUpdate(banner));
+    }
+
+    @PutMapping("/banners/{id}")
+    public ApiResponse<Banner> updateBanner(@PathVariable Long id, @RequestBody Banner banner) {
+        banner.setId(id);
         return ApiResponse.success(bannerService.saveOrUpdate(banner));
     }
 

@@ -148,7 +148,7 @@ const submitPayment = async () => {
     paying.value = false
     alert('支付成功！')
     router.push({
-      path: '/order-detail/' + order.value.id,
+      path: '/order-detail/' + order.value.orderNo,
       query: { status: 'success' }
     })
   }, 1500)

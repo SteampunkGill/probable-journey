@@ -173,7 +173,13 @@ const saveAddress = async () => {
     }
     
     alert('保存成功')
-    router.back()
+    // 触发一个自定义事件或使用全局状态通知列表刷新
+    window.dispatchEvent(new CustomEvent('address-updated'))
+    // 兼容某些情况下直接返回不刷新的问题，可以尝试在 localStorage 标记一下
+    localStorage.setItem('needAddressRefresh', 'true')
+    setTimeout(() => {
+      router.back()
+    }, 100)
   } catch (error) {
     console.error('保存失败:', error)
     const errorMsg = error.response?.data?.message || error.message || '保存失败，请稍后重试'

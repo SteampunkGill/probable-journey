@@ -62,6 +62,7 @@ public class OrderService {
         order.setOrderTime(LocalDateTime.now());
         order.setIsCommented(false);
         order.setRemindCount(0);
+        order.setBalanceDiscountAmount(dto.getBalanceDiscountAmount() != null ? dto.getBalanceDiscountAmount() : BigDecimal.ZERO);
 
         List<OrderItem> items = dto.getItems().stream().map(itemDto -> {
             if (itemDto.getProductId() == null) {
@@ -95,6 +96,14 @@ public class OrderService {
                 .map(OrderItem::getTotalPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         order.setTotalAmount(totalAmount);
+
+        // 设置配送费
+        BigDecimal deliveryFee = BigDecimal.ZERO;
+        if ("DELIVERY".equals(dto.getDeliveryType())) {
+            // 简单逻辑：满30免配送费，否则5元。实际应根据前端计算逻辑保持一致
+            deliveryFee = totalAmount.compareTo(new BigDecimal("30")) >= 0 ? BigDecimal.ZERO : new BigDecimal("5");
+        }
+        order.setDeliveryFee(deliveryFee);
         
         // 计算折扣和实付
         BigDecimal discountAmount = BigDecimal.ZERO;

@@ -269,6 +269,7 @@ CREATE TABLE `orders` (
   `total_amount` DECIMAL(10, 2) NOT NULL COMMENT '订单总额',
   `pay_amount` DECIMAL(10, 2) NOT NULL COMMENT '实付金额',
   `discount_amount` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '优惠金额',
+  `balance_discount_amount` DECIMAL(10, 2) DEFAULT 0.00 COMMENT '余额抵扣金额',
   `delivery_fee` DECIMAL(10, 2) DEFAULT 0.00,
   -- 支付信息
   `pay_method` VARCHAR(20) COMMENT 'ALIPAY, WECHAT',

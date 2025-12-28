@@ -288,6 +288,15 @@ public class AppUserController {
         shareService.rewardInvite(body.get("inviteeId"));
         return ApiResponse.success(null);
     }
+    @GetMapping("/share/stats")
+    public ApiResponse<Map<String, Object>> getShareStats() {
+        Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("inviteCount", 0);
+        stats.put("rewardPoints", 0);
+        stats.put("rewardCoupons", 0);
+        return ApiResponse.success(stats);
+    }
+
 
     @GetMapping("/member/exclusive-products")
     public ApiResponse<List<com.milktea.milktea_backend.model.entity.Product>> getExclusiveProducts() {

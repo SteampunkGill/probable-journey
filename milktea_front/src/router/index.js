@@ -164,6 +164,12 @@ const routes = [
     meta: { title: '账号安全', requiresAuth: true }
   },
   {
+    path: '/settings/change-password',
+    name: 'change-password',
+    component: () => import('../views/settings/change-password.vue'),
+    meta: { title: '修改密码', requiresAuth: true }
+  },
+  {
     path: '/about',
     name: 'about-root',
     component: () => import('../views/settings/about.vue'),

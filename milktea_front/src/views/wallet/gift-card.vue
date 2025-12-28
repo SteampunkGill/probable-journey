@@ -112,8 +112,12 @@ const activateForm = ref({
 const fetchGiftCards = async () => {
   try {
     const res = await giftCardApi.getMyGiftCards()
-    // 假设拦截器返回了 res.data
-    giftCards.value = res || []
+    // 拦截器返回了完整 res 对象，包含 code, message, data
+    if (res && res.code === 200) {
+      giftCards.value = res.data || []
+    } else {
+      giftCards.value = res || []
+    }
   } catch (error) {
     console.error('获取礼品卡失败', error)
   }

@@ -73,7 +73,7 @@
         <h3 class="section-title">商品清单</h3>
         <div class="goods-list">
           <div class="goods-item" v-for="item in order.items" :key="item.id">
-            <img class="goods-image" :src="item.image" />
+            <img class="goods-image" :src="item.image || item.product?.mainImageUrl || item.product?.imageUrl" />
             <div class="goods-info">
               <h4 class="goods-name">{{ item.name }}</h4>
               <div class="goods-specs" v-if="item.customizations">
@@ -216,24 +216,38 @@ const loadOrderDetail = async () => {
 }
 
 const generateStatusSteps = (order) => {
+  const createTime = order.createTime || ''
+  const payTime = order.payTime || ''
+  
   if (order.deliveryType === 'delivery') {
     statusSteps.value = [
-      { key: 'created', title: '订单已提交', time: '14:30' },
-      { key: 'paid', title: '支付成功', time: '14:31' },
-      { key: 'processing', title: '商家制作中', time: '' },
-      { key: 'delivering', title: '配送中', time: '' },
-      { key: 'completed', title: '订单完成', time: '' }
+      { key: 'PENDING_PAYMENT', title: '订单已提交', time: createTime },
+      { key: 'PAID', title: '支付成功', time: payTime },
+      { key: 'PROCESSING', title: '商家制作中', time: '' },
+      { key: 'DELIVERING', title: '配送中', time: '' },
+      { key: 'COMPLETED', title: '订单完成', time: '' }
     ]
   } else {
     statusSteps.value = [
-      { key: 'created', title: '订单已提交', time: '14:30' },
-      { key: 'paid', title: '支付成功', time: '14:31' },
-      { key: 'processing', title: '商家制作中', time: '' },
-      { key: 'ready', title: '已备餐', time: '' },
-      { key: 'completed', title: '已取餐', time: '' }
+      { key: 'PENDING_PAYMENT', title: '订单已提交', time: createTime },
+      { key: 'PAID', title: '支付成功', time: payTime },
+      { key: 'PROCESSING', title: '商家制作中', time: '' },
+      { key: 'READY', title: '已备餐', time: '' },
+      { key: 'COMPLETED', title: '已取餐', time: '' }
     ]
   }
-  currentStep.value = 2 // 制作中
+
+  // 根据状态设置当前步骤
+  const statusMap = {
+    'PENDING_PAYMENT': 0,
+    'PAID': 1,
+    'PROCESSING': 2,
+    'DELIVERING': 3,
+    'READY': 3,
+    'COMPLETED': 4,
+    'CANCELLED': -1
+  }
+  currentStep.value = statusMap[order.status] ?? 0
 }
 
 const copyText = (text) => {
@@ -253,7 +267,13 @@ const cancelOrder = () => {
 }
 
 const payOrder = () => {
-  router.push({ path: '/payment', query: { orderId: order.value.id } })
+  router.push({
+    path: '/payment',
+    query: {
+      orderNo: order.value.orderNo,
+      amount: order.value.totalAmount
+    }
+  })
 }
 
 const remindOrder = () => {

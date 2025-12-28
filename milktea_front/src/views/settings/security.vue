@@ -28,8 +28,7 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const handleChangePassword = () => {
-  // 实际项目中可能跳转到修改密码页面
-  alert('修改密码功能开发中')
+  router.push('/settings/change-password')
 }
 
 const handleDeactivate = async () => {
