@@ -2,6 +2,8 @@ CREATE DATABASE IF NOT EXISTS `milktea_db` /*!40100 DEFAULT CHARACTER SET utf8mb
 
 USE `milktea_db`;
 
+SET NAMES utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE `about_us` (
@@ -1427,5 +1429,209 @@ CREATE TABLE `verification_codes` (
 -- 初始化角色数据
 INSERT IGNORE INTO `sys_roles` (`code`, `name`, `description`) VALUES ('ADMIN', '系统管理员', '拥有系统最高权限');
 INSERT IGNORE INTO `sys_roles` (`code`, `name`, `description`) VALUES ('STAFF', '普通员工', '负责日常门店运营');
+
+-- 初始化测试数据
+-- 1. 初始化门店数据 (stores)
+INSERT IGNORE INTO `stores`
+(`id`, `name`, `address`, `phone`, `status`, `is_active`, `latitude`, `longitude`, `current_wait_time`, `created_at`, `updated_at`, `business_status`, `open_time`, `close_time`)
+VALUES
+(1, '奶茶实验室(总店)', '上海市黄浦区南京东路888号', '021-12345678', 'OPEN', 1, 31.235929, 121.485708, 5, NOW(), NOW(), 1, '09:00', '22:00'),
+(2, '奶茶实验室(徐家汇店)', '上海市徐汇区肇嘉浜路1000号', '021-87654321', 'OPEN', 1, 31.193737, 121.439106, 10, NOW(), NOW(), 1, '10:00', '21:30');
+
+-- 2. 初始化分类数据 (categories)
+INSERT IGNORE INTO `categories`
+(`id`, `name`, `sort_order`, `is_active`, `created_at`, `updated_at`)
+VALUES
+(1, '人气Top', 1, 1, NOW(), NOW()),
+(2, '经典奶茶', 2, 1, NOW(), NOW()),
+(3, '清爽果茶', 3, 1, NOW(), NOW()),
+(4, '醇香咖啡', 4, 1, NOW(), NOW());
+
+-- 3. 初始化商品数据 (products)
+INSERT IGNORE INTO `products`
+(`id`, `name`, `category_id`, `price`, `original_price`, `stock`, `sales`, `monthly_sales`, `rating`, `rating_count`, `favorite_count`, `is_active`, `is_new`, `is_hot`, `is_recommend`, `main_image_url`, `description`, `created_at`, `updated_at`, `status`)
+VALUES
+(1, '珍珠奶茶', 2, 15.00, 18.00, 999, 5000, 1200, 4.8, 150, 300, 1, 0, 1, 1, '/assets/products/milktea.jpg', '经典珍珠奶茶，口感醇厚', NOW(), NOW(), 1),
+(2, '多肉葡萄', 3, 28.00, 32.00, 500, 8000, 2500, 4.9, 450, 800, 1, 1, 1, 1, '/assets/products/grape.jpg', '新鲜葡萄果肉，搭配清爽茶底', NOW(), NOW(), 1),
+(3, '杨枝甘露', 3, 25.00, 28.00, 600, 6000, 1800, 4.7, 200, 500, 1, 0, 1, 0, '/assets/products/mango.jpg', '芒果与西柚的完美结合', NOW(), NOW(), 1),
+(4, '美式咖啡', 4, 12.00, 15.00, 300, 2000, 500, 4.5, 80, 150, 1, 0, 0, 0, '/assets/products/coffee.jpg', '精选咖啡豆，唤醒每一天', NOW(), NOW(), 1);
+
+-- 4. 初始化规格数据 (product_specs)
+INSERT IGNORE INTO `product_specs`
+(`id`, `product_id`, `name`, `type`, `is_required`, `sort_order`, `created_at`, `updated_at`)
+VALUES
+(1, 1, '甜度', 'SWEETNESS', 1, 1, NOW(), NOW()),
+(2, 1, '温度', 'TEMPERATURE', 1, 2, NOW(), NOW()),
+(3, 2, '甜度', 'SWEETNESS', 1, 1, NOW(), NOW()),
+(4, 2, '温度', 'TEMPERATURE', 1, 2, NOW(), NOW());
+
+-- 5. 初始化规格选项数据 (product_spec_items)
+INSERT IGNORE INTO `product_spec_items`
+(`id`, `spec_id`, `name`, `sort_order`, `created_at`, `updated_at`)
+VALUES
+(1, 1, '常规糖', 1, NOW(), NOW()),
+(2, 1, '半糖', 2, NOW(), NOW()),
+(3, 1, '微糖', 3, NOW(), NOW()),
+(4, 1, '不加糖', 4, NOW(), NOW()),
+(5, 2, '常规冰', 1, NOW(), NOW()),
+(6, 2, '少冰', 2, NOW(), NOW()),
+(7, 2, '去冰', 3, NOW(), NOW()),
+(8, 2, '热', 4, NOW(), NOW());
+
+-- 6. 初始化小料/配料数据 (ingredients)
+INSERT IGNORE INTO `ingredients`
+(`id`, `name`, `stock`, `unit`, `cost_per_unit`, `created_at`)
+VALUES
+(1, '珍珠', 100.00, 'kg', 5.00, NOW()),
+(2, '椰果', 80.00, 'kg', 4.00, NOW()),
+(3, '红豆', 60.00, 'kg', 3.50, NOW()),
+(4, '芝士奶盖', 50.00, 'kg', 10.00, NOW());
+
+-- 7. 初始化商品加料选项 (product_customization_types & product_customization_options)
+INSERT IGNORE INTO `product_customization_types`
+(`id`, `product_id`, `type_name`, `label`, `is_required`, `is_enabled`, `sort_order`, `created_at`, `updated_at`)
+VALUES
+(1, 1, '加料', '选择加料', 0, 1, 1, NOW(), NOW());
+
+INSERT IGNORE INTO `product_customization_options`
+(`id`, `customization_type_id`, `label`, `value`, `price_adjustment`, `is_default`, `sort_order`, `created_at`, `updated_at`)
+VALUES
+(1, 1, '加珍珠', 'pearl', 2.00, 0, 1, NOW(), NOW()),
+(2, 1, '加椰果', 'coconut', 2.00, 0, 2, NOW(), NOW()),
+(3, 1, '加红豆', 'redbean', 2.00, 0, 3, NOW(), NOW());
+
+-- 8. 初始化优惠券模板 (coupon_templates)
+INSERT IGNORE INTO `coupon_templates`
+(`id`, `name`, `type`, `value`, `min_amount`, `validity_type`, `days_valid`, `total_quantity`, `remaining_quantity`, `is_active`, `created_at`, `updated_at`)
+VALUES
+(1, '新用户大礼包', 'CASH', 5.00, 20.00, 'FIXED_DAYS', 30, 1000, 1000, 1, NOW(), NOW()),
+(2, '全场通用券', 'DISCOUNT', 0.80, 0.00, 'FIXED_DAYS', 7, 500, 500, 1, NOW(), NOW());
+
+-- 9. 初始化系统用户 (sys_users)
+INSERT IGNORE INTO `sys_users`
+(`id`, `username`, `password_hash`, `real_name`, `status`, `created_at`, `updated_at`)
+VALUES
+(1, 'admin', '$2a$10$Xl0yS.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.', '系统管理员', 'ACTIVE', NOW(), NOW());
+
+-- 10. 关联角色
+INSERT IGNORE INTO `sys_user_roles` (`user_id`, `role_id`) VALUES (1, 1);
+
+-- 11. 更多门店数据
+INSERT IGNORE INTO `stores`
+(`id`, `name`, `address`, `phone`, `status`, `is_active`, `latitude`, `longitude`, `current_wait_time`, `created_at`, `updated_at`, `business_status`, `open_time`, `close_time`)
+VALUES
+(3, '奶茶实验室(静安寺店)', '上海市静安区南京西路1618号', '021-22334455', 'OPEN', 1, 31.224321, 121.446789, 15, NOW(), NOW(), 1, '10:00', '22:00'),
+(4, '奶茶实验室(陆家嘴店)', '上海市浦东新区世纪大道1号', '021-33445566', 'OPEN', 1, 31.2397, 121.4998, 20, NOW(), NOW(), 1, '09:30', '22:30');
+
+-- 12. 更多分类
+INSERT IGNORE INTO `categories`
+(`id`, `name`, `sort_order`, `is_active`, `created_at`, `updated_at`)
+VALUES
+(5, '季节限定', 5, 1, NOW(), NOW()),
+(6, '纯茶系列', 6, 1, NOW(), NOW());
+
+-- 13. 更多商品
+INSERT IGNORE INTO `products`
+(`id`, `name`, `category_id`, `price`, `original_price`, `stock`, `sales`, `monthly_sales`, `rating`, `rating_count`, `favorite_count`, `is_active`, `is_new`, `is_hot`, `is_recommend`, `main_image_url`, `description`, `created_at`, `updated_at`, `status`)
+VALUES
+(5, '芝芝莓莓', 3, 32.00, 35.00, 400, 9000, 3000, 4.9, 600, 1200, 1, 0, 1, 1, '/assets/products/strawberry.jpg', '新鲜草莓打制，覆盖浓郁芝士奶盖', NOW(), NOW(), 1),
+(6, '黑糖珍珠鲜奶', 2, 22.00, 25.00, 800, 7000, 2000, 4.8, 300, 600, 1, 0, 1, 0, '/assets/products/brown_sugar.jpg', '手熬黑糖珍珠，搭配优质鲜奶', NOW(), NOW(), 1),
+(7, '生椰拿铁', 4, 18.00, 22.00, 500, 12000, 4000, 4.9, 800, 1500, 1, 0, 1, 1, '/assets/products/coconut_latte.jpg', '清甜椰乳与浓缩咖啡的奇妙碰撞', NOW(), NOW(), 1),
+(8, '茉莉毛峰', 6, 12.00, 15.00, 1000, 3000, 800, 4.6, 120, 200, 1, 0, 0, 0, '/assets/products/jasmine_tea.jpg', '清新茉莉花香，回甘悠长', NOW(), NOW(), 1);
+
+-- 14. 更多规格
+INSERT IGNORE INTO `product_specs`
+(`id`, `product_id`, `name`, `type`, `is_required`, `sort_order`, `created_at`, `updated_at`)
+VALUES
+(5, 3, '甜度', 'SWEETNESS', 1, 1, NOW(), NOW()),
+(6, 3, '温度', 'TEMPERATURE', 1, 2, NOW(), NOW()),
+(7, 5, '甜度', 'SWEETNESS', 1, 1, NOW(), NOW()),
+(8, 5, '温度', 'TEMPERATURE', 1, 2, NOW(), NOW()),
+(9, 7, '甜度', 'SWEETNESS', 1, 1, NOW(), NOW()),
+(10, 7, '温度', 'TEMPERATURE', 1, 2, NOW(), NOW());
+
+-- 15. 更多规格选项
+INSERT IGNORE INTO `product_spec_items`
+(`id`, `spec_id`, `name`, `sort_order`, `created_at`, `updated_at`)
+VALUES
+(9, 5, '常规糖', 1, NOW(), NOW()),
+(10, 5, '半糖', 2, NOW(), NOW()),
+(11, 6, '常规冰', 1, NOW(), NOW()),
+(12, 6, '少冰', 2, NOW(), NOW()),
+(13, 7, '常规糖', 1, NOW(), NOW()),
+(14, 7, '半糖', 2, NOW(), NOW()),
+(15, 8, '常规冰', 1, NOW(), NOW()),
+(16, 8, '少冰', 2, NOW(), NOW());
+
+-- 16. 更多配料
+INSERT IGNORE INTO `ingredients`
+(`id`, `name`, `stock`, `unit`, `cost_per_unit`, `created_at`)
+VALUES
+(5, '燕麦奶', 200.00, 'L', 12.00, NOW()),
+(6, '芋圆', 100.00, 'kg', 6.00, NOW()),
+(7, '桂花冻', 50.00, 'kg', 8.00, NOW());
+
+-- 17. 更多加料选项
+INSERT IGNORE INTO `product_customization_types`
+(`id`, `product_id`, `type_name`, `label`, `is_required`, `is_enabled`, `sort_order`, `created_at`, `updated_at`)
+VALUES
+(2, 2, '加料', '选择加料', 0, 1, 1, NOW(), NOW()),
+(3, 5, '加料', '选择加料', 0, 1, 1, NOW(), NOW());
+
+INSERT IGNORE INTO `product_customization_options`
+(`id`, `customization_type_id`, `label`, `value`, `price_adjustment`, `is_default`, `sort_order`, `created_at`, `updated_at`)
+VALUES
+(4, 2, '加脆波波', 'bobo', 2.00, 0, 1, NOW(), NOW()),
+(5, 3, '加芝士', 'cheese', 5.00, 0, 1, NOW(), NOW());
+
+-- 18. 初始化会员等级
+INSERT IGNORE INTO `member_levels`
+(`id`, `name`, `min_growth_value`, `discount_rate`, `description`, `created_at`, `updated_at`)
+VALUES
+(1, '普通会员', 0, 1.00, '注册即成为普通会员', NOW(), NOW()),
+(2, '黄金会员', 1000, 0.95, '消费满1000元升级', NOW(), NOW()),
+(3, '铂金会员', 5000, 0.90, '消费满5000元升级', NOW(), NOW()),
+(4, '钻石会员', 10000, 0.85, '消费满10000元升级', NOW(), NOW());
+
+-- 19. 初始化测试用户
+INSERT IGNORE INTO `users`
+(`id`, `nickname`, `phone`, `balance`, `points`, `growth_value`, `is_active`, `status`, `created_at`, `updated_at`, `password`, `registration_time`)
+VALUES
+(1, '张三', '13800138001', 100.00, 500, 200, 1, 'ACTIVE', NOW(), NOW(), '$2a$10$Xl0yS.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.', NOW()),
+(2, '李四', '13800138002', 50.00, 200, 100, 1, 'ACTIVE', NOW(), NOW(), '$2a$10$Xl0yS.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.v.', NOW());
+
+-- 20. 初始化轮播图
+INSERT IGNORE INTO `banners`
+(`id`, `title`, `image_url`, `is_active`, `sort_order`, `type`, `created_at`, `updated_at`)
+VALUES
+(1, '新品上市', '/assets/banners/new_product.jpg', 1, 1, 'BANNER', NOW(), NOW()),
+(2, '会员特惠', '/assets/banners/member_promo.jpg', 1, 2, 'BANNER', NOW(), NOW());
+
+-- 21. 初始化关于我们
+INSERT IGNORE INTO `about_us`
+(`id`, `title`, `content`, `contact_phone`, `address`, `logo_url`, `updated_at`)
+VALUES
+(1, '奶茶实验室', '我们致力于用科学的配比，为您调制每一杯有灵魂的奶茶。', '400-123-4567', '上海市黄浦区南京东路888号', '/assets/logo.png', NOW());
+
+-- 22. 初始化过敏原
+INSERT IGNORE INTO `allergens`
+(`id`, `name`, `icon_url`, `created_at`)
+VALUES
+(1, '牛奶', '/assets/icons/milk.png', NOW()),
+(2, '坚果', '/assets/icons/nuts.png', NOW()),
+(3, '芒果', '/assets/icons/mango.png', NOW());
+
+-- 23. 初始化积分兑换商品
+INSERT IGNORE INTO `point_exchange_items`
+(`id`, `name`, `points_cost`, `stock`, `target_type`, `image_url`, `description`, `status`, `created_at`, `updated_at`)
+VALUES
+(1, '5元代金券', 500, 999, 'COUPON', '/assets/items/coupon_5.png', '500积分兑换5元无门槛代金券', 'ACTIVE', NOW(), NOW()),
+(2, '定制帆布袋', 2000, 100, 'PHYSICAL', '/assets/items/bag.png', '奶茶实验室限量版帆布袋', 'ACTIVE', NOW(), NOW());
+
+-- 24. 初始化系统公告
+INSERT IGNORE INTO `sys_announcements`
+(`id`, `title`, `content`, `is_active`, `start_time`, `end_time`, `created_at`, `updated_at`)
+VALUES
+(1, '元旦放假通知', '亲爱的顾客，元旦期间各门店照常营业，欢迎光临！', 1, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), NOW(), NOW());
 
 SET FOREIGN_KEY_CHECKS = 1;
