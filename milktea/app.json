@@ -30,7 +30,10 @@
     "pages/payment/payment",
     "pages/share/share",
     "pages/user/profile",
+    "pages/settings/settings",
     "pages/settings/about",
+    "pages/settings/security",
+    "pages/settings/change-password",
     "pages/user/bind-card"
   ],
   "window": {

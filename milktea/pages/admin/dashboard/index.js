@@ -1,4 +1,4 @@
-const request = require('../../../utils/request');
+const { get } = require('../../../utils/request');
 
 Page({
   data: {
@@ -35,12 +35,12 @@ Page({
   async loadData() {
     try {
       const [metricsRes, realtimeRes, trendRes, rankingRes, invAlertRes, orderAlertRes] = await Promise.all([
-        request({ url: '/api/admin/dashboard/today-metrics' }),
-        request({ url: '/api/admin/dashboard/realtime-sales' }),
-        request({ url: '/api/admin/dashboard/sales-trend' }),
-        request({ url: '/api/admin/dashboard/product-ranking' }),
-        request({ url: '/api/admin/dashboard/inventory-alerts' }),
-        request({ url: '/api/admin/dashboard/order-alerts' })
+        get('/admin/dashboard/today-metrics'),
+        get('/admin/dashboard/realtime-sales'),
+        get('/admin/dashboard/sales-trend'),
+        get('/admin/dashboard/product-ranking'),
+        get('/admin/dashboard/inventory-alerts'),
+        get('/admin/dashboard/order-alerts')
       ]);
 
       const realtimeSales = realtimeRes.data || { timeLabels: [], salesData: [], orderData: [] };
@@ -59,11 +59,5 @@ Page({
     } catch (error) {
       console.error('加载仪表盘数据失败:', error);
     }
-  },
-
-  onPullDownRefresh() {
-    this.loadData().then(() => {
-      wx.stopPullDownRefresh();
-    });
   }
 });

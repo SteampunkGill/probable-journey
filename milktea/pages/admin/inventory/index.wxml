@@ -3,36 +3,32 @@
     <text class="title">库存与成本管理</text>
   </view>
 
-  <view class="inventory-list">
-    <view class="inventory-card card" wx:for="{{inventory}}" wx:key="id">
-      <view class="inventory-info">
-        <view class="name-row">
+  <view class="table-container card">
+    <view class="table-header">
+      <text class="th">原料名称</text>
+      <text class="th">当前库存</text>
+      <text class="th">状态</text>
+      <text class="th">操作</text>
+    </view>
+    <view class="table-body">
+      <view class="tr" wx:for="{{inventory}}" wx:key="id">
+        <view class="td name-col">
           <text class="name">{{item.name}}</text>
-          <text class="unit">单位：{{item.unit}}</text>
+          <text class="unit">/ {{item.unit}}</text>
         </view>
-        <view class="data-grid">
-          <view class="data-item">
-            <text class="label">当前库存</text>
-            <text class="value {{item.isLowStock ? 'text-danger' : ''}}">{{item.stock}}</text>
-          </view>
-          <view class="data-item">
-            <text class="label">预警阈值</text>
-            <text class="value">{{item.alertThreshold}}</text>
-          </view>
-          <view class="data-item">
-            <text class="label">单位成本</text>
-            <text class="value">¥{{item.costPerUnit || 0}}</text>
-          </view>
+        <view class="td stock-col {{item.isLowStock ? 'text-danger' : ''}}">
+          {{item.stock}}
         </view>
-        <view class="status-row">
-          <text wx:if="{{item.isLowStock}}" class="badge-warn">库存不足</text>
-          <text wx:else class="badge-success">正常</text>
+        <view class="td status-col">
+          <text class="badge {{item.isLowStock ? 'badge-warn' : 'badge-success'}}">
+            {{item.isLowStock ? '库存不足' : '正常'}}
+          </text>
         </view>
-      </view>
-      <view class="inventory-ops">
-        <view class="op-btn" bindtap="showUpdateModal" data-item="{{item}}" data-type="stock">更新库存</view>
-        <view class="op-btn" bindtap="showUpdateModal" data-item="{{item}}" data-type="cost">调整成本</view>
-        <view class="op-btn" bindtap="showUpdateModal" data-item="{{item}}" data-type="alert">预警设置</view>
+        <view class="td ops-col">
+          <button class="op-btn" bindtap="showUpdateModal" data-item="{{item}}" data-type="stock">更新</button>
+          <button class="op-btn" bindtap="showUpdateModal" data-item="{{item}}" data-type="cost">成本</button>
+          <button class="op-btn" bindtap="showUpdateModal" data-item="{{item}}" data-type="alert">预警</button>
+        </view>
       </view>
     </view>
   </view>
@@ -40,17 +36,21 @@
   <!-- 更新弹窗 -->
   <view wx:if="{{modal.show}}" class="modal-mask">
     <view class="modal-container">
-      <view class="modal-title">{{modalTitle}} - {{modal.item.name}}</view>
-      <view class="form-item">
-        <text class="form-label">{{modalLabel}}：</text>
-        <input class="admin-input" type="digit" value="{{modal.value}}" bindinput="onModalInput" />
+      <view class="modal-header">
+        <text class="modal-title">{{modalTitle}} - {{modal.item.name}}</text>
       </view>
-      <view wx:if="{{modal.type === 'cost'}}" class="cost-tip">
-        温馨提示：调整原料成本后，系统将自动重新计算所有关联奶茶产品的成本价。
+      <view class="modal-body">
+        <view class="form-item">
+          <text class="form-label">{{modalLabel}}：</text>
+          <input value="{{modal.value}}" type="digit" bindinput="onModalValueInput" class="admin-input" />
+        </view>
+        <view wx:if="{{modal.type === 'cost'}}" class="cost-tip">
+          <text>温馨提示：调整原料成本后，系统将自动重新计算所有关联奶茶产品的成本价。</text>
+        </view>
       </view>
       <view class="modal-footer">
-        <button class="btn-cancel" bindtap="hideModal">取消</button>
-        <button class="btn-save" bindtap="handleUpdate">确认更新</button>
+        <button class="cancel-btn" bindtap="hideModal">取消</button>
+        <button class="confirm-btn" bindtap="handleUpdate">确认更新</button>
       </view>
     </view>
   </view>

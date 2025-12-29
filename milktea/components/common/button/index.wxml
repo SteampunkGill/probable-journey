@@ -1,0 +1,10 @@
+<button 
+  class="custom-btn btn-{{type}} btn-{{size}} {{round ? 'btn-round' : ''}} {{plain ? 'btn-plain' : ''}} {{block ? 'btn-block' : ''}} {{disabled ? 'btn-disabled' : ''}} custom-class"
+  bindtap="onTap"
+  disabled="{{disabled}}"
+  loading="{{loading}}"
+  form-type="{{formType}}"
+  open-type="{{openType}}"
+>
+  <slot></slot>
+</button>

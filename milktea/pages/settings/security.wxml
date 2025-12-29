@@ -1,0 +1,15 @@
+<view class="security-page">
+  <view class="security-list card">
+    <view class="security-item" bindtap="navigateTo" data-url="/pages/settings/change-password">
+      <text class="label">修改密码</text>
+      <text class="iconfont icon-right"></text>
+    </view>
+    <view class="security-item" bindtap="handleDeactivate">
+      <view class="label-group">
+        <text class="label">注销账号</text>
+        <text class="value danger">注销后无法恢复</text>
+      </view>
+      <text class="iconfont icon-right"></text>
+    </view>
+  </view>
+</view>

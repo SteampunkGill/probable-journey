@@ -1,15 +1,15 @@
 <view class="dashboard-container">
   <!-- 今日关键指标 -->
   <view class="metrics-grid">
-    <view class="metric-card" wx:for="{{metricsConfig}}" wx:for-index="key" wx:for-item="config" wx:key="key">
+    <view class="metric-card" wx:for="{{metricsConfig}}" wx:for-index="key" wx:for-item="val" wx:key="key">
       <view class="metric-header">
-        <text class="metric-label">{{config.label}}</text>
-        <text class="metric-unit">{{config.unit}}</text>
+        <text class="metric-label">{{val.label}}</text>
+        <text class="metric-unit">{{val.unit}}</text>
       </view>
       <view class="metric-value">{{metrics[key] || 0}}</view>
       <view class="metric-footer">
         <text class="compare-label">较昨日</text>
-        <text class="compare-value {{metrics.comparedToYesterday[key][0] === '+' ? 'up' : 'down'}}">
+        <text class="compare-value {{metrics.comparedToYesterday[key] && metrics.comparedToYesterday[key][0] === '+' ? 'up' : 'down'}}">
           {{metrics.comparedToYesterday[key] || '0%'}}
         </text>
       </view>

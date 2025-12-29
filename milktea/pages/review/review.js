@@ -1,4 +1,4 @@
-const { orderApi, commonApi } = require('../../utils/api.js');
+const { orderApi, commonApi } = require('../../utils/api');
 
 Page({
   data: {
@@ -20,15 +20,26 @@ Page({
   },
 
   onLoad(options) {
-    this.orderId = options.id;
-    this.loadOrderDetail();
+    const { orderNo } = options;
+    if (orderNo) {
+      this.loadOrderDetail(orderNo);
+    }
   },
 
-  async loadOrderDetail() {
+  async loadOrderDetail(orderNo) {
     this.setData({ loading: true });
     try {
-      const res = await orderApi.getOrderDetail(this.orderId);
-      this.setData({ order: res.data });
+      const res = await orderApi.getOrderDetail(orderNo);
+      if (res.code === 200) {
+        const order = res.data;
+        // 格式化商品数据
+        order.items = (order.orderItems || []).map(item => ({
+          ...item,
+          name: item.productName,
+          image: item.productImage
+        }));
+        this.setData({ order });
+      }
     } catch (error) {
       console.error('加载订单详情失败:', error);
     } finally {
@@ -61,22 +72,24 @@ Page({
     this.setData({ content: e.detail.value });
   },
 
-  async chooseImage() {
+  chooseImage() {
     wx.chooseImage({
       count: 4 - this.data.images.length,
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
       success: async (res) => {
+        const tempFilePaths = res.tempFilePaths;
         wx.showLoading({ title: '上传中...' });
         try {
-          const uploadPromises = res.tempFilePaths.map(path => commonApi.uploadImage(path, 'review'));
-          const results = await Promise.all(uploadPromises);
-          const newImages = results.map(r => r.data.url);
-          this.setData({
-            images: [...this.data.images, ...newImages]
-          });
+          for (const path of tempFilePaths) {
+            const uploadRes = await commonApi.uploadImage(path);
+            if (uploadRes.code === 200) {
+              this.setData({
+                images: [...this.data.images, uploadRes.data.url]
+              });
+            }
+          }
         } catch (error) {
-          console.error('上传图片失败:', error);
           wx.showToast({ title: '上传失败', icon: 'none' });
         } finally {
           wx.hideLoading();
@@ -93,8 +106,9 @@ Page({
   },
 
   previewImage(e) {
+    const url = e.currentTarget.dataset.url;
     wx.previewImage({
-      current: e.currentTarget.dataset.url,
+      current: url,
       urls: this.data.images
     });
   },
@@ -120,13 +134,16 @@ Page({
         isAnonymous: this.data.isAnonymous,
         productId: this.data.order.items && this.data.order.items.length > 0 ? this.data.order.items[0].productId : null
       });
-      wx.showToast({ title: '评价成功', icon: 'success' });
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
+      if (res.code === 200) {
+        wx.showToast({ title: '评价成功！' });
+        setTimeout(() => {
+          wx.navigateBack();
+        }, 1500);
+      } else {
+        wx.showToast({ title: res.message || '评价失败', icon: 'none' });
+      }
     } catch (error) {
-      console.error('提交评价失败:', error);
-      wx.showToast({ title: '提交失败', icon: 'none' });
+      wx.showToast({ title: '提交失败，请重试', icon: 'none' });
     } finally {
       this.setData({ submitting: false });
     }
@@ -155,17 +172,26 @@ Page({
     }
     this.setData({ appealing: true });
     try {
-      await orderApi.submitAppeal(this.data.order.orderNo, {
+      const res = await orderApi.applyRefund(this.data.order.orderNo, {
         reason: this.data.appealReasons[this.data.appealReasonIndex],
         description: this.data.appealDescription,
         amount: this.data.order.totalAmount
       });
-      wx.showToast({ title: '申诉已提交', icon: 'success' });
-      this.setData({ showAppealModal: false });
-      this.loadOrderDetail();
+      if (res.code === 200) {
+        wx.showModal({
+          title: '提示',
+          content: '申诉已提交，请等待后台处理',
+          showCancel: false,
+          success: () => {
+            this.hideAppeal();
+            this.loadOrderDetail(this.data.order.orderNo);
+          }
+        });
+      } else {
+        wx.showToast({ title: res.message || '提交失败', icon: 'none' });
+      }
     } catch (error) {
-      console.error('提交申诉失败:', error);
-      wx.showToast({ title: '提交失败', icon: 'none' });
+      wx.showToast({ title: '提交失败，请重试', icon: 'none' });
     } finally {
       this.setData({ appealing: false });
     }

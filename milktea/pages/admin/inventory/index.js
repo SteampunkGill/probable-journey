@@ -1,4 +1,4 @@
-import { get, put } from '../../../utils/request'
+const { get, put } = require('../../../utils/request');
 
 Page({
   data: {
@@ -14,27 +14,39 @@ Page({
   },
 
   onLoad() {
-    this.loadInventory()
+    this.loadInventory();
   },
 
   async loadInventory() {
     try {
-      const res = await get('/api/admin/inventory')
-      this.setData({ inventory: res.data || [] })
+      const res = await get('/admin/inventory');
+      this.setData({
+        inventory: res.data || []
+      });
     } catch (error) {
-      console.error('加载库存失败:', error)
+      console.error('加载库存失败:', error);
     }
   },
 
   showUpdateModal(e) {
-    const { item, type } = e.currentTarget.dataset
-    const titles = { stock: '更新库存', cost: '调整成本', alert: '预警设置' }
-    const labels = { stock: '当前库存', cost: '单位成本', alert: '预警阈值' }
-    
-    let value = 0
-    if (type === 'stock') value = item.stock
-    else if (type === 'cost') value = item.costPerUnit
-    else if (type === 'alert') value = item.alertThreshold
+    const { item, type } = e.currentTarget.dataset;
+    let value = 0;
+    let modalTitle = '';
+    let modalLabel = '';
+
+    if (type === 'stock') {
+      value = item.stock;
+      modalTitle = '更新库存';
+      modalLabel = '当前库存';
+    } else if (type === 'cost') {
+      value = item.costPerUnit;
+      modalTitle = '调整成本';
+      modalLabel = '单位成本';
+    } else if (type === 'alert') {
+      value = item.alertThreshold;
+      modalTitle = '预警设置';
+      modalLabel = '预警阈值';
+    }
 
     this.setData({
       modal: {
@@ -43,49 +55,50 @@ Page({
         item,
         value
       },
-      modalTitle: titles[type],
-      modalLabel: labels[type]
-    })
+      modalTitle,
+      modalLabel
+    });
   },
 
   hideModal() {
-    this.setData({ 'modal.show': false })
+    this.setData({
+      'modal.show': false
+    });
   },
 
-  onModalInput(e) {
+  onModalValueInput(e) {
     this.setData({
       'modal.value': parseFloat(e.detail.value) || 0
-    })
+    });
   },
 
   async handleUpdate() {
-    const { item, type, value } = this.data.modal
-    const id = item.id
+    const { item, type, value } = this.data.modal;
+    const id = item.id;
     
-    wx.showLoading({ title: '更新中' })
+    wx.showLoading({ title: '更新中...' });
     try {
-      let res
+      let res;
       if (type === 'stock') {
-        res = await put(`/api/admin/inventory/${id}/stock`, { stock: value })
+        res = await put(`/admin/inventory/${id}/stock`, { stock: value });
       } else if (type === 'cost') {
-        res = await put(`/api/admin/inventory/${id}/cost`, { costPerUnit: value })
+        res = await put(`/admin/inventory/${id}/cost`, { costPerUnit: value });
       } else if (type === 'alert') {
-        res = await put(`/api/admin/inventory/${id}/alert`, { alertThreshold: value })
+        res = await put(`/admin/inventory/${id}/alert`, { alertThreshold: value });
       }
       
-      wx.showToast({ title: '更新成功' })
-      this.setData({ 'modal.show': false })
-      this.loadInventory()
+      if (res.code === 200) {
+        wx.showToast({ title: '更新成功' });
+        this.hideModal();
+        this.loadInventory();
+      } else {
+        wx.showToast({ title: res.message || '更新失败', icon: 'none' });
+      }
     } catch (error) {
-      console.error('更新失败:', error)
+      console.error('更新失败:', error);
+      wx.showToast({ title: '更新失败', icon: 'none' });
     } finally {
-      wx.hideLoading()
+      wx.hideLoading();
     }
-  },
-
-  onPullDownRefresh() {
-    this.loadInventory().then(() => {
-      wx.stopPullDownRefresh()
-    })
   }
-})
+});

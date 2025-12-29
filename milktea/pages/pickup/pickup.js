@@ -1,4 +1,4 @@
-const { orderApi } = require('../../utils/api.js');
+const { orderApi } = require('../../utils/api');
 
 Page({
   data: {
@@ -16,27 +16,47 @@ Page({
     this.setData({ loading: true });
     try {
       const res = await orderApi.getOrderList();
-      const orders = res.data.list || res.data || [];
-      
-      // 待取餐状态：PAID(已支付), ACCEPTED(已接单), MAKING(制作中), READY(待取餐)
-      const pendingStatuses = ['PAID', 'ACCEPTED', 'MAKING', 'READY'];
-      const pending = orders.filter(o => pendingStatuses.includes(o.status)).map(o => ({
-        ...o,
-        statusText: this.getStatusText(o.status)
-      }));
+      if (res.code === 200) {
+        const orders = res.data.list || res.data || [];
+        
+        // 状态映射
+        const statusMap = {
+          'PAID': '已支付',
+          'ACCEPTED': '已接单',
+          'MAKING': '制作中',
+          'READY': '待取餐',
+          'DELIVERED': '已送达',
+          'FINISHED': '已完成',
+          'CANCELLED': '已取消'
+        };
 
-      // 已取餐状态：DELIVERED, FINISHED
-      const historyStatuses = ['DELIVERED', 'FINISHED'];
-      const history = orders.filter(o => historyStatuses.includes(o.status)).map(o => ({
-        ...o,
-        statusText: this.getStatusText(o.status)
-      }));
-      
-      this.setData({
-        pendingOrders: pending,
-        historyOrders: history,
-        activeOrder: pending.length > 0 ? pending[0] : null
-      });
+        const formattedOrders = orders.map(o => ({
+          ...o,
+          statusText: statusMap[o.status] || o.status,
+          itemCount: (o.orderItems || []).reduce((sum, item) => sum + item.quantity, 0),
+          items: (o.orderItems || []).map(item => ({
+            ...item,
+            name: item.productName,
+            image: item.productImage,
+            customizations: item.customizations ? JSON.parse(item.customizations).sweetness + ' / ' + JSON.parse(item.customizations).temperature : ''
+          })),
+          store: o.store || { name: '默认门店', address: '门店地址', phone: '123456789' }
+        }));
+
+        // 待取餐状态
+        const pendingStatuses = ['PAID', 'ACCEPTED', 'MAKING', 'READY'];
+        const pendingOrders = formattedOrders.filter(o => pendingStatuses.includes(o.status));
+        
+        // 历史取餐记录
+        const historyStatuses = ['DELIVERED', 'FINISHED'];
+        const historyOrders = formattedOrders.filter(o => historyStatuses.includes(o.status));
+        
+        this.setData({
+          pendingOrders,
+          historyOrders,
+          activeOrder: pendingOrders.length > 0 ? pendingOrders[0] : null
+        });
+      }
     } catch (error) {
       console.error('加载订单失败:', error);
     } finally {
@@ -44,62 +64,56 @@ Page({
     }
   },
 
-  getStatusText(status) {
-    const statusMap = {
-      'PAID': '已支付',
-      'ACCEPTED': '已接单',
-      'MAKING': '制作中',
-      'READY': '待取餐',
-      'DELIVERED': '已取餐',
-      'FINISHED': '已完成',
-      'CANCELLED': '已取消'
-    };
-    return statusMap[status] || status;
-  },
-
   selectOrder(e) {
-    const order = e.currentTarget.dataset.order;
-    this.setData({ activeOrder: order });
+    const index = e.currentTarget.dataset.index;
+    this.setData({
+      activeOrder: this.data.pendingOrders[index]
+    });
   },
 
   scanToPickup() {
     wx.scanCode({
       success: (res) => {
-        wx.showLoading({ title: '验证中...' });
-        // 模拟验证逻辑
-        setTimeout(() => {
-          wx.hideLoading();
-          wx.showToast({ title: '取餐成功', icon: 'success' });
-          this.loadOrders();
-        }, 1500);
+        wx.showModal({
+          title: '扫码结果',
+          content: '正在验证取餐码: ' + res.result,
+          showCancel: false
+        });
       }
     });
   },
 
   goToOrderDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/order/detail?id=${id}` });
+    wx.navigateTo({
+      url: `/pages/order/detail?orderNo=${id}`
+    });
   },
 
   callStore(e) {
     const phone = e.currentTarget.dataset.phone;
-    if (phone) {
-      wx.makePhoneCall({ phoneNumber: phone });
-    }
+    wx.makePhoneCall({
+      phoneNumber: phone
+    });
   },
 
   async remindOrder(e) {
     const id = e.currentTarget.dataset.id;
     try {
       const res = await orderApi.remindOrder(id);
-      wx.showToast({ title: res.data?.message || '已提醒商家', icon: 'success' });
+      if (res.code === 200) {
+        wx.showToast({ title: '已提醒商家尽快制作' });
+      } else {
+        wx.showToast({ title: res.message || '催单失败', icon: 'none' });
+      }
     } catch (error) {
       console.error('催单失败:', error);
-      wx.showToast({ title: '催单失败', icon: 'none' });
     }
   },
 
   goToOrder() {
-    wx.switchTab({ url: '/pages/index/index' });
+    wx.switchTab({
+      url: '/pages/index/index'
+    });
   }
 });

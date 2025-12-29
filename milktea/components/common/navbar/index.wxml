@@ -1,0 +1,13 @@
+<view class="navbar-container" style="height: {{navHeight}}px; background: {{background}};">
+  <view class="navbar-status" style="height: {{statusBarHeight}}px;"></view>
+  <view class="navbar-content" style="height: {{navContentHeight}}px;">
+    <view class="navbar-left" bindtap="onBack" wx:if="{{showBack}}">
+      <text class="iconfont icon-left"></text>
+    </view>
+    <view class="navbar-title" style="color: {{titleColor}};">
+      {{title}}
+    </view>
+    <view class="navbar-right"></view>
+  </view>
+</view>
+<view class="navbar-placeholder" style="height: {{navHeight}}px;" wx:if="{{placeholder}}"></view>

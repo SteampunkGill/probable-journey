@@ -1,0 +1,47 @@
+.security-page {
+  min-height: 100vh;
+  background: var(--background-color);
+  padding: var(--spacing-md);
+}
+
+.security-list {
+  margin-bottom: var(--spacing-lg);
+}
+
+.security-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 1rpx solid var(--border-color);
+  background: #ffffff;
+}
+
+.security-item:last-child {
+  border-bottom: none;
+}
+
+.label-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 32rpx;
+  color: var(--text-color-dark);
+  font-weight: 600;
+}
+
+.value {
+  font-size: 24rpx;
+  margin-top: 4rpx;
+}
+
+.danger {
+  color: #ff6b6b;
+}
+
+.icon-right {
+  color: var(--primary-light);
+  font-size: 32rpx;
+}

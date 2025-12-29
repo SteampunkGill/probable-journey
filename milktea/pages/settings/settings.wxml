@@ -1,0 +1,59 @@
+<view class="settings-page">
+  <view class="settings-list card">
+    <view class="setting-item" bindtap="navigateTo" data-url="/pages/user/profile">
+      <text class="label">个人资料</text>
+      <text class="iconfont icon-right"></text>
+    </view>
+    <view class="setting-item" bindtap="navigateTo" data-url="/pages/address/address">
+      <text class="label">收货地址</text>
+      <text class="iconfont icon-right"></text>
+    </view>
+    <view class="setting-item" bindtap="navigateTo" data-url="/pages/settings/security">
+      <text class="label">账号安全</text>
+      <text class="iconfont icon-right"></text>
+    </view>
+    <view class="setting-item" bindtap="toggleNotificationModal">
+      <text class="label">消息推送设置</text>
+      <text class="iconfont icon-right"></text>
+    </view>
+  </view>
+
+  <view class="settings-list card">
+    <view class="setting-item">
+      <text class="label">清除缓存</text>
+      <text class="value">12.5MB</text>
+    </view>
+    <view class="setting-item">
+      <text class="label">当前版本</text>
+      <text class="value">v1.0.0</text>
+    </view>
+  </view>
+
+  <button class="logout-btn" bindtap="handleLogout">退出登录</button>
+
+  <!-- 消息推送设置弹窗 -->
+  <view class="modal" wx:if="{{showNotificationSettings}}" bindtap="toggleNotificationModal">
+    <view class="modal-content card" catchtap="stopBubbling">
+      <view class="modal-header">
+        <text class="modal-title">消息推送设置</text>
+        <text class="iconfont icon-close" bindtap="toggleNotificationModal"></text>
+      </view>
+      <view class="setting-list-inner">
+        <view class="setting-item-inner">
+          <text class="label">开启消息推送</text>
+          <switch checked="{{notifSettings.enabled}}" bindchange="onSettingChange" data-key="enabled" color="var(--primary-color)" />
+        </view>
+        <block wx:if="{{notifSettings.enabled}}">
+          <view class="setting-item-inner">
+            <text class="label">订单状态更新</text>
+            <switch checked="{{notifSettings.orderUpdate}}" bindchange="onSettingChange" data-key="orderUpdate" color="var(--primary-color)" />
+          </view>
+          <view class="setting-item-inner">
+            <text class="label">营销活动推送</text>
+            <switch checked="{{notifSettings.promotion}}" bindchange="onSettingChange" data-key="promotion" color="var(--primary-color)" />
+          </view>
+        </block>
+      </view>
+    </view>
+  </view>
+</view>

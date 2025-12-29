@@ -1,5 +1,6 @@
 /**app.wxss**/
 page {
+  /* 基础色彩变量 */
   --background-color: #f5f0e1;
   --surface-color: #e8dccb;
   --primary-color: #a0522d;
@@ -13,23 +14,44 @@ page {
   --text-color-light: #a09080;
   --border-color: #d4c7b5;
 
+  /* 兼容性与语义化变量 */
+  --bg-primary: #ffffff;
+  --bg-secondary: var(--background-color);
+  --bg-tertiary: var(--surface-color);
+  --text-primary: var(--text-color-dark);
+  --text-secondary: var(--text-color-medium);
+  --text-tertiary: var(--text-color-light);
+  --text-white: #ffffff;
+  --border-light: var(--border-color);
+  --success: #52c41a;
+
+  /* 圆角大小 (px转rpx: 8px->16rpx) */
   --border-radius-sm: 16rpx;
   --border-radius-md: 32rpx;
   --border-radius-lg: 48rpx;
   --border-radius-xl: 80rpx;
+  --radius-md: var(--border-radius-md);
+  --radius-lg: var(--border-radius-lg);
 
+  /* 阴影 */
   --shadow-sm: 0 4rpx 16rpx rgba(139, 69, 19, 0.08);
   --shadow-md: 0 8rpx 32rpx rgba(139, 69, 19, 0.12);
   --shadow-lg: 0 16rpx 64rpx rgba(139, 69, 19, 0.16);
 
+  /* 间距 */
   --spacing-xs: 16rpx;
   --spacing-sm: 24rpx;
   --spacing-md: 32rpx;
   --spacing-lg: 48rpx;
   --spacing-xl: 64rpx;
 
-  background-color: var(--background-color);
-  color: var(--text-color-dark);
+  /* 过渡效果 */
+  --transition-fast: 0.2s;
+  --transition-normal: 0.3s;
+  --transition-slow: 0.5s;
+
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica,
     Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei',
     sans-serif;
@@ -42,12 +64,17 @@ view, text, scroll-view, swiper, button, input, textarea, label, navigator, imag
   box-sizing: border-box;
 }
 
+image {
+  max-width: 100%;
+  display: block;
+}
+
 /* 全局卡片样式 */
 .card {
   background: #ffffff;
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
+  border: 1rpx solid var(--border-color);
   overflow: hidden;
   margin-bottom: var(--spacing-md);
 }
@@ -56,7 +83,7 @@ view, text, scroll-view, swiper, button, input, textarea, label, navigator, imag
 button {
   font-weight: 600;
   border-radius: var(--border-radius-sm);
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal) ease;
 }
 
 button[type='primary'] {
@@ -67,7 +94,7 @@ button[type='primary'] {
 /* 全局输入框样式 */
 input, textarea {
   background: #ffffff;
-  border: 1px solid var(--border-color);
+  border: 1rpx solid var(--border-color);
   border-radius: var(--border-radius-sm);
   padding: var(--spacing-sm);
 }
@@ -76,7 +103,22 @@ input, textarea {
 .text-primary { color: var(--primary-color); }
 .text-secondary { color: var(--text-color-medium); }
 .text-light { color: var(--text-color-light); }
+.text-white { color: #ffffff; }
+.text-success { color: var(--success); }
 .text-bold { font-weight: bold; }
+.text-center { text-align: center; }
+
 .flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; }
 .flex-center { display: flex; justify-content: center; align-items: center; }
+.flex-wrap { flex-wrap: wrap; }
+.align-center { align-items: center; }
+
+.m-b-xs { margin-bottom: var(--spacing-xs); }
+.m-b-sm { margin-bottom: var(--spacing-sm); }
+.m-b-md { margin-bottom: var(--spacing-md); }
+.m-b-lg { margin-bottom: var(--spacing-lg); }
+
+.p-md { padding: var(--spacing-md); }
+.w-100 { width: 100%; }

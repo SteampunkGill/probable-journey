@@ -11,9 +11,9 @@
         <view class="goods-item" wx:for="{{order.items}}" wx:key="id">
           <image src="{{item.image}}" class="goods-image" mode="aspectFill" />
           <view class="goods-info">
-            <text class="goods-name">{{ item.name }}</text>
+            <text class="goods-name">{{item.name}}</text>
             <text class="goods-specs" wx:if="{{item.customizations}}">
-              {{ item.customizations.sweetness }} / {{ item.customizations.temperature }}
+              {{item.customizations.sweetness}} / {{item.customizations.temperature}}
             </text>
           </view>
         </view>
@@ -29,10 +29,9 @@
             wx:for="{{[1, 2, 3, 4, 5]}}"
             wx:key="*this"
             class="star {{item <= productScore ? 'active' : ''}}"
-            bindtap="setProductScore"
-            data-score="{{item}}"
-          >{{ item <= productScore ? '⭐' : '☆' }}</text>
-          <text class="score-text">{{ productScoreText }}</text>
+            bindtap="setProductScore" data-score="{{item}}"
+          >{{item <= productScore ? '⭐' : '☆'}}</text>
+          <text class="score-text">{{productScoreText}}</text>
         </view>
       </view>
 
@@ -43,10 +42,9 @@
             wx:for="{{[1, 2, 3, 4, 5]}}"
             wx:key="*this"
             class="star {{item <= deliveryScore ? 'active' : ''}}"
-            bindtap="setDeliveryScore"
-            data-score="{{item}}"
-          >{{ item <= deliveryScore ? '⭐' : '☆' }}</text>
-          <text class="score-text">{{ deliveryScoreText }}</text>
+            bindtap="setDeliveryScore" data-score="{{item}}"
+          >{{item <= deliveryScore ? '⭐' : '☆'}}</text>
+          <text class="score-text">{{deliveryScoreText}}</text>
         </view>
       </view>
     </view>
@@ -55,11 +53,11 @@
     <view class="content-card card">
       <textarea 
         value="{{content}}" 
+        bindinput="onContentInput"
         placeholder="分享你的饮用体验，帮助更多小伙伴~" 
         maxlength="200"
-        bindinput="onContentInput"
       ></textarea>
-      <view class="word-count">{{ content.length }}/200</view>
+      <view class="word-count">{{content.length}}/200</view>
     </view>
 
     <!-- 图片上传 -->
@@ -80,7 +78,7 @@
     <!-- 匿名选项 -->
     <view class="anonymous-card card">
       <label class="checkbox-label" bindtap="toggleAnonymous">
-        <checkbox checked="{{isAnonymous}}" color="#a0522d" />
+        <checkbox checked="{{isAnonymous}}" color="var(--primary-color)" />
         <text>匿名评价</text>
       </label>
     </view>
@@ -90,7 +88,7 @@
     </button>
 
     <!-- 申诉按钮 -->
-    <view class="appeal-section" wx:if="{{order.status === 'REVIEWED' || order.status === 'COMPLETED'}}">
+    <view class="appeal-section" wx:if="{{order.status === 'REVIEWED' || order.status === 'COMPLETED' || order.status === 'FINISHED'}}">
       <button class="appeal-btn" bindtap="showAppeal">申请退款/申诉</button>
     </view>
   </view>
@@ -100,23 +98,23 @@
 <view class="modal-mask" wx:if="{{showAppealModal}}">
   <view class="modal-container">
     <view class="modal-header">
-      <text>申请退款</text>
+      <text class="modal-title">申请退款</text>
       <text class="close" bindtap="hideAppeal">×</text>
     </view>
     <view class="modal-body">
       <view class="form-item">
-        <text class="label">退款原因</text>
+        <text class="form-label">退款原因</text>
         <picker bindchange="onAppealReasonChange" value="{{appealReasonIndex}}" range="{{appealReasons}}">
-          <view class="picker-value">{{ appealReasons[appealReasonIndex] }}</view>
+          <view class="picker-value">{{appealReasons[appealReasonIndex]}}</view>
         </picker>
       </view>
       <view class="form-item">
-        <text class="label">详细描述</text>
-        <textarea value="{{appealDescription}}" placeholder="请详细描述您的问题..." bindinput="onAppealDescriptionInput"></textarea>
+        <text class="form-label">详细描述</text>
+        <textarea value="{{appealDescription}}" bindinput="onAppealDescriptionInput" placeholder="请详细描述您的问题..."></textarea>
       </view>
       <view class="form-item">
-        <text class="label">退款金额</text>
-        <view class="amount">¥{{ order.totalAmount }}</view>
+        <text class="form-label">退款金额</text>
+        <view class="amount">¥{{order.totalAmount}}</view>
       </view>
     </view>
     <view class="modal-footer">
