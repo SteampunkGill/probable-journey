@@ -4,12 +4,18 @@ const { get, post, put, del, commonGet, commonPost, uploadFile } = require('./re
 const authApi = {
   wechatLogin: (code, userInfo) => post('/auth/wx-login', { code, userInfo }),
   login: (username, password) => post('/auth/login', { username, password }),
+  logout: () => {
+    wx.removeStorageSync('token')
+    wx.removeStorageSync('userInfo')
+    return Promise.resolve()
+  },
   getUserProfile: () => get('/user/profile'),
   updateUserProfile: (data) => put('/user/profile', data),
   getCardBalance: () => get('/user/card-balance'),
   bindCard: (cardNumber) => post('/user/bind-card', { cardNumber }),
   register: (data) => post('/auth/register', data),
   changePassword: (oldPassword, newPassword) => post('/auth/change-password', { oldPassword, newPassword }),
+  verifyDeactivation: () => post('/user/verify-deactivation'),
   deactivate: () => post('/user/deactivate')
 }
 
@@ -17,6 +23,7 @@ const authApi = {
 const homeApi = {
   getHomeData: () => get('/home/page'),
   getRecommendations: () => get('/home/recommendations'),
+  submitRecommendationFeedback: (data) => post('/home/recommendation-feedback', data),
   getNotifications: () => get('/home/notifications')
 }
 
@@ -28,6 +35,7 @@ const productApi = {
   getProductReviews: (id) => get(`/products/${id}/reviews`),
   getProductCustomizations: (id) => get(`/products/${id}/customizations`),
   calculateProductPrice: (id, data) => post(`/products/${id}/calculate-price`, data),
+  advancedFilter: (filter) => get('/products/advanced-filter', filter),
   searchProducts: (keyword, params) => get('/search', { keyword, ...params }),
   getHotKeywords: () => get('/search/hot')
 }
@@ -48,11 +56,20 @@ const orderApi = {
   createOrder: (data) => post('/orders/create', data),
   getOrderList: (params) => get('/orders', params),
   getOrderDetail: (orderNo) => get(`/orders/${orderNo}`),
-  cancelOrder: (orderNo) => post(`/orders/${orderNo}/cancel`),
-  confirmOrder: (orderNo) => post(`/orders/${orderNo}/confirm`),
+  getOrderProgressVisual: (orderNo) => get(`/orders/${orderNo}/progress-visual`),
   remindOrder: (orderNo) => post(`/orders/${orderNo}/remind`),
   applyRefund: (orderNo, reason) => post(`/orders/${orderNo}/refund`, { reason }),
-  rateOrder: (orderNo, data) => post(`/orders/${orderNo}/review`, data)
+  getRefundStatus: (orderNo) => get(`/orders/${orderNo}/refund/status`),
+  rateOrder: (orderNo, data) => post(`/orders/${orderNo}/review`, data),
+  getOrderStatus: (orderNo) => get(`/orders/${orderNo}/status`),
+  getEstimatedTime: (orderNo) => get(`/orders/${orderNo}/estimated-time`),
+  getOrderStatistics: () => get('/orders/statistics'),
+  getStatusCount: () => get('/orders/status-count'),
+  cancelOrder: (orderNo) => post(`/orders/${orderNo}/cancel`),
+  confirmOrder: (orderNo) => post(`/orders/${orderNo}/confirm`),
+  buyNow: (data) => post('/orders/create', { ...data, buyNow: true }),
+  updateOrderRemark: (orderNo, remark) => put(`/orders/${orderNo}/remark`, { remark }),
+  submitAppeal: (orderNo, data) => post(`/orders/${orderNo}/appeal`, data)
 }
 
 // 地址相关
@@ -61,14 +78,16 @@ const addressApi = {
   addAddress: (data) => post('/address/add', data),
   updateAddress: (id, data) => put(`/address/update/${id}`, data),
   deleteAddress: (id) => del(`/address/delete/${id}`),
-  getAddressByLocation: (lat, lng) => get('/address/geolocation', { lat, lng })
+  getAddressByLocation: (lat, lng) => get('/address/geolocation', { lat, lng }),
+  getAddressHistory: (limit = 10) => get('/address/history', { limit })
 }
 
 // 优惠券相关
 const couponApi = {
   getCouponList: () => get('/coupons/available'),
   receiveCoupon: (id) => post('/coupons/receive', { id }),
-  getMyCoupons: () => get('/coupons/my')
+  getMyCoupons: () => get('/coupons/my'),
+  getCouponDetail: (id) => get(`/coupons/${id}`)
 }
 
 // 积分相关
@@ -78,14 +97,22 @@ const pointsApi = {
   getPointsProducts: (page = 1, size = 10, category) => get('/member/mall/items', { page, size, category }),
   getPointsCategories: () => get('/member/mall/categories'),
   exchangeProduct: (productId) => post('/member/mall/exchange', { productId }),
+  getExchangeRecords: (page = 1, size = 10) => get('/member/mall/exchange-records', { page, size }),
+  exchangeCoupon: (couponId) => post('/member/mall/exchange-coupon', { couponId }),
   signIn: () => post('/member/mall/sign-in')
 }
 
 // 会员相关
 const memberApi = {
   getMemberInfo: () => get('/member/level'),
+  getCardBalance: () => get('/user/card-balance'),
+  bindCard: (cardNumber) => post('/user/bind-card', { cardNumber }),
+  unbindCard: () => post('/user/unbind-card'),
   applyCard: (data) => post('/user/apply-card', data),
-  getExclusiveProducts: () => get('/member/exclusive-products')
+  getExclusiveProducts: () => get('/member/exclusive-products'),
+  getExclusivePrices: () => get('/member/exclusive-prices'),
+  getBirthdayPrivilege: () => get('/member/birthday-privilege'),
+  receiveBirthdayPrivilege: () => post('/member/birthday-privilege/receive')
 }
 
 // 门店相关
@@ -162,7 +189,7 @@ const aboutUsApi = {
 const commonApi = {
   getStores: () => commonGet('/stores'),
   getRegions: () => commonGet('/regions'),
-  uploadImage: (filePath) => uploadFile('/upload/image', filePath),
+  uploadImage: (filePath, data) => uploadFile('/upload/image', filePath, data),
   getTimestamp: () => commonGet('/timestamp'),
   checkVersion: (platform, currentVersion) => commonGet('/version', { platform, currentVersion })
 }
