@@ -38,6 +38,9 @@ public class SecurityConfig {
             .cors(org.springframework.security.config.Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/v1/app/auth/register").permitAll()
+                .requestMatchers("/api/v1/app/auth/login").permitAll()
+                .requestMatchers("/api/v1/app/auth/wx-login").permitAll()
                 .requestMatchers("/api/v1/app/auth/**").permitAll()
                 .requestMatchers("/api/v1/app/home/**").permitAll()
                 .requestMatchers("/api/v1/app/banners/**").permitAll()
@@ -47,6 +50,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/common/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/api/v1/app/about").permitAll()
+                .requestMatchers("/api/v1/app/about/**").permitAll()
                 // 需要认证的接口
                 .requestMatchers("/api/v1/app/address/**").authenticated()
                 .requestMatchers("/api/v1/app/user/**").authenticated()
@@ -54,8 +59,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/app/member/**").authenticated()
                 .requestMatchers("/api/v1/app/favorites/**").authenticated()
                 .requestMatchers("/api/v1/app/gift-card/**").authenticated()
-                .requestMatchers("/api/v1/app/about").permitAll()
-                .requestMatchers("/api/v1/app/about/**").permitAll()
                 // 管理后台接口权限控制
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

@@ -1,16 +1,16 @@
-# 使用 Eclipse Temurin JDK 17 构建阶段
-FROM eclipse-temurin:17-jdk AS build
+# 使用 Maven 构建阶段
+FROM maven:3.9-eclipse-temurin-17-alpine AS build
 WORKDIR /app
-# 假设已经有编译好的 jar 包，或者在本地编译
-# 如果需要使用 Maven，建议使用国内镜像或确保网络通畅
 COPY . .
-# 如果本地有 mvnw，可以使用它
-# RUN ./mvnw package -DskipTests
+# 使用系统安装的 maven 构建项目
+RUN mvn clean package -DskipTests
 
 # 运行阶段
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-# 直接复制 target 下的 jar 包（假设本地已经 mvn package 过了）
-COPY target/*.jar app.jar
+# 从构建阶段复制生成的 jar 包
+COPY --from=build /app/target/*.jar app.jar
+# 暴露端口
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# 启动命令，使用 docker profile
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=docker"]

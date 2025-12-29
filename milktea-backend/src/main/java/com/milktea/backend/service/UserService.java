@@ -1,3 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 package com.milktea.backend.service;
 
 import com.milktea.backend.exception.ServiceException;
@@ -272,7 +308,8 @@ public class UserService {
                 System.out.println("[DEBUG] Admin code mismatch. Expected: 13603994106, Provided: [" + providedCode + "]");
                 throw new ServiceException("INVALID_ADMIN_CODE", "管理员注册密令错误，请检查输入");
             }
-            // 同步创建后台管理员账号
+            
+            // 同步创建后台管理员账号 (内部会自动处理角色不存在的情况)
             createSysAdmin(request);
         }
 
@@ -302,21 +339,27 @@ public class UserService {
         com.milktea.milktea_backend.model.entity.SysUser sysUser = new com.milktea.milktea_backend.model.entity.SysUser();
         sysUser.setUsername(request.getUsername());
         sysUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        // 兼容旧数据库字段 password (如果存在)
+        sysUser.setPassword(sysUser.getPasswordHash());
         sysUser.setPhone(request.getPhone());
         sysUser.setRealName(request.getUsername());
         sysUser.setStatus("ACTIVE");
         com.milktea.milktea_backend.model.entity.SysUser savedSysUser = sysUserRepository.save(sysUser);
 
         // 分配管理员角色
-        sysRoleRepository.findByCode("ADMIN").ifPresentOrElse(role -> {
-            com.milktea.milktea_backend.model.entity.SysUserRole userRole = new com.milktea.milktea_backend.model.entity.SysUserRole();
-            userRole.setId(new com.milktea.milktea_backend.model.entity.SysUserRoleId(savedSysUser.getId(), role.getId()));
-            userRole.setUser(savedSysUser);
-            userRole.setRole(role);
-            sysUserRoleRepository.save(userRole);
-        }, () -> {
-            throw new ServiceException("ROLE_NOT_FOUND", "系统管理员角色(ADMIN)不存在，请先初始化角色数据");
-        });
+        com.milktea.milktea_backend.model.entity.SysRole adminRole = sysRoleRepository.findByCode("ADMIN")
+                .orElseGet(() -> {
+                    com.milktea.milktea_backend.model.entity.SysRole newRole = new com.milktea.milktea_backend.model.entity.SysRole();
+                    newRole.setCode("ADMIN");
+                    newRole.setName("系统管理员");
+                    return sysRoleRepository.save(newRole);
+                });
+
+        com.milktea.milktea_backend.model.entity.SysUserRole userRole = new com.milktea.milktea_backend.model.entity.SysUserRole();
+        userRole.setId(new com.milktea.milktea_backend.model.entity.SysUserRoleId(savedSysUser.getId(), adminRole.getId()));
+        userRole.setUser(savedSysUser);
+        userRole.setRole(adminRole);
+        sysUserRoleRepository.save(userRole);
     }
 
     /**

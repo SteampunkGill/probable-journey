@@ -1,6 +1,8 @@
-CREATE DATABASE `milktea_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+CREATE DATABASE IF NOT EXISTS `milktea_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
-CREATE DATABASE `milktea_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `milktea_db`;
+
+SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE `about_us` (
                             `id` bigint NOT NULL AUTO_INCREMENT,
@@ -1421,3 +1423,9 @@ CREATE TABLE `verification_codes` (
                                       `used` bit(1) DEFAULT NULL,
                                       PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 初始化角色数据
+INSERT IGNORE INTO `sys_roles` (`code`, `name`, `description`) VALUES ('ADMIN', '系统管理员', '拥有系统最高权限');
+INSERT IGNORE INTO `sys_roles` (`code`, `name`, `description`) VALUES ('STAFF', '普通员工', '负责日常门店运营');
+
+SET FOREIGN_KEY_CHECKS = 1;
