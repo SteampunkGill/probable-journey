@@ -394,18 +394,24 @@ const loadData = async () => {
     
     banners.value = (Array.isArray(bannersData) ? bannersData : bannersData.list || []).map(b => {
       let imageUrl = b.imageUrl || b.image
-      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-        const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-        imageUrl = `http://localhost:8081${path}`
+      if (imageUrl) {
+        imageUrl = imageUrl.replace(/^ht+p:/, 'http:')
+        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+          const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+          imageUrl = `http://localhost:8081${path}`
+        }
       }
       return { ...b, imageUrl }
     })
     
     recommendProducts.value = (Array.isArray(recommendData) ? recommendData : recommendData.list || []).map(p => {
       let imageUrl = p.imageUrl || p.mainImageUrl || p.image
-      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-        const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-        imageUrl = `http://localhost:8081${path}`
+      if (imageUrl) {
+        imageUrl = imageUrl.replace(/^ht+p:/, 'http:')
+        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+          const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+          imageUrl = `http://localhost:8081${path}`
+        }
       }
       return {
         ...p,
@@ -416,9 +422,12 @@ const loadData = async () => {
     const hotList = homeData.hotProducts || []
     hotProducts.value = hotList.map(p => {
       let imageUrl = p.imageUrl || p.mainImageUrl || p.image
-      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-        const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-        imageUrl = `http://localhost:8081${path}`
+      if (imageUrl) {
+        imageUrl = imageUrl.replace(/^ht+p:/, 'http:')
+        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+          const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
+          imageUrl = `http://localhost:8081${path}`
+        }
       }
       return {
         ...p,

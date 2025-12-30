@@ -124,11 +124,17 @@ public class AppUserController {
 
     @GetMapping("/user/profile")
     public ApiResponse<User> getProfile() {
-        return ApiResponse.success(userService.getCurrentUser());
+        User user = userService.getCurrentUser();
+        System.out.println("[DEBUG] 获取个人资料: " + (user != null ? user.getUsername() : "null"));
+        if (user != null) {
+            System.out.println("[DEBUG] 头像地址: " + user.getAvatarUrl());
+        }
+        return ApiResponse.success(user);
     }
 
     @PutMapping("/user/profile")
     public ApiResponse<User> updateProfile(@RequestBody Map<String, Object> body) {
+        System.out.println("[DEBUG] 更新个人资料请求体: " + body);
         User user = new User();
         if (body.get("nickname") != null) user.setNickname(body.get("nickname").toString());
         if (body.get("avatarUrl") != null) user.setAvatarUrl(body.get("avatarUrl").toString());

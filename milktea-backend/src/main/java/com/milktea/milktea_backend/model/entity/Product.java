@@ -35,8 +35,11 @@ public class Product {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     
-    @Column(name = "main_image_url", length = 255) // 商品主图URL
+    @Column(name = "main_image_url", length = 255) // 商品主图URL (新字段)
     private String imageUrl;
+
+    @Column(name = "image_url", length = 255) // 旧字段保留，用于兼容
+    private String imageUrlLegacy;
     
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private java.math.BigDecimal price;

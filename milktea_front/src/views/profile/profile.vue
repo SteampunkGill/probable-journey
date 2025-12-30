@@ -11,7 +11,7 @@
           <span class="label">头像</span>
           <div class="right">
             <div class="avatar-wrapper">
-              <img :src="form.avatarUrl || defaultAvatar" class="avatar" />
+              <img :src="formatImageUrl(form.avatarUrl) || defaultAvatar" class="avatar" />
               <div v-if="uploading" class="upload-mask">
                 <div class="loading-spinner"></div>
               </div>
@@ -60,7 +60,7 @@
         </div>
         <div class="form-item disabled">
           <span class="label">会员等级</span>
-          <span class="value">{{ userInfo?.levelName || '普通会员' }}</span>
+          <span class="value">{{ userInfo?.levelName || userInfo?.memberLevel?.name || '普通会员' }}</span>
         </div>
         <div class="form-item disabled">
           <span class="label">注册时间</span>
@@ -80,6 +80,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../store/user'
 import { authApi, commonApi } from '../../utils/api'
+import { formatImageUrl } from '../../utils/util'
 import defaultAvatar from '../../assets/images/icons/user.png'
 
 const router = useRouter()
@@ -106,6 +107,7 @@ const triggerFileInput = () => {
 const handleFileChange = async (event) => {
   const file = event.target.files[0]
   if (!file) return
+  console.log('[DEBUG] 选择文件:', file.name, file.size, file.type)
 
   if (!file.type.startsWith('image/')) {
     alert('请选择图片文件')
@@ -120,10 +122,15 @@ const handleFileChange = async (event) => {
   uploading.value = true
   try {
     const res = await commonApi.uploadImage(file, 'avatar')
-    // commonApi.uploadImage 也会经过拦截器返回 res.data
-    if (res && res.url) {
+    console.log('[DEBUG] 上传接口原始返回:', res)
+    // 拦截器已去掉，res 现在是后端的原始 ApiResponse 对象 { code, data, message }
+    if (res && res.code === 200 && res.data && res.data.url) {
+      form.value.avatarUrl = res.data.url
+    } else if (res && res.url) {
+      // 兼容直接返回 url 的情况
       form.value.avatarUrl = res.url
     } else {
+      console.error('上传返回数据异常:', res)
       alert('上传失败：未获取到图片地址')
     }
   } catch (error) {
@@ -138,6 +145,7 @@ const handleFileChange = async (event) => {
 const loadProfile = async () => {
   try {
     const res = await authApi.getUserProfile()
+    console.log('[DEBUG] 获取个人资料返回:', res)
     // 拦截器返回的是 ApiResponse 对象 { code, message, data }
     if (res && res.code === 200 && res.data) {
       const userData = res.data

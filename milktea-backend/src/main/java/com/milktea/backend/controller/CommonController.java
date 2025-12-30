@@ -2,6 +2,7 @@ package com.milktea.backend.controller;
 
 import com.milktea.backend.dto.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -14,11 +15,15 @@ import java.util.Map;
 @RequestMapping("/api/common")
 public class CommonController {
 
+    @Value("${file.upload-dir:uploads}")
+    private String uploadDirConfig;
+
     @PostMapping("/upload/image")
     public ApiResponse<FileUploadDTO> uploadImage(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "type", required = false) String type) {
         
+        System.out.println("[DEBUG] 收到图片上传请求: " + file.getOriginalFilename() + ", 类型: " + type);
         log.info("Uploading image: {}, type: {}", file.getOriginalFilename(), type);
 
         // 1. 严格的文件类型验证
@@ -38,7 +43,7 @@ public class CommonController {
             String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             String fileName = System.currentTimeMillis() + "_" + java.util.UUID.randomUUID().toString().substring(0, 8) + extension;
             
-            java.io.File uploadDir = new java.io.File("uploads");
+            java.io.File uploadDir = new java.io.File(uploadDirConfig);
             if (!uploadDir.exists()) {
                 uploadDir.mkdirs();
             }
@@ -46,8 +51,9 @@ public class CommonController {
             java.io.File dest = new java.io.File(uploadDir.getAbsolutePath() + java.io.File.separator + fileName);
             file.transferTo(dest);
             
-            // 返回本地访问 URL
-            String url = "http://localhost:8081/uploads/" + fileName;
+            // 返回相对路径 URL，确保以 /uploads/ 开头
+            String url = "/uploads/" + fileName;
+            log.info("Image uploaded successfully, saved path: {}", url);
             
             FileUploadDTO response = FileUploadDTO.builder()
                     .url(url)
@@ -72,7 +78,7 @@ public class CommonController {
         
         try {
             String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            java.io.File uploadDir = new java.io.File("uploads");
+            java.io.File uploadDir = new java.io.File(uploadDirConfig);
             if (!uploadDir.exists()) {
                 uploadDir.mkdirs();
             }
@@ -80,7 +86,7 @@ public class CommonController {
             file.transferTo(dest);
 
             FileUploadDTO response = FileUploadDTO.builder()
-                    .url("http://localhost:8081/uploads/" + fileName)
+                    .url("/uploads/" + fileName)
                     .size(file.getSize())
                     .build();
             

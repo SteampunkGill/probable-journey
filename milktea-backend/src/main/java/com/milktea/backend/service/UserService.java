@@ -1,39 +1,5 @@
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 package com.milktea.backend.service;
 
 import com.milktea.backend.exception.ServiceException;
@@ -128,7 +94,7 @@ public class UserService {
         if (authentication != null && authentication.isAuthenticated()) {
             Object principal = authentication.getPrincipal();
             if (principal instanceof User) {
-                return userRepository.findById(((User) principal).getId()).orElse(null);
+                return userRepository.findByIdWithLevel(((User) principal).getId()).orElse(null);
             }
             if (!"anonymousUser".equals(principal)) {
                 String username = authentication.getName();

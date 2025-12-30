@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   database:
     image: mysql:8.0
@@ -24,6 +22,7 @@ services:
     build:
       context: ./milktea-backend
       dockerfile: Dockerfile
+    image: milktea-backend:latest
     container_name: milktea-backend
     depends_on:
       database:
@@ -44,6 +43,7 @@ services:
     build:
       context: ./milktea_front
       dockerfile: Dockerfile
+    image: milktea-frontend:latest
     container_name: milktea-frontend
     ports:
       - "8888:80"

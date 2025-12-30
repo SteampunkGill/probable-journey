@@ -228,7 +228,7 @@ const cartCount = computed(() => cartStore.totalCount)
 
 const toppingsCost = computed(() => {
   return customizations.value.toppings.reduce((sum, id) => {
-    const topping = toppingOptions.find(t => t.id === id)
+    const topping = toppingOptions.value.find(t => t.id === id)
     return sum + (topping ? topping.price : 0)
   }, 0)
 })
@@ -248,7 +248,11 @@ const loadProductDetail = async () => {
     // 获取商品详情
     const detailRes = await productApi.getProductDetail(productId.value)
     if (detailRes.code === 200) {
-      product.value = detailRes.data
+      const res = detailRes.data
+      product.value = {
+        ...res,
+        images: res.images || [res.imageUrl].filter(Boolean)
+      }
     }
 
     // 检查收藏状态
@@ -326,13 +330,13 @@ const toggleFavorite = async () => {
   try {
     if (isFavorite.value) {
       const res = await favoriteApi.removeFavorite(productId.value)
-      if (res.code === 200) {
+      if (res.code === 200 || res.status === 'success') {
         isFavorite.value = false
         alert('已取消收藏')
       }
     } else {
       const res = await favoriteApi.addFavorite(productId.value)
-      if (res.code === 200) {
+      if (res.code === 200 || res.status === 'success') {
         isFavorite.value = true
         alert('已收藏')
       }

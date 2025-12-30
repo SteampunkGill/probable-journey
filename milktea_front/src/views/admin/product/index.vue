@@ -35,7 +35,7 @@
         <tbody>
           <tr v-for="p in filteredProducts" :key="p.id">
             <td><input type="checkbox" v-model="selectedIds" :value="p.id" /></td>
-            <td><img :src="p.imageUrl" class="table-img" /></td>
+            <td><img :src="formatImageUrl(p.imageUrl)" class="table-img" /></td>
             <td>{{ p.name }}</td>
             <td>{{ p.categoryName }}</td>
             <td>¥{{ p.price }}</td>
@@ -94,7 +94,7 @@
             <label>商品图片</label>
             <div class="upload-box">
               <input type="file" @change="handleUpload" accept="image/*" />
-              <img v-if="editModal.form.imageUrl" :src="editModal.form.imageUrl" class="preview-img" />
+              <img v-if="editModal.form.imageUrl" :src="formatImageUrl(editModal.form.imageUrl)" class="preview-img" />
             </div>
           </div>
           <div class="form-item">
@@ -139,6 +139,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { get, post, put, uploadFile } from '../../../utils/request'
+import { formatImageUrl } from '../../../utils/util'
 
 // 原始数据状态
 const products = ref([])
@@ -161,7 +162,7 @@ const filteredProducts = computed(() => {
     // 名称匹配逻辑
     const matchName = !nameKeyword || p.name.toLowerCase().includes(nameKeyword)
     // 分类匹配逻辑
-    const matchCategory = !categoryId || p.categoryId === categoryId
+    const matchCategory = !categoryId || String(p.categoryId) === String(categoryId)
     
     return matchName && matchCategory
   })
@@ -299,7 +300,10 @@ const handleUpload = async (e) => {
   if (!file) return
   try {
     const res = await uploadFile('/upload/image', file)
-    editModal.value.form.imageUrl = res.url
+    // 后端返回的是 ApiResponse<FileUploadDTO>，数据在 data 字段中
+    if (res.code === 200 || res.data) {
+      editModal.value.form.imageUrl = res.data ? res.data.url : res.url
+    }
   } catch (error) {
     console.error('上传失败:', error)
   }

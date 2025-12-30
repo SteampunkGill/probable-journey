@@ -358,7 +358,7 @@ const comments = ref([
 
 const toppingsCost = computed(() => {
   return customizations.value.toppings.reduce((total, toppingId) => {
-    const topping = toppingOptions.value.find(t => t.id === toppingId || t.name === toppingId)
+    const topping = toppingOptions.value.find(t => t.id === toppingId || t.name === toppingId || t.id === Number(toppingId))
     return total + (topping ? topping.price : 0)
   }, 0)
 })
@@ -444,7 +444,7 @@ const fetchProductDetail = async (id) => {
     product.value = {
       id: res.id,
       name: res.name,
-      images: res.images || [res.mainImageUrl].filter(Boolean),
+      images: res.images || [res.imageUrl].filter(Boolean),
       price: res.price,
       originalPrice: res.originalPrice || res.price,
       description: res.description,

@@ -119,6 +119,23 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * 获取会员等级名称，用于前端显示
+     * 增加 @Transient 确保不映射到数据库字段
+     */
+    @Transient
+    @com.fasterxml.jackson.annotation.JsonProperty("levelName")
+    public String getLevelName() {
+        if (memberLevel != null) {
+            try {
+                return memberLevel.getName();
+            } catch (Exception e) {
+                return "普通会员";
+            }
+        }
+        return "普通会员";
+    }
+
     @Override
     @com.fasterxml.jackson.annotation.JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {

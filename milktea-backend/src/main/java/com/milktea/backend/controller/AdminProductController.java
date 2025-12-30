@@ -97,6 +97,7 @@ public class AdminProductController {
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setImageUrl(dto.getImageUrl());
+        product.setImageUrlLegacy(dto.getImageUrl()); // 同步填充旧字段
         product.setPrice(dto.getPrice());
         product.setCostPrice(dto.getCostPrice());  // 新增：成本价
         product.setIsMemberExclusive(dto.getIsMemberExclusive());

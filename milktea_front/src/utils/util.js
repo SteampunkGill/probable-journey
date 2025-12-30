@@ -214,11 +214,19 @@ export function generatePickupCode() {
  */
 export function formatImageUrl(url) {
   if (!url) return '';
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  
+  // 修复数据库中可能存在的 htttp:// 错误
+  let formattedUrl = url.replace(/^ht+p:/, 'http:');
+  
+  if (formattedUrl.startsWith('http') || formattedUrl.startsWith('data:')) return formattedUrl;
   
   // 统一从配置或当前域名获取后端基础路径
   // 建议在生产环境中使用环境变量，这里先兼容本地开发
-  const baseUrl = 'http://localhost:8081';
-  const path = url.startsWith('/') ? url : `/${url}`;
+  // 如果是 Docker 环境，前端通过 8888 访问，后端通过 8088 访问
+  const baseUrl = window.location.origin.includes(':8888')
+    ? window.location.origin.replace(':8888', ':8088')
+    : 'http://localhost:8081';
+    
+  const path = formattedUrl.startsWith('/') ? formattedUrl : `/${formattedUrl}`;
   return `${baseUrl}${path}`;
 }

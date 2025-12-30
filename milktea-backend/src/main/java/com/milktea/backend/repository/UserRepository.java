@@ -23,7 +23,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @param username 用户名
      * @return 用户
      */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"memberLevel"})
     Optional<User> findByUsername(String username);
+
+    /**
+     * 根据ID查找用户并加载会员等级
+     */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"memberLevel"})
+    @org.springframework.data.jpa.repository.Query("select u from User u where u.id = :id")
+    Optional<User> findByIdWithLevel(@org.springframework.data.repository.query.Param("id") Long id);
     
     /**
      * 根据邮箱查找用户

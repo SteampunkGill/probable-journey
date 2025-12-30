@@ -10,7 +10,7 @@
         <div class="user-details">
           <span class="user-name">{{ userInfo?.nickname || userInfo?.username || '点击登录' }}</span>
           <div class="user-meta" v-if="userInfo">
-            <span class="user-level">⭐ {{ userInfo.levelName || '普通会员' }}</span>
+            <span class="user-level">⭐ {{ userInfo.levelName || userInfo.memberLevel?.name || '普通会员' }}</span>
             <span class="user-points">积分: {{ userInfo.points || 0 }}</span>
           </div>
         </div>

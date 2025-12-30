@@ -62,49 +62,22 @@ commonService.interceptors.request.use(
   }
 )
 
-// 响应拦截器
+// 响应拦截器 - 已简化，直接返回原始数据
 service.interceptors.response.use(
   response => {
-    const res = response.data
-    // 统一处理：后端 ApiResponse 结构包含 code, message, data
-    if (res.code === 200 || res.status === 'success') {
-      // 返回完整 res 以便页面判断 code，或者根据约定只返回 data
-      // 为了兼容 index.vue 中的 if (res.code === 200)，这里返回 res
-      return res
-    } else {
-      handleBusinessError(res)
-      const error = new Error(res.message || '业务请求失败')
-      error.response = response // 挂载原始响应
-      return Promise.reject(error)
-    }
+    return response.data
   },
   error => {
-    if (axios.isCancel(error)) {
-      console.log('Request canceled', error.message)
-      return Promise.reject(error)
-    }
-    handleHttpError(error.response)
     return Promise.reject(error)
   }
 )
 
-// 公共服务的响应拦截器
+// 公共服务的响应拦截器 - 已简化
 commonService.interceptors.response.use(
   response => {
-    const res = response.data
-    if (res.code === 200 || res.status === 'success' || !res.code) {
-      return res.data || res
-    } else {
-      handleBusinessError(res)
-      return Promise.reject(new Error(res.message || 'Error'))
-    }
+    return response.data
   },
   error => {
-    if (axios.isCancel(error)) {
-      console.log('Request canceled', error.message)
-      return new Promise(() => {})
-    }
-    handleHttpError(error.response)
     return Promise.reject(error)
   }
 )
