@@ -19,8 +19,8 @@
         :key="item.id"
         @click="onProductTap(item.product.id)"
       >
-        <!-- 左侧图片：增加对多种可能字段名的兼容 -->
-        <img class="product-image" :src="item.product.imageUrl || item.product.mainImageUrl || defaultImage" />
+        <!-- 左侧图片：统一使用 formatImageUrl 处理图片路径 -->
+        <img class="product-image" :src="formatImageUrl(item.product.image || item.product.productImage || item.product.mainImageUrl || item.product.imageUrl) || defaultImage" />
         
         <!-- 中间信息 -->
         <div class="product-info">
@@ -75,6 +75,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { favoriteApi } from '@/utils/api'
+import { formatImageUrl } from '@/utils/util'
 
 const router = useRouter()
 

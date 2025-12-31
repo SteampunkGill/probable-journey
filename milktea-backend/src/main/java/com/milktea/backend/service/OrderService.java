@@ -616,8 +616,9 @@ public class OrderService {
         Stream<Order> orderStream = allUserOrders.stream();
         
         if (status != null && !status.trim().isEmpty() && !"all".equalsIgnoreCase(status)) {
+            String upperStatus = status.trim().toUpperCase();
             List<String> targetStatuses;
-            switch (status.toUpperCase()) {
+            switch (upperStatus) {
                 case "COMPLETED":
                     targetStatuses = Arrays.asList("COMPLETED", "FINISHED", "REVIEWED", "DELIVERED");
                     break;
@@ -643,7 +644,7 @@ public class OrderService {
                     targetStatuses = Arrays.asList("CANCELLED");
                     break;
                 default:
-                    targetStatuses = Collections.singletonList(status);
+                    targetStatuses = Collections.singletonList(upperStatus);
             }
             orderStream = orderStream.filter(o -> targetStatuses.contains(o.getStatus()));
         }

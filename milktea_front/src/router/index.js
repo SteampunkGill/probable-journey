@@ -104,6 +104,18 @@ const routes = [
     meta: { title: '订单详情' }
   },
   {
+    path: '/order/refund',
+    name: 'refund',
+    component: () => import('../views/order/refund.vue'),
+    meta: { title: '申请退款', requiresAuth: true }
+  },
+  {
+    path: '/user/complaint',
+    name: 'complaint',
+    component: () => import('../views/user/complaint.vue'),
+    meta: { title: '投诉建议', requiresAuth: true }
+  },
+  {
     path: '/review/:id',
     name: 'review',
     component: () => import('../views/review/review.vue'),

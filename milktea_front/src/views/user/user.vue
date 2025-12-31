@@ -19,15 +19,12 @@
       
       <div class="user-assets" v-if="userInfo">
         <div class="asset-item" @click="router.push('/wallet')">
-          <span class="asset-value">¥{{ userInfo.balance !== undefined ? userInfo.balance.toFixed(2) : '0.00' }}</span>
           <span class="asset-label">余额</span>
         </div>
         <div class="asset-item" @click="router.push('/coupon')">
-          <span class="asset-value">{{ userInfo.couponCount || 0 }}</span>
           <span class="asset-label">优惠券</span>
         </div>
         <div class="asset-item" @click="router.push('/points')">
-          <span class="asset-value">{{ userInfo.points || 0 }}</span>
           <span class="asset-label">积分</span>
         </div>
       </div>
@@ -46,11 +43,7 @@
           :key="item.id"
           @click="goToAsset(item.type)"
         >
-          <div class="asset-icon" :style="{ background: item.bgColor }">
-            <i class="iconfont" :class="item.icon"></i>
-          </div>
           <span class="asset-name">{{ item.name }}</span>
-          <span class="asset-value" v-if="item.value">{{ item.value }}</span>
         </div>
       </div>
     </div>
@@ -195,7 +188,7 @@ const goToFunction = (url) => {
 }
 
 const contactService = () => {
-  alert('正在连接在线客服...')
+  router.push('/user/complaint')
 }
 
 const makePhoneCall = () => {

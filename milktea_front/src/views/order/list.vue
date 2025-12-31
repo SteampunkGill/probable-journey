@@ -54,7 +54,7 @@
         <!-- 商品列表 -->
         <div class="goods-list">
           <div class="goods-item" v-for="goods in (item.orderItems || item.items)" :key="goods.id">
-            <img class="goods-image" :src="formatImageUrl(goods.productImage || goods.image || goods.product?.mainImageUrl || goods.product?.imageUrl)" />
+            <img class="goods-image" :src="formatImageUrl(goods.image || goods.productImage || goods.product?.mainImageUrl || goods.product?.imageUrl || goods.mainImageUrl || goods.imageUrl)" />
             <div class="goods-info">
               <span class="goods-name">{{ goods.productName || goods.name }}</span>
               <div class="goods-bottom">

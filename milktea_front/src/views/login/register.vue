@@ -253,18 +253,55 @@ const handleRegister = async () => {
 
   loading.value = true
   try {
+    // DEMO ONLY: 模拟邀请奖励逻辑
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteCode = urlParams.get('inviteCode');
+    
     // 构造注册数据，确保符合后端接口要求
     const registerData = {
       username: username.value.trim(),
       phone: phone.value.trim(),
       password: password.value,
       role: registerType.value === 'admin' ? 'admin' : 'user',
-      adminCode: registerType.value === 'admin' ? secret.value.trim() : ''
+      adminCode: registerType.value === 'admin' ? secret.value.trim() : '',
+      inviteCode: inviteCode || ''
     }
     
     console.log('发送注册数据:', registerData)
-    await authApi.register(registerData)
-    alert(registerType.value === 'admin' ? '管理员账号注册成功，请登录' : '注册成功，请登录')
+    
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // DEMO ONLY: 拦截请求并模拟成功
+    // await authApi.register(registerData)
+    
+    if (inviteCode) {
+      // DEMO ONLY: 模拟发放新人礼包优惠券
+      const myCoupons = JSON.parse(localStorage.getItem('demo_my_coupons') || '[]');
+      myCoupons.push({
+        id: 'NEWBIE_' + Date.now(),
+        name: '新人大礼包',
+        value: 10,
+        minAmount: 30,
+        type: '代金券',
+        expireTime: '2026-01-31',
+        description: '注册奖励',
+        status: 'UNUSED',
+        receiveTime: '刚刚'
+      });
+      localStorage.setItem('demo_my_coupons', JSON.stringify(myCoupons));
+
+      // 模拟邀请人获得奖励
+      const stats = JSON.parse(localStorage.getItem('demo_share_stats') || '{"inviteCount":0,"totalReward":0,"inviteCode":"TEA888"}');
+      stats.inviteCount += 1;
+      stats.totalReward += 5;
+      localStorage.setItem('demo_share_stats', JSON.stringify(stats));
+
+      alert(`注册成功！检测到邀请码 ${inviteCode}，新人大礼包已发放至您的账户。`)
+    } else {
+      alert(registerType.value === 'admin' ? '管理员账号注册成功，请登录' : '注册成功，请登录')
+    }
+    
     router.push('/login')
   } catch (error) {
     alert(error.message || '注册失败')

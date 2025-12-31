@@ -199,6 +199,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { productApi, favoriteApi } from '@/utils/api'
+import { formatImageUrl } from '@/utils/util'
 
 const route = useRoute()
 const router = useRouter()
@@ -244,14 +245,45 @@ onMounted(() => {
 
 const loadProductDetail = async () => {
   loading.value = true
+
+  // 优先从 localStorage 读取
+  const cachedTea = localStorage.getItem('current_tea')
+  if (cachedTea) {
+    try {
+      const tea = JSON.parse(cachedTea)
+      if (String(tea.id) === String(productId.value)) {
+        const imageUrl = tea.image || tea.productImage || tea.product?.mainImageUrl || tea.product?.imageUrl || tea.mainImageUrl || tea.imageUrl
+        const mainImage = formatImageUrl(imageUrl)
+        product.value = {
+          ...product.value,
+          ...tea,
+          images: tea.images || [mainImage].filter(Boolean)
+        }
+        console.log('从本地存储读取商品信息成功')
+      }
+    } catch (e) {
+      console.error('解析本地存储商品信息失败:', e)
+    }
+  }
+
   try {
     // 获取商品详情
     const detailRes = await productApi.getProductDetail(productId.value)
     if (detailRes.code === 200) {
       const res = detailRes.data
+      // 统一使用 formatImageUrl 处理图片路径
+      const imageUrl = res.image || res.productImage || res.product?.mainImageUrl || res.product?.imageUrl || res.mainImageUrl || res.imageUrl
+      const mainImage = formatImageUrl(imageUrl)
+      const otherImages = (res.images || []).map(img => formatImageUrl(img))
+      
+      // 严格保护缓存数据
+      const cachedName = product.value.name
+      const cachedImages = product.value.images
+
       product.value = {
         ...res,
-        images: res.images || [res.imageUrl].filter(Boolean)
+        name: cachedName || res.name,
+        images: (cachedImages && cachedImages.length > 0) ? cachedImages : (otherImages.length > 0 ? otherImages : [mainImage].filter(Boolean))
       }
     }
 
@@ -364,6 +396,7 @@ const addToCart = () => {
   cartStore.addItem({
     id: product.value.id,
     name: product.value.name,
+    // 确保加入购物车的图片路径也是处理过的
     image: product.value.images[0],
     price: product.value.price,
     quantity: customizations.value.quantity,
@@ -376,6 +409,7 @@ const buyNow = () => {
   const buyNowItem = {
     id: product.value.id,
     name: product.value.name,
+    // 确保立即购买的图片路径也是处理过的
     image: product.value.images[0],
     price: product.value.price,
     quantity: customizations.value.quantity,

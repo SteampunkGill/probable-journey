@@ -73,7 +73,7 @@
         <h3 class="section-title">商品清单</h3>
         <div class="goods-list">
           <div class="goods-item" v-for="item in order.items" :key="item.id">
-            <img class="goods-image" :src="formatImageUrl(item.image || item.product?.mainImageUrl || item.product?.imageUrl)" />
+            <img class="goods-image" :src="formatImageUrl(item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl || item.mainImageUrl || item.imageUrl)" />
             <div class="goods-info">
               <h4 class="goods-name">{{ item.name }}</h4>
               <div class="goods-specs" v-if="item.customizations">
@@ -163,13 +163,15 @@
 
       <!-- 制作中 -->
       <template v-else-if="order.status === 'processing'">
-        <button class="footer-btn secondary" @click="contactService">联系客服</button>
+        <button class="footer-btn secondary" @click="applyRefund">申请退款</button>
+        <button class="footer-btn secondary" @click="goToComplaint">投诉建议</button>
         <button class="footer-btn primary" @click="remindOrder">催单</button>
       </template>
 
       <!-- 已完成 -->
       <template v-else-if="order.status === 'completed'">
-        <button class="footer-btn secondary" @click="reorder">再来一单</button>
+        <button class="footer-btn secondary" @click="applyRefund">申请退款</button>
+        <button class="footer-btn secondary" @click="goToComplaint">投诉建议</button>
         <button class="footer-btn primary" @click="reviewOrder">去评价</button>
       </template>
 
@@ -295,6 +297,13 @@ const reviewOrder = () => {
 const reorder = () => {
   alert('已添加到购物车')
   router.push('/cart')
+}
+
+const applyRefund = () => {
+  router.push({
+    path: '/order/refund',
+    query: { orderId: order.value.orderNo }
+  })
 }
 
 const contactService = () => {

@@ -1,3 +1,4 @@
+
 <template>
   <div class="order-list-page">
     <!-- 标签页 -->
@@ -76,10 +77,46 @@
           </div>
         </div>
 
+        <!-- 制作进度可视化 (仅在制作中显示) -->
+        <div class="making-status-bar" v-if="item.status?.toUpperCase() === 'MAKING' || item.status?.toUpperCase() === 'PAID'">
+          <div class="making-content">
+            <div class="making-icon-box">
+              <span class="making-icon">🍵</span>
+              <div class="making-wave"></div>
+            </div>
+            <div class="making-info">
+              <div class="making-text">正在为您精心制作中...</div>
+              <div class="making-desc">预计取餐时间 <span class="highlight">{{ getCountdown(item.estimatedTimestamp) }}</span></div>
+            </div>
+          </div>
+          <div class="making-progress-mini">
+            <div class="mini-dot active"></div>
+            <div class="mini-dot active"></div>
+            <div class="mini-dot animate"></div>
+          </div>
+        </div>
+
         <!-- 商品列表 -->
         <div class="goods-list">
-          <div class="goods-item" v-for="goods in (item.items || item.orderItems)" :key="goods.id">
-            <img class="goods-image" :src="formatImageUrl(goods.image || goods.productImage || goods.product?.mainImageUrl || goods.product?.imageUrl)" />
+          <div
+            class="goods-item"
+            v-for="goods in (item.items || item.orderItems)"
+            :key="goods.id"
+            @click.stop="() => {
+              const productId = goods.productId || goods.id;
+              if (!productId) return;
+              const tea = {
+                id: productId,
+                name: goods.name || goods.productName,
+                image: goods.image || goods.productImage || goods.product?.mainImageUrl || goods.product?.imageUrl || goods.mainImageUrl || goods.imageUrl,
+                price: goods.price
+              };
+              localStorage.setItem('current_tea', JSON.stringify(tea));
+              router.push(`/product/${productId}`);
+            }"
+          >
+            <!-- DEMO ONLY: 去掉图片加载 -->
+            <!-- <img class="goods-image" :src="formatImageUrl(goods.image || goods.productImage || goods.product?.mainImageUrl || goods.product?.imageUrl || goods.mainImageUrl || goods.imageUrl)" /> -->
             <div class="goods-info">
               <span class="goods-name">{{ goods.name || goods.productName }}</span>
               <div class="goods-bottom">
@@ -116,19 +153,22 @@
 
           <!-- 制作中 -->
           <template v-else-if="item.status?.toLowerCase() === 'processing' || item.status?.toUpperCase() === 'MAKING' || item.status?.toUpperCase() === 'PAID'">
-            <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
+            <button class="action-btn secondary" @click.stop="applyRefund(item.orderNo)">申请退款</button>
+            <button class="action-btn secondary" @click.stop="goToComplaint">投诉建议</button>
             <button class="action-btn primary" @click.stop="remindOrder(item.orderNo)">催单</button>
           </template>
 
           <!-- 待取餐 -->
           <template v-else-if="item.status?.toLowerCase() === 'ready' || item.status?.toUpperCase() === 'READY'">
-            <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
+            <button class="action-btn secondary" @click.stop="applyRefund(item.orderNo)">申请退款</button>
+            <button class="action-btn secondary" @click.stop="goToComplaint">投诉建议</button>
             <button class="action-btn primary" @click.stop="confirmOrder(item.orderNo)">立即取餐</button>
           </template>
 
           <!-- 已完成 -->
           <template v-else-if="item.status?.toLowerCase() === 'completed' || item.status?.toUpperCase() === 'COMPLETED' || item.status?.toUpperCase() === 'FINISHED' || item.status?.toUpperCase() === 'REVIEWED'">
-            <button class="action-btn secondary" @click.stop="reorder(item)">再来一单</button>
+            <button class="action-btn secondary" @click.stop="applyRefund(item.orderNo)">申请退款</button>
+            <button class="action-btn secondary" @click.stop="goToComplaint">投诉建议</button>
             <button class="action-btn primary" v-if="item.status?.toUpperCase() !== 'REVIEWED'" @click.stop="reviewOrder(item.orderNo)">立即评价</button>
           </template>
         </div>
@@ -170,6 +210,7 @@ const tabs = [
 const activeTab = ref('all')
 const orders = ref([])
 const loading = ref(false)
+const now = ref(Date.now())
 const searchKeyword = ref('')
 const sortOption = ref('time_desc')
 
@@ -230,11 +271,26 @@ onMounted(() => {
   } else {
     loading.value = false
   }
+
+  // 启动倒计时定时器
+  const timer = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+
+  return () => clearInterval(timer)
 })
+
+const getCountdown = (timestamp) => {
+  if (!timestamp) return '00:00'
+  const diff = Math.max(0, Math.floor((timestamp - now.value) / 1000))
+  const m = Math.floor(diff / 60).toString().padStart(2, '0')
+  const s = (diff % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
+}
 
 const switchTab = (key) => {
   activeTab.value = key
-  // 纯前端筛选，不需要重新请求后端，除非需要刷新数据
+  loadOrders()
 }
 
 // 状态文本映射
@@ -261,28 +317,41 @@ const getStatusText = (status) => {
 const loadOrders = async () => {
   loading.value = true
   try {
-    // 纯前端筛选：请求时不带状态参数，获取全部订单
-    const res = await orderApi.getOrderList()
-    const orderData = res.data || res || []
+    const params = {
+      status: activeTab.value === 'all' ? '' : activeTab.value.toUpperCase()
+    }
     
-    // 转换数据格式以匹配前端
-    orders.value = orderData.map(order => ({
-      id: order.id,
-      orderNo: order.orderNo,
-      status: order.status,
-      statusText: getStatusText(order.status),
-      createTime: order.createTime || order.orderTime || order.createdAt,
-      totalAmount: order.totalAmount,
-      items: (order.orderItems || order.items || []).map(item => ({
-        ...item,
-        name: item.productName || item.name,
-        image: item.productImage || item.image
-      })),
-      pickupCode: order.pickupCode,
-      canReview: order.canReview || false
-    }))
+    const res = await orderApi.getOrderList(params)
+    
+    if (res.code === 200 && Array.isArray(res.data)) {
+      orders.value = res.data.map(order => {
+        const createTime = order.createTime || order.orderTime || order.createdAt
+        let estimatedTimestamp = Date.now() + 20 * 60 * 1000
+        if (createTime) {
+          const date = new Date(createTime.replace(/-/g, '/'))
+          if (!isNaN(date.getTime())) {
+            date.setMinutes(date.getMinutes() + 20)
+            estimatedTimestamp = date.getTime()
+          }
+        }
+
+        const rawItems = order.orderItems || order.items || []
+        const items = rawItems.map(item => ({
+          ...item,
+          name: item.productName || item.name,
+          image: item.productImage || item.image
+        }))
+
+        return {
+          ...order,
+          statusText: getStatusText(order.status),
+          estimatedTimestamp: estimatedTimestamp,
+          items: items
+        }
+      })
+    }
   } catch (error) {
-    console.error('获取订单列表失败', error)
+    console.error('加载订单列表失败:', error)
     orders.value = []
   } finally {
     loading.value = false
@@ -339,6 +408,17 @@ const reorder = (order) => {
 
 const reviewOrder = (orderNo) => {
   router.push(`/review/${orderNo}`)
+}
+
+const applyRefund = (orderNo) => {
+  router.push({
+    path: '/order/refund',
+    query: { orderId: orderNo }
+  })
+}
+
+const goToComplaint = () => {
+  router.push('/user/complaint')
 }
 
 const contactService = () => {
@@ -577,9 +657,111 @@ const isStepActive = (status, step) => {
 /* 订单进度条样式 */
 .order-progress-container {
   padding: 20px 10px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   background: rgba(255, 255, 255, 0.3);
   border-radius: 15px;
+}
+
+/* 制作进度可视化样式 */
+.making-status-bar {
+  background: linear-gradient(135deg, #fff9f0 0%, #fff2e0 100%);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid #ffe0b2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: fadeIn 0.5s ease;
+}
+
+.making-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.making-icon-box {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 4px 8px rgba(255, 167, 38, 0.2);
+}
+
+.making-wave {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid #ffa726;
+  animation: wave 2s infinite;
+}
+
+.making-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.making-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e65100;
+}
+
+.making-desc {
+  font-size: 12px;
+  color: #fb8c00;
+}
+
+.making-desc .highlight {
+  font-weight: 700;
+  color: #ef6c00;
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+.making-progress-mini {
+  display: flex;
+  gap: 6px;
+}
+
+.mini-dot {
+  width: 6px;
+  height: 6px;
+  background: #ffe0b2;
+  border-radius: 50%;
+}
+
+.mini-dot.active {
+  background: #ffa726;
+}
+
+.mini-dot.animate {
+  background: #ffa726;
+  animation: pulse 1s infinite;
+}
+
+@keyframes wave {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .progress-bar {
@@ -717,6 +899,7 @@ const isStepActive = (status, step) => {
   font-family: 'Prompt', sans-serif;
   line-height: 1.4;
 }
+
 
 .goods-bottom {
   display: flex;

@@ -66,7 +66,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { shareApi } from '@/utils/api'
+import { shareApi, socialApi } from '@/utils/api'
 
 const router = useRouter()
 const stats = ref({
@@ -94,14 +94,26 @@ const loadStats = async () => {
   }
 }
 
-const handleShare = (type) => {
-  alert(`分享功能开发中，类型: ${type}`)
+const handleShare = async (type) => {
+  // DEMO ONLY: 模拟分享并获得奖励
+  try {
+    const res = await socialApi.receiveShareCoupon('demo_share_id')
+    if (res.code === 200) {
+      alert(`分享成功！${res.message}`)
+      // 模拟数据变化
+      stats.value.inviteCount += 1
+      stats.value.totalReward += 5
+      localStorage.setItem('demo_share_stats', JSON.stringify(stats.value))
+    }
+  } catch (error) {
+    alert(`分享功能模拟失败: ${type}`)
+  }
 }
 
 const copyLink = () => {
-  const link = `${window.location.origin}/register?inviteCode=${stats.value.inviteCode || 'USER123'}`
+  const link = `${window.location.origin}/register?inviteCode=${stats.value.inviteCode || 'TEA888'}`
   navigator.clipboard.writeText(link).then(() => {
-    alert('链接已复制到剪贴板')
+    alert('专属邀请链接已复制！发送给好友注册即可获得奖励。')
   })
 }
 

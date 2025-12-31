@@ -185,7 +185,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
-import { addressApi, couponApi, pointsApi, orderApi, cartApi, userApi, storeApi } from '../../utils/api'
+import { addressApi, couponApi, pointsApi, orderApi, cartApi, userApi, storeApi, promotionApi } from '../../utils/api'
 import { formatImageUrl } from '../../utils/util'
 
 const router = useRouter()
@@ -372,31 +372,91 @@ const submitOrder = async () => {
   
   submitting.value = true
   try {
+    // 计算优惠券折扣分摊（如果是本地优惠券，直接减去价格，不传 ID 给后端）
+    const totalDiscount = parseFloat(couponDiscount.value)
+    const totalQty = orderItems.value.reduce((sum, i) => sum + i.quantity, 0)
+    const discountPerItem = totalQty > 0 ? totalDiscount / totalQty : 0
+
     const orderData = {
-      items: orderItems.value.map(item => ({
-        // 确保获取的是商品ID而不是购物车项ID
-        productId: item.productId || item.product?.id || item.id,
-        quantity: item.quantity,
-        price: item.price,
-        specId: item.specId,
-        customizations: item.customizations
-      })),
+      items: orderItems.value.map(item => {
+        // 转换 customizations 为后端需要的格式
+        const customizations = []
+        if (item.customizations) {
+          if (item.customizations.sweetness) {
+            customizations.push({ optionName: '甜度', valueName: item.customizations.sweetness, additionalPrice: 0 })
+          }
+          if (item.customizations.temperature) {
+            customizations.push({ optionName: '温度', valueName: item.customizations.temperature, additionalPrice: 0 })
+          }
+          if (Array.isArray(item.customizations.toppings)) {
+            item.customizations.toppings.forEach(t => {
+              customizations.push({ optionName: '加料', valueName: t.name, additionalPrice: t.price || 0 })
+            })
+          }
+        }
+
+        // 如果使用了本地优惠券，将折扣应用到单价上发送给后端
+        const finalPrice = Math.max(0, item.price - discountPerItem).toFixed(2)
+
+        return {
+          productId: item.productId || item.product?.id || item.id,
+          quantity: item.quantity,
+          price: finalPrice,
+          customizations: customizations
+        }
+      }),
       deliveryType: deliveryType.value.toUpperCase(),
-      addressId: selectedAddress.value?.id,
+      addressJson: selectedAddress.value ? JSON.stringify(selectedAddress.value) : null,
       storeId: selectedStore.value?.id,
-      couponId: selectedCoupon.value?.id,
+      // 如果 ID 包含非数字字符（如 SHARE_），说明是本地模拟券，不传给后端
+      couponId: (selectedCoupon.value && !isNaN(selectedCoupon.value.id)) ? selectedCoupon.value.id : null,
       usePoints: usePoints.value ? pointsToUse.value : 0,
-      balanceDiscountAmount: 0, // 暂时传0，后续可根据余额抵扣逻辑调整
-      remark: remark.value,
-      // 确保 deliveryFee 始终有值，即使是 0
-      deliveryFee: parseFloat(deliveryFee.value || 0),
-      packagingFee: parseFloat(packagingFee.value || 0),
-      totalAmount: parseFloat(totalAmount.value || 0)
+      balanceDiscountAmount: 0,
+      remark: remark.value
     }
     
     const res = await orderApi.createOrder(orderData)
     if (res.code === 200) {
       const orderNo = res.data.orderNo
+
+      // DEMO ONLY: 在前端 IndexedDB 模拟扣除积分
+      if (usePoints.value && pointsToUse.value > 0) {
+        try {
+          const { pointsDB } = await import('../../utils/db.js')
+          const currentPoints = await pointsDB.getUserPoints()
+          await pointsDB.updateUserPoints(currentPoints - pointsToUse.value)
+          await pointsDB.addRecord({
+            type: 'EXCHANGE',
+            points: -pointsToUse.value,
+            reason: `订单 ${orderNo} 抵现`
+          })
+        } catch (e) {
+          console.error('模拟扣除积分失败:', e)
+        }
+      }
+      
+      // DEMO ONLY: 增加历史地址记录逻辑
+      if (deliveryType.value === 'delivery' && selectedAddress.value) {
+        const history = JSON.parse(localStorage.getItem('demo_address_history') || '[]');
+        const existingIndex = history.findIndex(h =>
+          h.province === selectedAddress.value.province &&
+          h.city === selectedAddress.value.city &&
+          h.district === selectedAddress.value.district &&
+          h.detail === selectedAddress.value.detail
+        );
+        
+        if (existingIndex > -1) {
+          history[existingIndex].usedCount = (history[existingIndex].usedCount || 0) + 1;
+        } else {
+          history.unshift({
+            ...selectedAddress.value,
+            id: Date.now(),
+            usedCount: 1
+          });
+        }
+        localStorage.setItem('demo_address_history', JSON.stringify(history.slice(0, 10)));
+      }
+
       alert('订单提交成功！')
       // 清除结算缓存
       localStorage.removeItem('checkoutItems')

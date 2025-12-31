@@ -2,8 +2,8 @@
   <div class="product-card" @click="onTap">
     <!-- 商品图片 -->
     <div class="product-image-container">
-      <img 
-        :src="product.image || product.mainImage" 
+      <img
+        :src="formatImageUrl(product.image || product.productImage || product.product?.mainImageUrl || product.product?.imageUrl || product.mainImageUrl || product.imageUrl || product.mainImage)"
         class="product-image"
         loading="lazy"
       />
@@ -73,6 +73,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { formatImageUrl } from '@/utils/util'
 
 const props = defineProps({
   product: {
@@ -90,6 +91,8 @@ const emit = defineEmits(['click', 'add-to-cart', 'favorite-change'])
 const localIsFavorite = ref(props.isFavorite)
 
 const onTap = () => {
+  // 将奶茶完整对象存入 localStorage
+  localStorage.setItem('current_tea', JSON.stringify(props.product))
   emit('click', props.product.id)
 }
 

@@ -100,7 +100,7 @@
       </div>
 
       <!-- 消息推送 -->
-      <div v-else class="push-section">
+      <div v-else-if="activeTab === 'push'" class="push-section">
         <div class="section-header">
           <button class="btn-success" @click="showPushModal()">新建推送任务</button>
         </div>
@@ -131,6 +131,7 @@
           </tbody>
         </table>
       </div>
+
     </div>
 
     <!-- 推送编辑弹窗 -->
@@ -210,6 +211,7 @@
             <option value="SECOND_HALF">第二杯半价</option>
             <option value="LIMITED_DISCOUNT">限时折扣</option>
             <option value="FLASH_SALE">限时秒杀</option>
+            <option value="PROMOTION_DISCOUNT">指定商品折扣 (IndexedDB)</option>
           </select>
         </div>
         <div class="form-item">
@@ -432,12 +434,16 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { get, post, put, del, uploadFile } from '../../../utils/request'
+import { promotionApi } from '../../../utils/api'
+import { complaintDB, refundDB } from '../../../utils/db'
 
 const activeTab = ref('activity')
 const activities = ref([])
 const couponTemplates = ref([])
 const banners = ref([])
 const pushTasks = ref([])
+const complaints = ref([])
+const refunds = ref([])
 
 const activityModal = ref({ show: false, isEdit: false, form: {} })
 const activityRules = ref({})
@@ -590,6 +596,12 @@ const showActivityModal = (a = null) => {
 const saveActivity = async () => {
   // 创建提交数据的副本，避免修改原始表单导致界面显示异常
   const submitData = { ...activityModal.value.form }
+  
+  // 处理指定商品 ID 字符串转数组
+  if (submitData.type === 'PROMOTION_DISCOUNT' && activityRules.value.productIdsStr) {
+    activityRules.value.productIds = activityRules.value.productIdsStr.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+  }
+
   // 将可视化规则转换回 JSON
   submitData.rulesJson = JSON.stringify(activityRules.value)
   // 确保时间格式符合后端要求 (YYYY-MM-DDTHH:mm:ss)
@@ -612,8 +624,10 @@ const saveActivity = async () => {
 }
 
 const loadActivities = async () => {
-  const res = await get('/api/admin/activities')
-  activities.value = res.data
+  // DEMO ONLY: 优先从 IndexedDB 获取促销活动
+  const res = await promotionApi.getPromotionList()
+  const resData = res.data || res
+  activities.value = Array.isArray(resData) ? resData : (resData.list || [])
 }
 
 const loadCoupons = async () => {
@@ -932,7 +946,6 @@ onMounted(() => {
   border: 2px solid rgba(44, 150, 120, 0.3);
   display: inline-block;
 }
-
 .status-off {
   color: #ff6b6b;
   font-weight: 700;
@@ -941,6 +954,39 @@ onMounted(() => {
   border-radius: 20px;
   border: 2px solid rgba(255, 107, 107, 0.3);
   display: inline-block;
+}
+
+.status-making {
+  color: #f39c12;
+  background: rgba(243, 156, 18, 0.1);
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+.status-ready {
+  color: #27ae60;
+  background: rgba(39, 174, 96, 0.1);
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+.status-completed {
+  color: #7f8c8d;
+  background: rgba(127, 140, 141, 0.1);
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+.pickup-badge {
+  background: #8b4513;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Prompt', sans-serif;
+  font-weight: bold;
 }
 
 .ops {

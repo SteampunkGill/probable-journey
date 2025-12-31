@@ -92,6 +92,26 @@
         </div>
       </div>
 
+      <!-- 促销活动入口 (DEMO ONLY) -->
+      <div class="promo-banner-section" v-if="activePromotions && activePromotions.length > 0">
+        <div
+          class="promo-banner-card"
+          v-for="promo in activePromotions"
+          :key="promo.id"
+          @click="goToPromoOrder(promo)"
+        >
+          <div class="promo-banner-content">
+            <div class="promo-tag">限时活动</div>
+            <div class="promo-title">{{ promo.name }}</div>
+            <div class="promo-subtitle">指定商品享超值折扣，点击立即抢购</div>
+          </div>
+          <div class="promo-action">
+            <span>去抢购</span>
+            <img class="arrow-icon" src="@/assets/images/icons/right.png" />
+          </div>
+        </div>
+      </div>
+
       <!-- 快捷入口 -->
       <div class="quick-menu">
         <div class="menu-item" @click="router.push('/address?type=select_store')">
@@ -133,11 +153,11 @@
         
         <div class="recommend-scroll">
           <div class="recommend-list">
-            <div 
-              class="recommend-item" 
-              v-for="item in recommendProducts" 
+            <div
+              class="recommend-item"
+              v-for="item in recommendProducts"
               :key="item.id"
-              @click="router.push(`/product/${item.id}`)"
+              @click="() => { localStorage.setItem('current_tea', JSON.stringify(item)); router.push(`/product/${item.id}`) }"
             >
               <img :src="item.image" class="recommend-image" />
               <div class="recommend-info">
@@ -256,6 +276,7 @@ const banners = ref([])
 const recommendProducts = ref([])
 const hotProducts = ref([])
 const availableCouponCount = ref(0)
+const activePromotions = ref([])
 const notifications = ref([])
 const showNotification = ref(false)
 const currentNotification = ref(null)
@@ -393,48 +414,41 @@ const loadData = async () => {
     const recommendData = recommendRes.data || recommendRes || []
     
     banners.value = (Array.isArray(bannersData) ? bannersData : bannersData.list || []).map(b => {
-      let imageUrl = b.imageUrl || b.image
-      if (imageUrl) {
-        imageUrl = imageUrl.replace(/^ht+p:/, 'http:')
-        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-          const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-          imageUrl = `http://localhost:8081${path}`
-        }
-      }
-      return { ...b, imageUrl }
+      const imageUrl = b.imageUrl || b.image
+      return { ...b, imageUrl: formatImageUrl(imageUrl) }
     })
     
     recommendProducts.value = (Array.isArray(recommendData) ? recommendData : recommendData.list || []).map(p => {
-      let imageUrl = p.imageUrl || p.mainImageUrl || p.image
-      if (imageUrl) {
-        imageUrl = imageUrl.replace(/^ht+p:/, 'http:')
-        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-          const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-          imageUrl = `http://localhost:8081${path}`
-        }
-      }
+      const imageUrl = p.image || p.productImage || p.product?.mainImageUrl || p.product?.imageUrl || p.mainImageUrl || p.imageUrl
       return {
         ...p,
-        image: imageUrl || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
+        image: formatImageUrl(imageUrl) || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
       }
     })
     
     const hotList = homeData.hotProducts || []
     hotProducts.value = hotList.map(p => {
-      let imageUrl = p.imageUrl || p.mainImageUrl || p.image
-      if (imageUrl) {
-        imageUrl = imageUrl.replace(/^ht+p:/, 'http:')
-        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-          const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-          imageUrl = `http://localhost:8081${path}`
-        }
-      }
+      const imageUrl = p.image || p.productImage || p.product?.mainImageUrl || p.product?.imageUrl || p.mainImageUrl || p.imageUrl
       return {
         ...p,
-        image: imageUrl || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
+        image: formatImageUrl(imageUrl) || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
       }
     })
+
+    // DEMO ONLY: 将数据存入本地供搜索页面使用
+    localStorage.setItem('demo_all_products', JSON.stringify([...recommendProducts.value, ...hotProducts.value]))
     
+    // 获取促销活动 (DEMO ONLY)
+    try {
+      const promoRes = await promotionApi.getPromotionList()
+      const resData = promoRes.data || promoRes
+      const list = Array.isArray(resData) ? resData : (resData.list || [])
+      activePromotions.value = list.filter(p => p.isActive && p.type === 'PROMOTION_DISCOUNT')
+      console.log('首页加载促销活动成功:', activePromotions.value)
+    } catch (e) {
+      console.warn('获取促销活动失败:', e)
+    }
+
     // 异步获取定位，不阻塞页面显示
     updateLocationAndNearbyStores()
     
@@ -508,6 +522,28 @@ const reLocation = async () => {
 const makePhoneCall = (phone) => {
   window.location.href = `tel:${phone}`
 }
+const goToPromoOrder = (promo) => {
+  // DEMO ONLY: 处理促销跳转筛选
+  let productIds = []
+  if (promo.rulesJson) {
+    try {
+      const rules = JSON.parse(promo.rulesJson)
+      productIds = rules.productIds || []
+    } catch (e) {
+      console.error('解析规则失败:', e)
+    }
+  } else if (promo.productIds) {
+    productIds = promo.productIds
+  }
+
+  if (productIds && productIds.length > 0) {
+    sessionStorage.setItem('promo_filter_ids', JSON.stringify(productIds))
+    sessionStorage.setItem('promo_name', promo.name)
+  }
+  
+  router.push('/order')
+}
+
 
 const closeNotification = () => {
   if (currentNotification.value) {
@@ -1475,6 +1511,55 @@ onUnmounted(() => {
 @keyframes shimmer {
   0% { background-position: -200px 0; }
   100% { background-position: 200px 0; }
+}
+
+.promo-banner-section {
+  margin: 0 var(--spacing-lg) var(--spacing-lg);
+}
+
+.promo-banner-card {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5253 100%);
+  border-radius: var(--border-radius-lg);
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(238, 82, 83, 0.3);
+  transition: transform 0.2s;
+  margin-bottom: 12px;
+}
+
+.promo-banner-card:hover {
+  transform: translateY(-2px);
+}
+
+.promo-tag {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  width: fit-content;
+  margin-bottom: 4px;
+}
+
+.promo-title {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.promo-subtitle {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.promo-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* 响应式设计 */

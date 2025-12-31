@@ -73,7 +73,7 @@
         <h3 class="section-title">商品清单</h3>
         <div class="goods-list">
           <div class="goods-item" v-for="item in order.orderItems" :key="item.id">
-            <img class="goods-image" :src="formatImageUrl(item.productImage)" />
+            <img class="goods-image" :src="formatImageUrl(item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl || item.mainImageUrl || item.imageUrl)" />
             <div class="goods-info">
               <h4 class="goods-name">{{ item.productName }}</h4>
               <div class="goods-specs" v-if="item.customizations">
@@ -209,15 +209,45 @@
 
       <!-- 已评价 -->
       <template v-else-if="order.status === 'REVIEWED'">
-        <button class="footer-btn secondary" @click="reorder">再来一单</button>
+        <button class="footer-btn secondary" @click="showComplaintDialog">投诉建议</button>
         <button class="footer-btn primary" @click="showAppealDialog">申诉退款</button>
       </template>
 
       <!-- 其他状态 -->
       <template v-else>
-        <button class="footer-btn secondary" @click="contactService">联系客服</button>
+        <button class="footer-btn secondary" @click="showComplaintDialog">投诉建议</button>
         <button class="footer-btn primary" @click="reorder">再来一单</button>
       </template>
+    </div>
+
+    <!-- 投诉建议弹窗 -->
+    <div class="modal" v-if="showComplaintModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>投诉与建议</h3>
+          <button class="close-btn" @click="showComplaintModal = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-item">
+            <label>反馈类型</label>
+            <select v-model="complaintForm.type">
+              <option value="服务态度">服务态度</option>
+              <option value="制作速度">制作速度</option>
+              <option value="菜品质量">菜品质量</option>
+              <option value="卫生问题">卫生问题</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>详细内容</label>
+            <textarea v-model="complaintForm.content" placeholder="请写下您的宝贵意见..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn secondary" @click="showComplaintModal = false">取消</button>
+          <button class="modal-btn primary" @click="submitComplaint">提交反馈</button>
+        </div>
+      </div>
     </div>
 
     <!-- 申诉弹窗 -->

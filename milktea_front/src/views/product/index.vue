@@ -179,12 +179,12 @@
         >
           营养成分
         </div>
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 2 }" 
+        <div
+          class="tab-item"
+          :class="{ active: activeTab === 2 }"
           @click="activeTab = 2"
         >
-          用户评价({{ product.commentCount || 0 }})
+          用户评价
         </div>
       </div>
       
@@ -434,6 +434,25 @@ const buyNow = () => {
 
 const fetchProductDetail = async (id) => {
   loading.value = true
+  
+  // 优先从 localStorage 读取
+  const cachedTea = localStorage.getItem('current_tea')
+  if (cachedTea) {
+    try {
+      const tea = JSON.parse(cachedTea)
+      if (String(tea.id) === String(id)) {
+        product.value = {
+          ...product.value,
+          ...tea,
+          images: tea.images || [tea.image].filter(Boolean)
+        }
+        console.log('从本地存储读取商品信息成功')
+      }
+    } catch (e) {
+      console.error('解析本地存储商品信息失败:', e)
+    }
+  }
+
   try {
     const [detailRes, customRes] = await Promise.all([
       productApi.getProductDetail(id),
@@ -441,11 +460,16 @@ const fetchProductDetail = async (id) => {
     ])
     
     const res = detailRes.data || detailRes
+    // 严格保护缓存数据：如果本地已有名称或图片，则不被后端返回的数据覆盖
+    const cachedName = product.value.name
+    const cachedImages = product.value.images
+
     product.value = {
+      ...res,
       id: res.id,
-      name: res.name,
-      images: res.images || [res.imageUrl].filter(Boolean),
-      price: res.price,
+      name: cachedName || res.name,
+      images: (cachedImages && cachedImages.length > 0) ? cachedImages : (res.images || [res.imageUrl].filter(Boolean)),
+      price: res.price || product.value.price,
       originalPrice: res.originalPrice || res.price,
       description: res.description,
       rating: res.rating || 5.0,

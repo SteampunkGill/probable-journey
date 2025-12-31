@@ -137,7 +137,10 @@
 
             <!-- 右侧信息 -->
             <div class="product-info">
-              <span class="product-name">{{ item.name }}</span>
+              <div class="name-row">
+                <span class="product-name">{{ item.name }}</span>
+                <span class="promo-badge" v-if="item.promoTag">{{ item.promoTag }}</span>
+              </div>
               <span class="product-desc">{{ item.description }}</span>
               
               <div class="product-footer">
@@ -145,7 +148,12 @@
                   <span class="price">¥{{ item.price }}</span>
                   <span class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</span>
                 </div>
-                <span class="sales">已售{{ item.sales }}</span>
+                <div class="action-box">
+                  <span class="sales">已售{{ item.sales }}</span>
+                  <div class="add-cart-btn" @click.stop="onAddCartClick(item)">
+                    <span class="plus-icon">+</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -291,7 +299,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
 import { useUserStore } from '../../store/user'
-import { productApi } from '@/utils/api'
+import { productApi, promotionApi } from '@/utils/api'
 import { formatImageUrl } from '@/utils/util'
 import heartIcon from '../../assets/images/icons/heart.png'
 import heartFillIcon from '../../assets/images/icons/heart-fill.png'
@@ -303,6 +311,8 @@ const userStore = useUserStore()
 const categories = ref([])
 const activeCategoryId = ref(null)
 const productList = ref([])
+const promoFilterIds = ref(null)
+const promoName = ref('')
 const searchKeyword = ref('')
 const loading = ref(false)
 const cartCount = computed(() => cartStore.totalCount)
@@ -379,7 +389,23 @@ const filteredProductList = computed(() => {
     list = list.filter(p => p.sugarLevel === filterConfig.value.sugarLevel)
   }
 
-  // 3. 排序逻辑
+  // 3. DEMO ONLY: 促销活动筛选逻辑 (在分类加载后执行)
+  const filterIdsStr = sessionStorage.getItem('promo_filter_ids')
+  if (filterIdsStr) {
+    const filterIds = JSON.parse(filterIdsStr)
+    // 仅保留活动指定的商品
+    const activeProducts = list.filter(p => filterIds.includes(p.id))
+    if (activeProducts.length > 0) {
+      // 模拟“装模作样”筛选：随机选 2-3 个
+      const count = Math.min(activeProducts.length, Math.floor(Math.random() * 2) + 2)
+      list = activeProducts.sort(() => 0.5 - Math.random()).slice(0, count)
+      console.log(`[DEMO] 促销筛选生效: 展示 ${count} 款活动商品`)
+    }
+    // 注意：这里不立即清除，因为 computed 会多次触发，我们在 onUnmounted 或跳转时清除更稳妥
+    // 或者在 loadProducts 结束时清除
+  }
+
+  // 4. 排序逻辑
   list.sort((a, b) => {
     if (filterConfig.value.sortBy === 'sales') {
       return b.sales - a.sales
@@ -443,21 +469,33 @@ const loadProducts = async () => {
     const categoryId = activeCategoryId.value === 'all' ? null : activeCategoryId.value
     const res = await productApi.getProducts(categoryId)
     const resData = res.data || res
-    const rawList = Array.isArray(resData) ? resData : (resData.list || [])
+    let rawList = Array.isArray(resData) ? resData : (resData.list || [])
     
-    productList.value = rawList.map(item => {
-      // 后端实体类 Product 中字段名是 imageUrl (映射自 main_image_url)
-      let imageUrl = item.imageUrl || item.mainImageUrl || item.image
-      
-      // 修复图片路径：如果是相对路径，补全后端地址
-      if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-        // 确保路径以 / 开头
-        const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`
-        imageUrl = `http://localhost:8081${path}`
+    // DEMO ONLY: 注入 IndexedDB 中的模拟商品
+    try {
+      const { productDB } = await import('@/utils/db')
+      let dbProducts = await productDB.getAll()
+      if (dbProducts && dbProducts.length > 0) {
+        // 仅在“全部”分类或匹配分类时注入，避免在所有分类下都显示
+        if (activeCategoryId.value !== 'all') {
+          dbProducts = dbProducts.filter(p => p.categoryId === activeCategoryId.value)
+        }
+        if (dbProducts.length > 0) {
+          rawList = [...dbProducts, ...rawList]
+          console.log('[DEMO] 已从 IndexedDB 注入模拟商品:', dbProducts.length)
+        }
       }
+    } catch (e) {
+      console.warn('注入模拟商品失败:', e)
+    }
+
+
+    productList.value = rawList.map(item => {
+      // 统一使用 formatImageUrl 处理图片路径，并兼容多种可能的字段名
+      const imageUrl = item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl || item.mainImageUrl || item.imageUrl
       return {
         ...item,
-        image: imageUrl || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200',
+        image: formatImageUrl(imageUrl) || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200',
         hot: item.isHot || false,
         sales: item.sales || 0,
         sugarLevel: 'normal' // 默认糖度
@@ -472,54 +510,27 @@ const loadProducts = async () => {
 
 const selectCategory = (id) => {
   activeCategoryId.value = id
+  // 切换分类时清除促销筛选，确保分类功能正常
+  sessionStorage.removeItem('promo_filter_ids')
   loadProducts()
 }
 
-const onProductTap = async (product) => {
+const onProductTap = (product) => {
+  // 将奶茶完整对象存入 localStorage
+  localStorage.setItem('current_tea', JSON.stringify(product))
+  // 跳转到详情页
+  router.push(`/product/${product.id}`)
+}
+
+const onAddCartClick = (product) => {
   selectedProduct.value = product
   quantity.value = 1
-  
-  // 默认值
   customizations.value = {
     size: '中杯',
     temperature: '常温',
     sweetness: '正常糖',
     toppings: []
   }
-
-  try {
-    const res = await productApi.getProductCustomizations(product.id)
-    if (res && res.data) {
-      const { specs, options } = res.data
-      
-      // 处理规格 (糖度、温度)
-      if (specs && specs.length > 0) {
-        const sweetness = specs.filter(s => s.type === 'SWEETNESS')
-        if (sweetness.length > 0) {
-          sweetnessOptions.value = sweetness.map(s => s.name)
-          customizations.value.sweetness = sweetness.find(s => s.isDefault)?.name || sweetness[0].name
-        }
-        
-        const temperature = specs.filter(s => s.type === 'TEMPERATURE')
-        if (temperature.length > 0) {
-          temperatureOptions.value = temperature.map(s => s.name)
-          customizations.value.temperature = temperature.find(s => s.isDefault)?.name || temperature[0].name
-        }
-      }
-      
-      // 处理加料
-      if (options && options.length > 0) {
-        toppingOptions.value = options.filter(o => o.type === 'TOPPING').map(o => ({
-          id: o.id,
-          name: o.name,
-          price: o.price
-        }))
-      }
-    }
-  } catch (error) {
-    console.error('获取定制选项失败:', error)
-  }
-
   showCustomModal.value = true
 }
 
@@ -1046,13 +1057,29 @@ watch(activeCategoryId, () => {
   justify-content: space-between;
 }
 
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .product-name {
   font-size: 18px;
   font-weight: 700;
   color: var(--text-color-dark);
   font-family: 'Prompt', sans-serif;
-  margin-bottom: 8px;
   line-height: 1.3;
+}
+
+.promo-badge {
+  font-size: 10px;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .product-desc {
@@ -1067,6 +1094,38 @@ watch(activeCategoryId, () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.action-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.add-cart-btn {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(160, 82, 45, 0.2);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.add-cart-btn:hover {
+  transform: scale(1.15) rotate(90deg);
+  box-shadow: 0 6px 15px rgba(160, 82, 45, 0.3);
+}
+
+.plus-icon {
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 1;
+  margin-top: -2px;
 }
 
 .price-box {

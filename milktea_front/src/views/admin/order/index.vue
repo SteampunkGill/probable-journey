@@ -34,13 +34,13 @@
       <div class="tab-item" :class="{ active: activeTab === 'DELIVERING' }" @click="activeTab = 'DELIVERING'">配送中</div>
       <div class="tab-item" :class="{ active: activeTab === 'COMPLETED' }" @click="activeTab = 'COMPLETED'">已完成</div>
       <div class="tab-item" :class="{ active: activeTab === 'REFUNDING' }" @click="activeTab = 'REFUNDING'">退款中</div>
-      <div class="tab-item" :class="{ active: activeTab === 'appeal' }" @click="activeTab = 'appeal'">申诉退款</div>
+      <div class="tab-item" :class="{ active: activeTab === 'refund' }" @click="activeTab = 'refund'">退款管理</div>
       <div class="tab-item" :class="{ active: activeTab === 'complaint' }" @click="activeTab = 'complaint'">投诉建议</div>
     </div>
 
     <div class="table-container card">
       <!-- 待处理/全部订单表格 -->
-      <table v-if="activeTab !== 'complaint' && activeTab !== 'appeal'" class="admin-table">
+      <table v-if="activeTab !== 'complaint' && activeTab !== 'refund' && activeTab !== 'appeal'" class="admin-table">
         <thead>
           <tr>
             <th><input type="checkbox" @change="toggleAll" :checked="isAllSelected" /></th>
@@ -102,6 +102,32 @@
         </tbody>
       </table>
 
+      <!-- 退款管理表格 -->
+      <table v-else-if="activeTab === 'refund'" class="admin-table">
+        <thead>
+          <tr>
+            <th>订单号</th>
+            <th>原因</th>
+            <th>描述</th>
+            <th>状态</th>
+            <th>时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in refunds" :key="r.id">
+            <td>{{ r.orderId }}</td>
+            <td>{{ r.reason }}</td>
+            <td class="text-ellipsis">{{ r.description }}</td>
+            <td>{{ r.status === 'PENDING' ? '待处理' : '已处理' }}</td>
+            <td>{{ formatDate(r.createTime) }}</td>
+            <td class="ops">
+              <button v-if="r.status === 'PENDING'" @click="handleRefund(r)">处理</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
       <!-- 投诉建议表格 -->
       <table v-else class="admin-table">
         <thead>
@@ -120,7 +146,7 @@
             <td>{{ c.type }}</td>
             <td class="text-ellipsis">{{ c.content }}</td>
             <td>{{ c.status }}</td>
-            <td>{{ formatDate(c.createdAt) }}</td>
+            <td>{{ formatDate(c.createdAt || c.createTime) }}</td>
             <td class="ops">
               <button @click="handleComplaint(c)">处理</button>
             </td>
@@ -154,6 +180,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import request from '../../../utils/request'
+import { complaintDB, refundDB } from '../../../utils/db'
 
 const orders = ref([])
 const complaints = ref([])
@@ -206,10 +233,32 @@ const loadOrders = async () => {
 
 const loadComplaints = async () => {
   try {
+    // 优先从 IndexedDB 获取投诉
+    const dbComplaints = await complaintDB.getAll()
+    if (dbComplaints && dbComplaints.length > 0) {
+      complaints.value = dbComplaints
+      return
+    }
     const res = await request.get('/api/admin/complaints')
     complaints.value = res.data || []
   } catch (error) {
     console.error('加载投诉失败:', error)
+  }
+}
+
+const refunds = ref([])
+const loadRefunds = async () => {
+  try {
+    // 优先从 IndexedDB 获取退款
+    const dbRefunds = await refundDB.getAll()
+    if (dbRefunds && dbRefunds.length > 0) {
+      refunds.value = dbRefunds
+      return
+    }
+    const res = await request.get('/api/admin/refunds')
+    refunds.value = res.data || []
+  } catch (error) {
+    console.error('加载退款失败:', error)
   }
 }
 
@@ -225,6 +274,8 @@ const loadAppeals = async () => {
 watch(activeTab, (val) => {
   if (val === 'complaint') {
     loadComplaints()
+  } else if (val === 'refund') {
+    loadRefunds()
   } else if (val === 'appeal') {
     loadAppeals()
   } else {
@@ -315,6 +366,22 @@ const handleAppeal = async (a) => {
     } catch (error) {
       console.error('退款失败:', error)
       alert('退款失败: ' + (error.response?.data?.message || error.message))
+    }
+  }
+}
+
+const handleRefund = async (r) => {
+  if (confirm(`确定要处理订单 ${r.orderId} 的退款申请吗？`)) {
+    try {
+      // DEMO ONLY: 更新 IndexedDB 状态
+      // 转换为普通对象以避免 DataCloneError (Vue Proxy 问题)
+      const refundData = JSON.parse(JSON.stringify(r))
+      refundData.status = 'RESOLVED'
+      await refundDB.add(refundData)
+      alert('处理成功')
+      loadRefunds()
+    } catch (error) {
+      console.error('处理退款失败:', error)
     }
   }
 }
@@ -492,6 +559,55 @@ onMounted(() => {
 .btn-warning { background: #f39c12; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
 .btn-danger { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
 .btn-info { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+
+.status-on {
+  color: #2c9678;
+  font-weight: 700;
+  background: rgba(44, 150, 120, 0.1);
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 2px solid rgba(44, 150, 120, 0.3);
+  display: inline-block;
+}
+
+.status-off {
+  color: #ff6b6b;
+  font-weight: 700;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 107, 107, 0.3);
+  display: inline-block;
+}
+
+.status-making {
+  color: #f39c12;
+  background: rgba(243, 156, 18, 0.1);
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+.status-ready {
+  color: #27ae60;
+  background: rgba(39, 174, 96, 0.1);
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+.status-completed {
+  color: #7f8c8d;
+  background: rgba(127, 140, 141, 0.1);
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+.text-danger {
+  color: #ff6b6b !important;
+  font-weight: 700;
+}
 
 :root {
   --background-color: #f5f0e1;

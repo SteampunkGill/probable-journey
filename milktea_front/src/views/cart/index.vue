@@ -54,7 +54,7 @@
     <!-- 商品信息 -->
     <div class="item-content">
       <img
-        :src="formatImageUrl(item.image || item.product?.mainImageUrl || item.product?.imageUrl)"
+        :src="formatImageUrl(item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl || item.mainImageUrl || item.imageUrl)"
         class="item-image"
         @click="router.push(`/product/${item.id}`)"
       />
@@ -157,7 +157,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
-import { couponApi } from '../../utils/api'
+import { couponApi, promotionApi } from '../../utils/api'
 import { formatImageUrl } from '../../utils/util'
 
 const router = useRouter()
