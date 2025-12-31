@@ -254,8 +254,9 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
-import { homeApi, storeApi, bannerApi, productApi, couponApi, promotionApi, addressApi } from '@/utils/api'
+import { homeApi, storeApi, bannerApi, productApi, couponApi, promotionApi, addressApi, authApi } from '@/utils/api'
 import { getDistance, formatImageUrl } from '@/utils/util'
+import { userDB } from '@/utils/db'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -539,9 +540,25 @@ const goToPromoOrder = (promo) => {
   if (productIds && productIds.length > 0) {
     sessionStorage.setItem('promo_filter_ids', JSON.stringify(productIds))
     sessionStorage.setItem('promo_name', promo.name)
+    sessionStorage.setItem('promo_id', promo.id)
+    
+    // DEMO ONLY: 将当前首页已有的奶茶数据塞入 sessionStorage，供活动页复用，不瞎编
+    const allProducts = [...recommendProducts.value, ...hotProducts.value]
+    // 使用 Map 去重，防止重复显示
+    const uniqueProductsMap = new Map()
+    allProducts.forEach(p => {
+      if (productIds.includes(p.id)) {
+        uniqueProductsMap.set(p.id, p)
+      }
+    })
+    const promoProducts = Array.from(uniqueProductsMap.values())
+    if (promoProducts.length > 0) {
+      sessionStorage.setItem('promo_products_data', JSON.stringify(promoProducts))
+    }
   }
   
-  router.push('/order')
+  // 修改为跳转到专门的活动下单页面
+  router.push('/order/promo')
 }
 
 

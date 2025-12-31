@@ -127,6 +127,13 @@ export const productApi = {
     // DEMO ONLY
     localStorage.removeItem('demo_search_history');
     return Promise.resolve({ code: 200, message: '已清空历史记录' });
+  },
+  
+  // 门店搜索模拟（DEMO ONLY）
+  searchStores: (keyword) => {
+    const stores = JSON.parse(localStorage.getItem('demo_all_stores') || '[]');
+    const filtered = stores.filter(s => s.name.includes(keyword) || (s.address && s.address.includes(keyword)));
+    return Promise.resolve({ code: 200, data: { list: filtered }, message: 'success' });
   }
 }
 
@@ -136,13 +143,7 @@ export const searchApi = {
   getHotKeywords: productApi.getHotKeywords,
   getSearchHistory: productApi.getSearchHistory,
   clearSearchHistory: productApi.clearSearchHistory,
-  // 门店搜索模拟
-  searchStores: (keyword) => {
-    // DEMO ONLY
-    const stores = JSON.parse(localStorage.getItem('demo_all_stores') || '[]');
-    const filtered = stores.filter(s => s.name.includes(keyword) || s.address.includes(keyword));
-    return Promise.resolve({ code: 200, data: { list: filtered }, message: 'success' });
-  }
+  searchStores: productApi.searchStores
 }
 
 // 购物车相关
@@ -537,7 +538,7 @@ export const paymentApi = {
 
 
 // 营销活动相关
-import { promotionDB, pointsDB } from './db.js'
+import { promotionDB, pointsDB, userDB } from './db.js'
 
 export const promotionApi = {
   // 活动列表

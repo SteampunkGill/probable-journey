@@ -34,8 +34,8 @@
         </thead>
         <tbody>
           <tr v-for="m in members" :key="m.id">
-            <td><img :src="m.avatarUrl" class="table-img" /></td>
-            <td>{{ m.nickname }}</td>
+            <td><img :src="formatImageUrl(m.avatarUrl || m.avatar)" class="table-img" /></td>
+            <td>{{ m.nickname || m.username }}</td>
             <td>{{ m.phone }}</td>
             <td>{{ m.levelName }}</td>
             <td>{{ m.points }}</td>
@@ -148,6 +148,8 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { get, post, put, del } from '../../../utils/request'
+import { formatImageUrl } from '../../../utils/util'
+import defaultAvatar from '../../../assets/images/icons/user.png'
 
 const members = ref([])
 const levels = ref([])
@@ -162,13 +164,37 @@ const levelModal = ref({ show: false, member: null, levelId: '' })
 const pointsModal = ref({ show: false, member: null, points: 0, remark: '' })
 
 const loadMembers = async () => {
-  const res = await get('/api/admin/members', query.value)
-  members.value = res.data?.content || []
+  try {
+    const res = await get('/api/admin/members', query.value)
+    let list = []
+    if (res.code === 200) {
+      list = res.data?.content || res.data?.list || res.data || []
+    } else {
+      list = res.content || res.list || res || []
+    }
+    
+    // 纯前端查询过滤逻辑（基于后端返回的真实数据）
+    if (query.value.nickname) {
+      const k = query.value.nickname.toLowerCase()
+      list = list.filter(m =>
+        (m.nickname && m.nickname.toLowerCase().includes(k)) ||
+        (m.phone && m.phone.includes(k)) ||
+        (m.username && m.username.toLowerCase().includes(k))
+      )
+    }
+
+    if (query.value.levelId) {
+      list = list.filter(m => m.memberLevelId == query.value.levelId || m.levelId == query.value.levelId)
+    }
+
+    members.value = list
+  } catch (e) {
+    console.error('加载会员列表失败:', e)
+  }
 }
 
 const loadLevels = async () => {
-  const res = await get('/api/admin/settings') // 假设在系统设置里
-  // 过滤出等级配置
+  // DEMO ONLY: 纯前端等级数据
   levels.value = [
     { id: 1, name: '普通会员' },
     { id: 2, name: '黄金会员' },

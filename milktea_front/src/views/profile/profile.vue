@@ -81,6 +81,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../../store/user'
 import { authApi, commonApi } from '../../utils/api'
 import { formatImageUrl } from '../../utils/util'
+import { userDB } from '../../utils/db'
 import defaultAvatar from '../../assets/images/icons/user.png'
 
 const router = useRouter()

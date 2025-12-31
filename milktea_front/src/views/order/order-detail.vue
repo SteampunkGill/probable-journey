@@ -196,8 +196,10 @@ const loading = ref(true)
 const order = ref(null)
 const statusSteps = ref([])
 const currentStep = ref(0)
+const promoDetails = ref(null)
 
 import { orderApi } from '../../utils/api'
+import { promoOrderDB } from '../../utils/db'
 
 onMounted(() => {
   loadOrderDetail()
@@ -210,6 +212,18 @@ const loadOrderDetail = async () => {
     if (res.code === 200) {
       order.value = res.data
       generateStatusSteps(res.data)
+      
+      // 如果是活动订单，尝试从 IndexedDB 获取打折细节
+      if (order.value.orderNo.startsWith('PROMO')) {
+        try {
+          const details = await promoOrderDB.getDetails(order.value.orderNo)
+          if (details) {
+            promoDetails.value = details
+          }
+        } catch (e) {
+          console.warn('获取活动详情失败:', e)
+        }
+      }
     }
   } catch (error) {
     console.error('加载订单详情失败:', error)

@@ -3,8 +3,8 @@
     <!-- 用户信息区域 -->
     <div class="user-header">
       <div class="user-info" @click="goToUserProfile">
-        <img 
-          :src="userInfo?.avatarUrl || userInfo?.avatar || defaultAvatar" 
+        <img
+          :src="formatImageUrl(userInfo?.avatarUrl || userInfo?.avatar) || defaultAvatar"
           class="user-avatar"
         />
         <div class="user-details">
@@ -121,6 +121,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../store/user'
 import { authApi, memberApi } from '../../utils/api'
+import { formatImageUrl } from '../../utils/util'
 import defaultAvatar from '../../assets/images/icons/user.png'
 
 const router = useRouter()

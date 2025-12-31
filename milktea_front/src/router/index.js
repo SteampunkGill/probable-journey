@@ -86,6 +86,12 @@ const routes = [
     meta: { title: '结算' }
   },
   {
+    path: '/order/promo',
+    name: 'promo-order',
+    component: () => import('../views/order/promo-order.vue'),
+    meta: { title: '活动特惠下单' }
+  },
+  {
     path: '/payment',
     name: 'payment',
     component: () => import('../views/payment/payment.vue'),

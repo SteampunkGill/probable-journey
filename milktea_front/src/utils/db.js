@@ -1,6 +1,6 @@
 // DEMO ONLY: 纯前端 IndexedDB 封装，用于存储促销活动数据
 const DB_NAME = 'milktea_demo_db';
-const DB_VERSION = 6; // 升级版本以确保 refunds 和 complaints store 被创建
+const DB_VERSION = 7; // 升级版本以支持活动订单详情存储
 const STORE_NAME = 'promotions';
 const PRODUCT_STORE = 'products';
 const ORDER_STORE = 'orders';
@@ -9,6 +9,7 @@ const USER_STORE = 'user_info';
 const COUPON_STORE = 'user_coupons';
 const REFUND_STORE = 'refunds';
 const COMPLAINT_STORE = 'complaints';
+const PROMO_DETAILS_STORE = 'promo_order_details';
 
 export const initDB = () => {
   return new Promise((resolve, reject) => {
@@ -39,6 +40,9 @@ export const initDB = () => {
       }
       if (!db.objectStoreNames.contains(COMPLAINT_STORE)) {
         db.createObjectStore(COMPLAINT_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(PROMO_DETAILS_STORE)) {
+        db.createObjectStore(PROMO_DETAILS_STORE, { keyPath: 'orderNo' });
       }
     };
 
@@ -330,6 +334,29 @@ export const promotionDB = {
   }
 };
 
+export const promoOrderDB = {
+  async saveDetails(details) {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([PROMO_DETAILS_STORE], 'readwrite');
+      const store = transaction.objectStore(PROMO_DETAILS_STORE);
+      const request = store.put(details);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  },
+  async getDetails(orderNo) {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([PROMO_DETAILS_STORE], 'readonly');
+      const store = transaction.objectStore(PROMO_DETAILS_STORE);
+      const request = store.get(orderNo);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+};
+
 export const complaintDB = {
   async add(complaint) {
     const db = await initDB();
@@ -375,6 +402,34 @@ export const refundDB = {
       const store = transaction.objectStore(REFUND_STORE);
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result.sort((a, b) => new Date(b.createTime) - new Date(a.createTime)));
+      request.onerror = () => reject(request.error);
+    });
+  }
+};
+
+export const userDB = {
+  async saveUserInfo(userInfo) {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([USER_STORE], 'readwrite');
+      const store = transaction.objectStore(USER_STORE);
+      const data = {
+        userId: userInfo.id || userInfo.userId || 'current_user',
+        ...userInfo,
+        lastUpdated: new Date().toISOString()
+      };
+      const request = store.put(data);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  },
+  async getUserInfo(userId = 'current_user') {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([USER_STORE], 'readonly');
+      const store = transaction.objectStore(USER_STORE);
+      const request = store.get(userId);
+      request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
   }
