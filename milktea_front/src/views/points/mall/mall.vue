@@ -4,12 +4,12 @@
     <div class="mall-header">
       <div class="header-top">
         <div class="header-left">
-          <i class="iconfont icon-left" @click="goBack"></i>
+          <i class="iconfont icon-left" @click="router.back()"></i>
           <span class="header-title">积分商城</span>
         </div>
         <div class="header-right">
-          <i class="iconfont icon-history" @click="viewExchangeRecords"></i>
-          <i class="iconfont icon-info" @click="howToGetPoints"></i>
+          <i class="iconfont icon-history" @click="router.push('/points/mall/exchange-records')"></i>
+          <i class="iconfont icon-info" @click="router.push('/points/help')"></i>
         </div>
       </div>
       
@@ -23,29 +23,23 @@
               <span class="points-unit">积分</span>
             </div>
           </div>
-          <div class="points-right">
-            <span class="exchange-label">可兑换商品</span>
+          <div class="points-right" @click="router.push('/points/mall/list')">
+            <span class="exchange-label">积分明细</span>
           </div>
         </div>
         
         <div class="points-actions">
-          <div class="action-item" @click="signIn">
-            <span class="action-label">今日签到</span>
-            <div class="action-icon">
-              <i class="iconfont icon-check"></i>
-            </div>
+          <div class="action-item" @click="handleSignIn">
+            <span class="action-label">每日签到</span>
+            <div class="action-icon"><i class="iconfont icon-check"></i></div>
           </div>
-          <div class="action-item" @click="viewTasks">
+          <div class="action-item" @click="router.push('/points/tasks')">
             <span class="action-label">积分任务</span>
-            <div class="action-icon">
-              <i class="iconfont icon-gift"></i>
-            </div>
+            <div class="action-icon"><i class="iconfont icon-gift"></i></div>
           </div>
-          <div class="action-item" @click="viewExchangeRecords">
+          <div class="action-item" @click="router.push('/points/mall/exchange-records')">
             <span class="action-label">兑换记录</span>
-            <div class="action-icon">
-              <i class="iconfont icon-list"></i>
-            </div>
+            <div class="action-icon"><i class="iconfont icon-list"></i></div>
           </div>
         </div>
       </div>
@@ -55,11 +49,7 @@
     <div class="search-section">
       <div class="search-box">
         <i class="iconfont icon-search"></i>
-        <input 
-          v-model="searchKeyword"
-          placeholder="搜索积分商品"
-          @input="searchProducts"
-        />
+        <input v-model="searchKeyword" placeholder="搜索积分商品" />
       </div>
     </div>
 
@@ -67,11 +57,11 @@
     <div class="categories-section">
       <div class="categories-scroll">
         <div 
-          v-for="(category, index) in categories"
+          v-for="category in categories"
           :key="category.id"
           class="category-item"
-          :class="{ active: category.active }"
-          @click="selectCategory(index)"
+          :class="{ active: activeCategoryId === category.id }"
+          @click="selectCategory(category.id)"
         >
           {{ category.name }}
         </div>
@@ -82,11 +72,11 @@
     <div class="sort-section">
       <div class="sort-options">
         <div 
-          v-for="(option, index) in sortOptions"
+          v-for="option in sortOptions"
           :key="option.id"
           class="sort-item"
-          :class="{ active: option.active }"
-          @click="selectSort(index)"
+          :class="{ active: activeSortId === option.id }"
+          @click="activeSortId = option.id"
         >
           {{ option.name }}
         </div>
@@ -102,63 +92,50 @@
       
       <div v-else class="products-grid">
         <div 
-          v-for="product in filteredProducts"
+          v-for="product in sortedProducts"
           :key="product.id"
           class="product-card"
-          @click="viewProductDetail(product.id)"
+          @click="router.push(`/points/product/${product.id}`)"
         >
-          <!-- 热门标签 -->
-          <div v-if="product.hot" class="hot-tag">
+          <div v-if="product.isHot" class="hot-tag">
             <i class="iconfont icon-fire"></i>
             <span>热门</span>
           </div>
           
-          <!-- 商品图片 -->
           <div class="product-image">
-            <img :src="product.image || product.imageUrl || '/images/default-product.jpg'" :alt="product.name" />
+            <img :src="product.imageUrl" :alt="product.name" />
           </div>
           
-          <!-- 商品信息 -->
           <div class="product-info">
             <h3 class="product-name">{{ product.name }}</h3>
-            <p class="product-desc">{{ product.description || product.desc }}</p>
+            <p class="product-desc">{{ product.description }}</p>
             
-            <!-- 积分信息 -->
             <div class="product-points">
               <div class="points-display">
-                <span class="current-points">{{ product.points || product.pointCost }}</span>
+                <span class="current-points">{{ product.pointCost }}</span>
                 <span class="points-unit">积分</span>
-                <span v-if="product.originalPoints > (product.points || product.pointCost)" class="original-points">
-                  {{ product.originalPoints }}积分
-                </span>
               </div>
-              
-              <!-- 库存信息 -->
               <div class="stock-info">
-                <span>库存: {{ product.stock }}件</span>
-                <span class="limit-info">{{ product.limitInfo || product.limit }}</span>
+                <span>库存: {{ product.stock }}</span>
+                <span v-if="product.limitQuantity" class="limit-info">限购{{ product.limitQuantity }}件</span>
               </div>
             </div>
             
-            <!-- 兑换按钮 -->
-            <button class="exchange-btn" @click.stop="exchangeProduct(product)">
-              立即兑换
+            <button 
+              class="exchange-btn" 
+              :disabled="points < product.pointCost"
+              @click.stop="handleExchange(product)"
+            >
+              {{ points < product.pointCost ? '积分不足' : '立即兑换' }}
             </button>
           </div>
         </div>
       </div>
       
       <!-- 空状态 -->
-      <div v-if="!loading && filteredProducts.length === 0" class="empty-state">
-        <i class="iconfont icon-gift"></i>
-        <p class="empty-text">暂无商品</p>
-        <p class="empty-hint">换个分类试试吧~</p>
+      <div v-if="!loading && sortedProducts.length === 0" class="empty-state">
+        <p class="empty-text">暂无符合条件的商品</p>
       </div>
-    </div>
-
-    <!-- 底部提示 -->
-    <div class="footer-hint">
-      <p>积分兑换规则：兑换成功后不可退款，优惠券类商品请在有效期内使用</p>
     </div>
   </div>
 </template>
@@ -170,210 +147,143 @@ import { pointsApi, authApi } from '@/utils/api.js'
 
 const router = useRouter()
 
-// 数据
+// 状态
 const points = ref(0)
+const products = ref([])
+const categories = ref([{ id: 'all', name: '全部' }])
+const activeCategoryId = ref('all')
+const activeSortId = ref(1)
 const searchKeyword = ref('')
 const loading = ref(false)
 
-const categories = ref([
-  { id: 'all', name: '全部', active: true }
-])
+const sortOptions = [
+  { id: 1, name: '积分从低到高' },
+  { id: 2, name: '积分从高到低' },
+  { id: 3, name: '最新上架' }
+]
 
-const sortOptions = ref([
-  { id: 1, name: '积分从低到高', active: true },
-  { id: 2, name: '积分从高到低', active: false },
-  { id: 3, name: '最新上架', active: false },
-  { id: 4, name: '热门推荐', active: false }
-])
+/**
+ * 核心逻辑：数据计算
+ */
+const sortedProducts = computed(() => {
+  let list = products.value.filter(p => {
+    const matchSearch = p.name.includes(searchKeyword.value)
+    const matchCategory = activeCategoryId.value === 'all' || p.categoryId === activeCategoryId.value
+    return matchSearch && matchCategory
+  })
 
-const products = ref([])
-
-// 计算属性
-const filteredProducts = computed(() => {
-  let filtered = [...products.value]
+  // 排序逻辑
+  if (activeSortId.value === 1) list.sort((a, b) => a.pointCost - b.pointCost)
+  if (activeSortId.value === 2) list.sort((a, b) => b.pointCost - a.pointCost)
+  if (activeSortId.value === 3) list.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
   
-  // 搜索过滤
-  if (searchKeyword.value) {
-    filtered = filtered.filter(product =>
-      product.name.includes(searchKeyword.value) ||
-      (product.description || product.desc || '').includes(searchKeyword.value)
-    )
-  }
-  
-  // 排序
-  const activeSort = sortOptions.value.find(s => s.active)
-  if (activeSort) {
-    switch (activeSort.name) {
-      case '积分从低到高':
-        filtered.sort((a, b) => (a.points || a.pointCost || 0) - (b.points || b.pointCost || 0))
-        break
-      case '积分从高到低':
-        filtered.sort((a, b) => (b.points || b.pointCost || 0) - (a.points || a.pointCost || 0))
-        break
-      case '最新上架':
-        filtered.sort((a, b) => b.id - a.id)
-        break
-      case '热门推荐':
-        filtered.sort((a, b) => (b.hot ? 1 : 0) - (a.hot ? 1 : 0))
-        break
-    }
-  }
-  
-  return filtered
+  return list
 })
 
-// 方法
-const goBack = () => {
-  router.back()
-}
-
-const viewExchangeRecords = () => {
-  router.push('/points/mall/exchange-records')
-}
-
-const howToGetPoints = () => {
-  alert('如何获取积分：\n1. 每日签到\n2. 消费获得\n3. 完成任务\n4. 邀请好友')
-}
-
-const signIn = async () => {
+/**
+ * 初始化：从后端获取真实数据
+ */
+const initData = async () => {
+  loading.value = true
   try {
-    const res = await pointsApi.signIn()
-    // request.js 拦截器已经处理了 code 校验并返回了 res.data
-    // 如果能走到这里，说明请求成功且 code 为 200
-    if (res !== undefined) {
-      points.value = res
-      // 更新本地存储的用户信息中的积分
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-      userInfo.points = res
-      localStorage.setItem('userInfo', JSON.stringify(userInfo))
-      alert('签到成功！获得10积分')
-    }
+    const [userRes, categoryRes, productRes] = await Promise.all([
+      authApi.getUserProfile(),
+      pointsApi.getPointsCategories(),
+      pointsApi.getPointsProducts(1, 100)
+    ])
+
+    if (userRes) points.value = userRes.points || 0
+    if (categoryRes) categories.value = [{ id: 'all', name: '全部' }, ...categoryRes]
+    if (productRes) products.value = productRes.list || productRes || []
   } catch (error) {
-    console.error('签到失败:', error)
-    alert('签到失败，请稍后重试')
-  }
-}
-
-const viewTasks = () => {
-  alert('查看积分任务')
-}
-
-const searchProducts = () => {
-  // 搜索逻辑已在计算属性中处理
-}
-
-const selectCategory = (index) => {
-  categories.value.forEach((category, i) => {
-    category.active = i === index
-  })
-  loadProducts()
-}
-
-const selectSort = (index) => {
-  sortOptions.value.forEach((option, i) => {
-    option.active = i === index
-  })
-}
-
-const viewProductDetail = (productId) => {
-  alert(`查看商品详情：${productId}`)
-}
-
-const exchangeProduct = async (product) => {
-  const productPoints = product.points || product.pointCost || 0
-  if (points.value < productPoints) {
-    alert(`积分不足！需要${productPoints}积分，当前只有${points.value}积分`)
-    return
-  }
-  
-  if (confirm(`确定要兑换【${product.name}】吗？\n需要${productPoints}积分`)) {
-    try {
-      loading.value = true
-      await pointsApi.exchangeProduct(product.id)
-      // 如果没有抛出异常，说明兑换成功
-      points.value -= productPoints
-      // 更新本地存储的用户信息中的积分
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-      userInfo.points = points.value
-      localStorage.setItem('userInfo', JSON.stringify(userInfo))
-      alert('兑换成功！请到兑换记录中查看')
-      loadProducts()
-    } catch (error) {
-      console.error('兑换失败:', error)
-      // 错误信息已由 request.js 拦截器弹出
-    } finally {
-      loading.value = false
-    }
-  }
-}
-
-const loadProducts = async () => {
-  try {
-    loading.value = true
-    const activeCategory = categories.value.find(c => c.active)
-    const category = activeCategory && activeCategory.id !== 'all' ? activeCategory.id.toUpperCase() : null
-    const data = await pointsApi.getPointsProducts(1, 50, category)
-    if (data) {
-      products.value = data.list || data || []
-    }
-  } catch (error) {
-    console.error('加载积分商品失败:', error)
+    console.error('初始化商城失败:', error)
   } finally {
     loading.value = false
   }
 }
 
-const loadInitialData = async () => {
+/**
+ * 刷新用户积分（任何变更操作后调用，确保数据一致）
+ */
+const refreshPoints = async () => {
+  const profile = await authApi.getUserProfile()
+  if (profile) points.value = profile.points || 0
+}
+
+/**
+ * 业务：处理签到
+ */
+const handleSignIn = async () => {
+  try {
+    await pointsApi.signIn()
+    alert('签到成功')
+    await refreshPoints()
+  } catch (error) {
+    // 拦截器已处理错误提示
+  }
+}
+
+/**
+ * 业务：处理兑换
+ */
+const handleExchange = async (product) => {
+  if (!confirm(`确定消耗 ${product.pointCost} 积分兑换 ${product.name} 吗？`)) return
+  
   try {
     loading.value = true
-    // 获取积分
-    try {
-      const userProfile = await authApi.getUserProfile()
-      if (userProfile) {
-        points.value = userProfile.points || 0
-        // 同步更新本地存储
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-        userInfo.points = points.value
-        localStorage.setItem('userInfo', JSON.stringify(userInfo))
-      }
-    } catch (e) {
-      console.error('获取用户信息失败，使用本地缓存:', e)
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-      points.value = userInfo.points || 0
-    }
-
-    const data = await pointsApi.getPointsCategories()
-    if (data) {
-      const backendCategories = data || []
-      categories.value = [
-        { id: 'all', name: '全部', active: true },
-        ...backendCategories.map(c => ({
-          id: c.type.toLowerCase(),
-          name: c.name,
-          active: false
-        }))
-      ]
-    }
-    
-    await loadProducts()
+    await pointsApi.exchangeProduct(product.id)
+    alert('兑换成功！可在兑换记录中查看')
+    await Promise.all([
+      refreshPoints(),
+      loadProductsByCategoryId(activeCategoryId.value) // 刷新列表获取最新库存
+    ])
   } catch (error) {
-    console.error('加载初始数据失败:', error)
+    console.error('兑换操作失败:', error)
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
-  loadInitialData()
-})
+const selectCategory = (id) => {
+  activeCategoryId.value = id
+  // 如果后端支持按分类查询，这里重新请求接口
+  // pointsApi.getPointsProducts(1, 100, id === 'all' ? null : id)
+}
+
+const loadProductsByCategoryId = async (id) => {
+  const data = await pointsApi.getPointsProducts(1, 100, id === 'all' ? null : id)
+  if (data) products.value = data.list || data || []
+}
+
+onMounted(initData)
 </script>
 
 <style scoped>
 
-  /* ============================================
-  “饮饮茶(SipSipTea)” 积分商城页面样式优化
-  基于奶茶主题设计指南
-  ============================================ */
+.points-mall-page {
+  min-height: 100vh;
+  background: var(--background-color);
+  padding-bottom: 50px;
+}
+.mall-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  padding: 40px 20px 30px;
+  color: white;
+  border-bottom-left-radius: 30px;
+  border-bottom-right-radius: 30px;
+}
+.points-info-card {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  margin-top: 20px;
+}
+/* ... 其余 CSS 保持一致 ... */
+</style>
+
+
+<style scoped>
 
   /* ========== 页面容器 ========== */
 .points-mall-page {

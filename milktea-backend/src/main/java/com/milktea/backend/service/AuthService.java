@@ -1,5 +1,7 @@
 package com.milktea.backend.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.milktea.backend.exception.ServiceException;
 import com.milktea.backend.repository.SystemConfigRepository;
 import com.milktea.backend.repository.UserRepository;
@@ -9,6 +11,7 @@ import com.milktea.milktea_backend.model.entity.VerificationCode;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -22,6 +25,8 @@ public class AuthService {
     private final VerificationCodeRepository verificationCodeRepository;
     private final PasswordEncoder passwordEncoder;
     private final SystemConfigRepository systemConfigRepository;
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AuthService(UserRepository userRepository,
                        VerificationCodeRepository verificationCodeRepository,
@@ -40,19 +45,37 @@ public class AuthService {
     public User wxLogin(String code) {
         // 1. 调用微信API换取openid
         // 从系统配置获取微信配置
-        String wechatConfig = systemConfigRepository.findById("wechat_config")
+        String wechatConfigJson = systemConfigRepository.findById("wechat_config")
                 .map(com.milktea.milktea_backend.model.entity.SystemConfig::getConfigValue)
                 .orElseThrow(() -> new ServiceException("WECHAT_CONFIG_NOT_FOUND", "微信配置未找到"));
         
-        // 实际场景下应使用 RestTemplate 调用微信接口
-        // 这里保留 openid 的生成逻辑，但明确它是基于 code 的真实逻辑占位
-        String openid = "wx_openid_" + code;
+        String openid;
+        try {
+            JsonNode configNode = objectMapper.readTree(wechatConfigJson);
+            String appId = configNode.get("appId").asText();
+            String secret = configNode.get("secret").asText();
+            
+            String url = String.format("https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+                    appId, secret, code);
+            
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode responseNode = objectMapper.readTree(response);
+            
+            if (responseNode.has("errcode") && responseNode.get("errcode").asInt() != 0) {
+                throw new ServiceException("WECHAT_LOGIN_ERROR", responseNode.get("errmsg").asText());
+            }
+            
+            openid = responseNode.get("openid").asText();
+        } catch (Exception e) {
+            if (e instanceof ServiceException) throw (ServiceException) e;
+            throw new ServiceException("WECHAT_API_ERROR", "调用微信接口失败: " + e.getMessage());
+        }
         
         // 2. 查询用户，不存在则创建
         return userRepository.findByWechatOpenid(openid).orElseGet(() -> {
             User newUser = new User();
             newUser.setWechatOpenid(openid);
-            newUser.setUsername("wx_" + openid.substring(0, 8));
+            newUser.setUsername("wx_" + openid.substring(0, Math.min(openid.length(), 12)));
             newUser.setPassword(passwordEncoder.encode("123456")); // 默认密码
             newUser.setRegistrationTime(LocalDateTime.now());
             newUser.setStatus("ACTIVE");

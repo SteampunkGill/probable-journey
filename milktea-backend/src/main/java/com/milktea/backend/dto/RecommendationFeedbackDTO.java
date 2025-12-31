@@ -5,5 +5,5 @@ import lombok.Data;
 @Data
 public class RecommendationFeedbackDTO {
     private Long productId;
-    private String action; // CLICK, PURCHASE, DISLIKE
+    private String action;
 }

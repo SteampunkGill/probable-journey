@@ -13,12 +13,12 @@
           <div class="status-left">
             <h2 class="status-text">{{ order?.statusText }}</h2>
             <p class="status-hint" v-if="order?.deliveryType === 'delivery'">预计 {{ order?.estimatedTime }} 送达</p>
-            <p class="status-hint" v-if="order?.deliveryType === 'pickup' && order?.status === 'processing'">
+            <p class="status-hint" v-if="order?.deliveryType === 'pickup' && order?.status === 'MAKING'">
               预计 {{ order?.estimatedTime }} 可取餐
             </p>
-            <p class="status-hint" v-else-if="order?.deliveryType === 'pickup'">请凭取餐码取餐</p>
+            <p class="status-hint" v-else-if="order?.deliveryType === 'pickup' && order?.status === 'READY'">请凭取餐码取餐</p>
           </div>
-          <div class="status-right" v-if="order?.status === 'processing'">
+          <div class="status-right" v-if="order?.status === 'MAKING'">
             <div class="progress-circle">
               <span class="progress-num">{{ productionProgress }}%</span>
             </div>
@@ -26,7 +26,7 @@
         </div>
 
         <!-- 制作进度条 (仅制作中显示) -->
-        <div class="production-progress-bar" v-if="order?.status === 'processing'">
+        <div class="production-progress-bar" v-if="order?.status === 'MAKING'">
           <div class="progress-track">
             <div class="progress-fill" :style="{ width: productionProgress + '%' }"></div>
           </div>
@@ -53,7 +53,7 @@
       </div>
 
       <!-- 取餐码（自取订单） -->
-      <div class="pickup-section" v-if="order?.deliveryType === 'pickup' &amp;&amp; order?.pickupCode">
+      <div class="pickup-section" v-if="order?.deliveryType === 'pickup' && order?.pickupCode">
         <div class="pickup-card">
           <span class="pickup-label">取餐码</span>
           <h1 class="pickup-code">{{ order.pickupCode }}</h1>
@@ -68,7 +68,7 @@
         </h3>
         
         <!-- 配送地址 -->
-        <div class="address-card" v-if="order?.deliveryType === 'delivery' &amp;&amp; order?.address">
+        <div class="address-card" v-if="order?.deliveryType === 'delivery' && order?.address">
           <div class="address-header">
             <span class="name">{{ order.address.name }}</span>
             <span class="phone">{{ order.address.phone }}</span>
@@ -77,7 +77,7 @@
         </div>
 
         <!-- 自提门店 -->
-        <div class="store-card" v-if="order?.deliveryType === 'pickup' &amp;&amp; order?.store">
+        <div class="store-card" v-if="order?.deliveryType === 'pickup' && order?.store">
           <div class="store-header">
             <span class="store-name">{{ order.store.name }}</span>
             <button class="call-btn" @click="callStore(order.store.phone)">
@@ -95,14 +95,11 @@
         <h3 class="section-title">商品清单</h3>
         <div class="goods-list">
           <div class="goods-item" v-for="item in order?.items" :key="item.id">
-            <img class="goods-image" :src="formatImageUrl(item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl || item.mainImageUrl || item.imageUrl)" />
+            <img class="goods-image" :src="formatImageUrl(item.image)" />
             <div class="goods-info">
               <span class="goods-name">{{ item.name }}</span>
-              <div class="goods-specs" v-if="item.customizations">
-                <span>{{ item.customizations.sweetness }} / {{ item.customizations.temperature }}</span>
-                <span v-if="item.customizations.toppings?.length > 0">
-                  + {{ item.customizations.toppings.length }}种加料
-                </span>
+              <div class="goods-specs" v-if="item.specs">
+                <span>{{ item.specs }}</span>
               </div>
               <div class="goods-bottom">
                 <span class="goods-price">¥{{ item.price }}</span>
@@ -159,13 +156,9 @@
             <span class="label">包装费</span>
             <span class="value">¥{{ order.packagingFee }}</span>
           </div>
-          <div class="amount-item discount" v-if="order?.couponDiscount > 0">
-            <span class="label">优惠券优惠</span>
-            <span class="value">-¥{{ order.couponDiscount }}</span>
-          </div>
-          <div class="amount-item discount" v-if="order?.pointsDiscount > 0">
-            <span class="label">积分抵扣</span>
-            <span class="value">-¥{{ order.pointsDiscount }}</span>
+          <div class="amount-item discount" v-if="order?.discountAmount > 0">
+            <span class="label">优惠金额</span>
+            <span class="value">-¥{{ order.discountAmount }}</span>
           </div>
           <div class="amount-item total">
             <span class="label">实付款</span>
@@ -177,25 +170,21 @@
 
     <!-- 底部操作栏 -->
     <div class="footer" v-if="!loading">
-      <template v-if="order?.canPay">
+      <template v-if="order?.status === 'PENDING_PAYMENT'">
         <button class="footer-btn secondary" @click="cancelOrder">取消订单</button>
         <button class="footer-btn primary" @click="payOrder">立即支付</button>
       </template>
-      <template v-else-if="order?.canRemind">
+      <template v-else-if="order?.status === 'MAKING' || order?.status === 'PAID'">
         <button class="footer-btn secondary" @click="contactService">联系客服</button>
-        <button
-          class="footer-btn primary"
-          :disabled="isReminded"
-          @click="remindOrder"
-        >
+        <button class="footer-btn primary" :disabled="isReminded" @click="remindOrder">
           {{ isReminded ? `已催单 (${remindCountdown}s)` : '催单' }}
         </button>
       </template>
-      <template v-else-if="order?.canConfirm">
+      <template v-else-if="order?.status === 'DELIVERING' || order?.status === 'READY'">
         <button class="footer-btn secondary" @click="contactService">联系客服</button>
         <button class="footer-btn primary" @click="confirmOrder">确认收货</button>
       </template>
-      <template v-else-if="order?.canReview">
+      <template v-else-if="order?.status === 'COMPLETED'">
         <button class="footer-btn secondary" @click="applyRefund">申请退款</button>
         <button class="footer-btn primary" @click="reviewOrder">去评价</button>
       </template>
@@ -216,112 +205,162 @@ import { formatImageUrl } from '../../utils/util'
 const router = useRouter()
 const route = useRoute()
 
+// 状态定义
 const order = ref(null)
 const loading = ref(true)
 const statusSteps = ref([])
 const currentStep = ref(0)
+const productionProgress = ref(0) // 制作进度（通常由后端返回或基于状态）
+const isReminded = ref(false)
+const remindCountdown = ref(0)
 
 onMounted(() => {
   loadOrderDetail()
 })
 
+/**
+ * 加载订单详情
+ */
 const loadOrderDetail = async () => {
   loading.value = true
   try {
     const res = await orderApi.getOrderDetail(route.params.id)
     if (res.code === 200) {
       const data = res.data
-      // 状态映射逻辑
+      
+      // 1. 状态映射逻辑（纯前端UI展示用）
       const statusMap = {
         'PENDING_PAYMENT': { text: '待支付', step: 0 },
         'PAID': { text: '待接单', step: 1 },
         'MAKING': { text: '制作中', step: 2 },
         'READY': { text: '待取餐', step: 3 },
         'DELIVERING': { text: '配送中', step: 3 },
-        'DELIVERED': { text: '已送达', step: 3 },
         'COMPLETED': { text: '已完成', step: 4 },
-        'FINISHED': { text: '已完成', step: 4 },
-        'REVIEWED': { text: '已评价', step: 4 },
         'CANCELLED': { text: '已取消', step: 0 },
-        'REFUNDING': { text: '退款中', step: 0 },
         'REFUNDED': { text: '已退款', step: 0 }
       }
       
-      const s = data.status ? data.status.toUpperCase() : ''
-      const currentStatus = statusMap[s] || { text: data.status, step: 0 }
+      const s = data.status || 'PENDING_PAYMENT'
+      const config = statusMap[s] || { text: '未知状态', step: 0 }
       
+      // 2. 数据标准化处理
       order.value = {
         ...data,
-        statusText: currentStatus.text,
+        statusText: config.text,
         paymentMethodText: data.payMethod === 'BALANCE' ? '余额支付' : '在线支付',
-        createTime: data.orderTime || data.createdAt,
         items: data.orderItems?.map(item => ({
-          ...item,
+          id: item.id,
           name: item.productName,
-          image: item.productImage
-        }))
+          image: item.productImage,
+          price: item.price,
+          quantity: item.quantity,
+          specs: item.specs || ''
+        })) || []
       }
 
+      // 3. 步骤轴赋值
       statusSteps.value = [
-        { key: 'PENDING_PAYMENT', title: '订单已提交', time: data.createdAt },
-        { key: 'PAID', title: '支付成功', time: data.payTime },
-        { key: 'MAKING', title: '商家制作中', time: '' },
-        { key: 'READY', title: '已备餐', time: data.actualReadyTime },
-        { key: 'COMPLETED', title: '已完成', time: '' }
+        { key: 'SUBMIT', title: '已下单', time: data.createdAt },
+        { key: 'PAID', title: '已支付', time: data.payTime },
+        { key: 'MAKING', title: '制作中', time: data.makeTime },
+        { key: 'DELIVERY', title: data.deliveryType === 'pickup' ? '可取餐' : '配送中', time: data.deliveryTime },
+        { key: 'COMPLETED', title: '已完成', time: data.finishTime }
       ]
-      currentStep.value = currentStatus.step
+      currentStep.value = config.step
+      
+      // 4. 进度条逻辑 (如果是制作中，从后端字段读取进度，否则默认 0 或 100)
+      productionProgress.value = data.productionProgress || (config.step > 2 ? 100 : 0)
+
+    } else {
+      alert(res.message || '订单获取失败')
     }
   } catch (error) {
-    console.error('加载订单详情失败:', error)
+    console.error('API Error:', error)
   } finally {
     loading.value = false
   }
 }
 
+// 事件处理
 const copyText = (text) => {
-  navigator.clipboard.writeText(text)
-  alert('已复制')
+  if (!text) return
+  navigator.clipboard.writeText(text).then(() => alert('已复制到剪贴板'))
 }
 
 const callStore = (phone) => {
-  alert('拨打电话：' + phone)
+  window.location.href = `tel:${phone}`
 }
 
-const cancelOrder = () => {
-  if (confirm('确定要取消该订单吗？')) {
-    alert('订单已取消')
-    router.back()
+const cancelOrder = async () => {
+  if (!confirm('确定要取消该订单吗？')) return
+  try {
+    const res = await orderApi.cancelOrder(order.value.id)
+    if (res.code === 200) {
+      alert('订单已取消')
+      loadOrderDetail()
+    }
+  } catch (e) {
+    alert('取消请求失败')
   }
 }
 
 const payOrder = () => {
-  router.push({ path: '/payment', query: { orderId: order.value.id } })
+  router.push({ 
+    path: '/payment', 
+    query: { orderId: order.value.id, amount: order.value.totalAmount } 
+  })
 }
 
-const remindOrder = () => {
-  alert('已提醒商家尽快制作')
-}
-
-const confirmOrder = () => {
-  if (confirm('确认已收到商品吗？')) {
-    alert('已确认收货')
-    loadOrderDetail()
+const remindOrder = async () => {
+  try {
+    const res = await orderApi.remindOrder(order.value.id)
+    if (res.code === 200) {
+      alert('已提醒商家')
+      isReminded.value = true
+      remindCountdown.value = 60
+      const timer = setInterval(() => {
+        remindCountdown.value--
+        if (remindCountdown.value <= 0) {
+          isReminded.value = false
+          clearInterval(timer)
+        }
+      }, 1000)
+    }
+  } catch (e) {
+    alert('操作失败')
   }
 }
 
-const reorder = () => {
-  alert('已添加到购物车')
-  router.push('/cart')
+const confirmOrder = async () => {
+  try {
+    const res = await orderApi.confirmOrder(order.value.id)
+    if (res.code === 200) {
+      alert('确认收货成功')
+      loadOrderDetail()
+    }
+  } catch (e) {
+    alert('操作失败')
+  }
+}
+
+const applyRefund = () => {
+  router.push({ path: '/refund', query: { orderId: order.value.id } })
 }
 
 const reviewOrder = () => {
   router.push(`/review/${order.value.id}`)
 }
 
+const reorder = () => {
+  // 简单逻辑：跳转首页重新选购
+  router.push('/')
+}
+
 const contactService = () => {
-  alert('联系客服：400-123-4567')
+  alert('客服电话：400-123-4567')
 }
 </script>
+
 <style scoped>
 .order-detail-page {
   min-height: 100vh;

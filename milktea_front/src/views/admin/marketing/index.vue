@@ -211,7 +211,7 @@
             <option value="SECOND_HALF">第二杯半价</option>
             <option value="LIMITED_DISCOUNT">限时折扣</option>
             <option value="FLASH_SALE">限时秒杀</option>
-            <option value="PROMOTION_DISCOUNT">指定商品折扣 (IndexedDB)</option>
+            <option value="PROMOTION_DISCOUNT">指定商品折扣</option>
           </select>
         </div>
         <div class="form-item">
@@ -435,7 +435,6 @@
 import { ref, onMounted, watch } from 'vue'
 import { get, post, put, del, uploadFile } from '../../../utils/request'
 import { promotionApi } from '../../../utils/api'
-import { complaintDB, refundDB } from '../../../utils/db'
 
 const activeTab = ref('activity')
 const activities = ref([])

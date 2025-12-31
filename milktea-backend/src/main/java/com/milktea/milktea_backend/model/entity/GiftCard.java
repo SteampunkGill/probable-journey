@@ -34,7 +34,7 @@ public class GiftCard {
     private java.math.BigDecimal balance;
 
     @Column(name = "status", length = 20, nullable = false)
-    private String status; // UNUSED, ACTIVE, EXPIRED, USED
+    private String status;
 
     @Column(name = "expiry_time")
     private LocalDateTime expiryTime;

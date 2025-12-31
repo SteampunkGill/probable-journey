@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class OrderAlertDTO {
     private Long orderId;
     private String orderNo;
-    private String type; // "TIMEOUT", "REFUND", "CANCELLED"
+    private String type;
     private String message;
     private LocalDateTime alertTime;
 }

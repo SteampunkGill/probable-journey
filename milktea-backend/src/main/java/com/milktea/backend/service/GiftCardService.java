@@ -33,7 +33,7 @@ public class GiftCardService {
 
         GiftCard giftCard = GiftCard.builder()
                 .cardNo(cardNo)
-                .cardCode(cardCode) // 实际项目中建议加密存储
+                .cardCode(cardCode)
                 .faceValue(faceValue)
                 .balance(faceValue)
                 .status("UNUSED")

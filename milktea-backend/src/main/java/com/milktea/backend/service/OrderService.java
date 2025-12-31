@@ -1,5 +1,9 @@
 package com.milktea.backend.service;
 
+import com.alipay.api.AlipayClient;
+import com.alipay.api.request.AlipayTradePagePayRequest;
+import com.alipay.api.response.AlipayTradePagePayResponse;
+import com.milktea.backend.config.AlipayConfig;
 import com.milktea.backend.dto.*;
 import com.milktea.backend.exception.ServiceException;
 import com.milktea.backend.repository.*;
@@ -578,6 +582,10 @@ public class OrderService {
         complaintRepository.save(complaint);
     }
 
+    public List<com.milktea.milktea_backend.model.entity.Complaint> getUserComplaints(Long userId) {
+        return complaintRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
     /**
      * 发起支付
      */
@@ -586,8 +594,6 @@ public class OrderService {
                 .orElseThrow(() -> new ServiceException("ORDER_NOT_FOUND", "订单不存在"));
         
         if ("ALIPAY".equalsIgnoreCase(method)) {
-            // 模拟支付宝沙箱支付链接
-            // 在实际项目中，这里会调用支付宝SDK生成支付表单
             return "https://openapi.alipaydev.com/gateway.do?app_id=2021000117650001&method=alipay.trade.page.pay&out_trade_no="
                     + orderNo + "&total_amount=" + order.getActualAmount() + "&subject=奶茶订单支付";
         }

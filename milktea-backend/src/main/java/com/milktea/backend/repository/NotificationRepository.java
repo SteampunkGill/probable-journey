@@ -6,5 +6,5 @@ import com.milktea.milktea_backend.model.entity.Notification;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
-    // 如果需要自定义查询，可以在这里添加
+
 }

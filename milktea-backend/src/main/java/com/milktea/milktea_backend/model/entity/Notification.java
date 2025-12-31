@@ -26,7 +26,7 @@ public class Notification {
     private String content;
 
     @Column(name = "type", length = 20)
-    private String type; // SYSTEM, ORDER, PROMOTION
+    private String type;
 
     @Column(name = "user_id")
     private Long userId;
@@ -42,7 +42,7 @@ public class Notification {
     private LocalDateTime createdAt;
 
     @Column(name = "target_type", length = 20)
-    private String targetType; // ALL, MEMBER_LEVEL, INDIVIDUAL
+    private String targetType;
 
     @Column(name = "target_value", length = 100)
     private String targetValue;
@@ -51,13 +51,13 @@ public class Notification {
     private LocalDateTime sentTime;
 
     @Column(name = "status", length = 20)
-    private String status; // SENT, PENDING
+    private String status;
 
     @Column(name = "push_type", length = 20)
-    private String pushType; // MARKETING, ACTIVITY
+    private String pushType;
 
     @Column(name = "trigger_type", length = 20)
-    private String triggerType; // IMMEDIATE, SCHEDULED, BEHAVIOR_TRIGGER
+    private String triggerType;
 
     @Column(name = "trigger_condition")
     private String triggerCondition;

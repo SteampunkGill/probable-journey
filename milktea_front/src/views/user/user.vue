@@ -131,8 +131,7 @@ const userInfo = computed(() => userStore.userInfo)
 const assets = ref([
   { id: 1, type: 'balance', name: '余额', icon: 'icon-wallet', value: '0.00', bgColor: '#36CFC9' },
   { id: 2, type: 'coupon', name: '优惠券', icon: 'icon-coupon', value: '0', bgColor: '#FF6B6B' },
-  { id: 3, type: 'points', name: '积分', icon: 'icon-points', value: '0', bgColor: '#FFA940' },
-  { id: 4, type: 'gift', name: '礼品卡', icon: 'icon-gift', value: '0', bgColor: '#73D13D' }
+  { id: 3, type: 'points', name: '积分', icon: 'icon-points', value: '0', bgColor: '#FFA940' }
 ])
 
 const functions = ref([

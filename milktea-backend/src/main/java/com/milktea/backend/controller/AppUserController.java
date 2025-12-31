@@ -186,6 +186,22 @@ public class AppUserController {
         return ApiResponse.success(Map.of("balance", user.getBalance() != null ? user.getBalance() : 0.00));
     }
 
+    @PostMapping("/user/recharge")
+    public ApiResponse<User> recharge(@RequestBody Map<String, Object> body) {
+        Object amountObj = body.get("amount");
+        if (amountObj == null) {
+            throw new com.milktea.backend.exception.ServiceException("AMOUNT_REQUIRED", "充值金额不能为空");
+        }
+        java.math.BigDecimal amount = new java.math.BigDecimal(amountObj.toString());
+        return ApiResponse.success(userService.recharge(amount));
+    }
+
+    @GetMapping("/user/transactions")
+    public ApiResponse<List<com.milktea.milktea_backend.model.entity.WalletTransaction>> getTransactions() {
+        Long userId = userService.getCurrentUser().getId();
+        return ApiResponse.success(userService.getWalletTransactions(userId));
+    }
+
 
     @GetMapping("/address/list")
     public ApiResponse<List<com.milktea.milktea_backend.model.entity.UserAddress>> getAddressList() {

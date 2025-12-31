@@ -32,7 +32,7 @@ public class CommonController {
             throw new com.milktea.backend.exception.ServiceException("INVALID_FILE_TYPE", "仅支持图片上传");
         }
 
-        // 2. 严格的大小限制 (例如 2MB)
+        // 2. 严格的大小限制
         if (file.getSize() > 2 * 1024 * 1024) {
             throw new com.milktea.backend.exception.ServiceException("FILE_TOO_LARGE", "图片大小不能超过2MB");
         }

@@ -1,8 +1,5 @@
 package com.milktea.backend.exception;
 
-/**
- * 服务层异常
- */
 public class ServiceException extends RuntimeException {
     
     private final String errorCode;

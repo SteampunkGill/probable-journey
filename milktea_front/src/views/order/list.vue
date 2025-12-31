@@ -15,11 +15,11 @@
 
     <!-- 订单列表 -->
     <div class="orders" v-if="displayOrders.length > 0">
-      <div class="order-item" v-for="item in displayOrders" :key="item.id" @click="goToOrderDetail(item.id)">
+      <div class="order-item" v-for="item in displayOrders" :key="item.id" @click="goToOrderDetail(item.orderNo)">
         <!-- 订单头部 -->
         <div class="order-header">
           <span class="order-no">订单号：{{ item.orderNo }}</span>
-          <span class="order-status" :class="item.status?.toUpperCase()">{{ getStatusText(item.status) }}</span>
+          <span class="order-status" :class="item.status">{{ getStatusText(item.status) }}</span>
         </div>
 
         <!-- 订单进度条 -->
@@ -51,12 +51,12 @@
           </div>
         </div>
 
-        <!-- 商品列表 -->
+        <!-- 商品列表 (统一使用 orderItems 字段) -->
         <div class="goods-list">
-          <div class="goods-item" v-for="goods in (item.orderItems || item.items)" :key="goods.id">
-            <img class="goods-image" :src="formatImageUrl(goods.image || goods.productImage || goods.product?.mainImageUrl || goods.product?.imageUrl || goods.mainImageUrl || goods.imageUrl)" />
+          <div class="goods-item" v-for="goods in item.orderItems" :key="goods.id">
+            <img class="goods-image" :src="formatImageUrl(goods.productImage)" />
             <div class="goods-info">
-              <span class="goods-name">{{ goods.productName || goods.name }}</span>
+              <span class="goods-name">{{ goods.productName }}</span>
               <div class="goods-bottom">
                 <span class="goods-price">¥{{ goods.price }}</span>
                 <span class="goods-quantity">×{{ goods.quantity }}</span>
@@ -65,11 +65,11 @@
           </div>
         </div>
 
-        <!-- 订单信息 -->
+        <!-- 订单信息 (统一使用 totalAmount 字段) -->
         <div class="order-info">
           <div class="info-row">
             <span class="label">下单时间</span>
-            <span class="value">{{ item.orderTime }}</span>
+            <span class="value">{{ item.createTime }}</span>
           </div>
           <div class="info-row" v-if="item.pickupCode">
             <span class="label">取餐码</span>
@@ -77,34 +77,30 @@
           </div>
           <div class="info-row total">
             <span class="label">实付款</span>
-            <span class="amount">¥{{ item.payAmount || item.actualAmount || item.totalAmount }}</span>
+            <span class="amount">¥{{ item.totalAmount }}</span>
           </div>
         </div>
 
         <!-- 操作按钮 -->
         <div class="order-actions">
-          <!-- 待支付 -->
           <template v-if="item.status === 'PENDING_PAYMENT'">
-            <button class="action-btn secondary" @click.stop="cancelOrder(item.id)">取消订单</button>
-            <button class="action-btn primary" @click.stop="payOrder(item.id)">立即付款</button>
+            <button class="action-btn secondary" @click.stop="cancelOrder(item.orderNo)">取消订单</button>
+            <button class="action-btn primary" @click.stop="payOrder(item.orderNo)">立即付款</button>
           </template>
 
-          <!-- 制作中 -->
           <template v-else-if="item.status === 'MAKING'">
             <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
-            <button class="action-btn primary" @click.stop="remindOrder(item.id)">催单</button>
+            <button class="action-btn primary" @click.stop="remindOrder(item.orderNo)">催单</button>
           </template>
 
-          <!-- 待取餐/待收货 -->
-          <template v-else-if="item.status === 'READY' || item.status === 'DELIVERING' || item.status === 'DELIVERED'">
+          <template v-else-if="['READY', 'DELIVERING'].includes(item.status)">
             <button class="action-btn secondary" @click.stop="contactService">联系客服</button>
-            <button class="action-btn primary" @click.stop="confirmOrder(item.orderNo || item.id)">立即取餐</button>
+            <button class="action-btn primary" @click.stop="confirmOrder(item.orderNo)">确认收到</button>
           </template>
 
-          <!-- 已完成 -->
-          <template v-else-if="item.status === 'COMPLETED' || item.status === 'FINISHED' || item.status === 'REVIEWED'">
+          <template v-else-if="['COMPLETED', 'FINISHED'].includes(item.status)">
             <button class="action-btn secondary" @click.stop="reorder(item)">再来一单</button>
-            <button class="action-btn primary" v-if="item.status !== 'REVIEWED' && (item.canReview || !item.isCommented)" @click.stop="reviewOrder(item.orderNo || item.id)">立即评价</button>
+            <button class="action-btn primary" @click.stop="reviewOrder(item.orderNo)">立即评价</button>
           </template>
         </div>
       </div>
@@ -113,7 +109,7 @@
     <!-- 空状态 -->
     <div class="empty-state" v-else-if="!loading">
       <div class="empty-icon">📦</div>
-      <p class="empty-text">暂无订单</p>
+      <p class="empty-text">暂无相关订单</p>
       <button class="go-shopping-btn" @click="goToIndex">去逛逛</button>
     </div>
 
@@ -128,6 +124,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCartStore } from '@/store/cart'
+import { orderApi } from '@/utils/api'
 import { formatImageUrl } from '@/utils/util'
 
 const router = useRouter()
@@ -137,40 +134,42 @@ const cartStore = useCartStore()
 const tabs = [
   { key: 'all', name: '全部' },
   { key: 'PENDING_PAYMENT', name: '待支付' },
-  { key: 'PAID', name: '待接单' },
   { key: 'MAKING', name: '制作中' },
   { key: 'READY', name: '待取餐' },
-  { key: 'DELIVERING', name: '配送中' },
-  { key: 'COMPLETED', name: '已完成' },
-  { key: 'REFUNDING', name: '退款中' },
-  { key: 'CANCELLED', name: '已取消' }
+  { key: 'COMPLETED', name: '已完成' }
 ]
-const activeTab = ref('all')
 
-// 兼容旧的 query 参数，并转换为大写
-onMounted(() => {
-  const queryStatus = route.query.status
-  if (queryStatus) {
-    const upperStatus = queryStatus.toUpperCase()
-    // 检查是否在有效标签中
-    if (tabs.find(t => t.key === upperStatus)) {
-      activeTab.value = upperStatus
-    } else if (upperStatus === 'PENDING') {
-      activeTab.value = 'PENDING_PAYMENT'
-    } else if (upperStatus === 'PROCESSING') {
-      activeTab.value = 'MAKING'
-    } else if (upperStatus === 'COMPLETED') {
-      activeTab.value = 'COMPLETED'
-    }
-  }
-  loadOrders()
-})
+const activeTab = ref('all')
 const orders = ref([])
 const loading = ref(false)
 
-const displayOrders = computed(() => {
-  return orders.value
+const displayOrders = computed(() => orders.value)
+
+onMounted(() => {
+  // 处理从其他页面跳转带过来的状态参数
+  const queryStatus = route.query.status
+  if (queryStatus && tabs.some(t => t.key === queryStatus)) {
+    activeTab.value = queryStatus
+  }
+  loadOrders()
 })
+
+const loadOrders = async () => {
+  loading.value = true
+  try {
+    const params = {
+      status: activeTab.value === 'all' ? '' : activeTab.value
+    }
+    const res = await orderApi.getOrderList(params)
+    if (res.code === 200) {
+      orders.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载订单列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
 const switchTab = (key) => {
   activeTab.value = key
@@ -187,129 +186,66 @@ const getStatusText = (status) => {
     'DELIVERED': '已送达',
     'COMPLETED': '已完成',
     'FINISHED': '已完成',
-    'REFUNDING': '退款中',
-    'REFUNDED': '已退款',
     'CANCELLED': '已取消',
     'REVIEWED': '已评价'
   }
   return statusMap[status] || status
 }
 
-import { orderApi } from '@/utils/api'
-
-const loadOrders = async () => {
-  loading.value = true
-  try {
-    const params = {
-      status: activeTab.value === 'all' ? '' : activeTab.value
-    }
-    
-    console.log('正在请求订单列表, 参数:', params)
-    const res = await orderApi.getOrderList(params)
-    console.log('订单列表原始响应:', res)
-    
-    if (res.code === 200 || res.status === 'success') {
-      // 兼容后端返回的各种数据结构
-      let data = res.data
-      
-      // 如果 res 本身就是数组（虽然 request.js 做了处理，但这里做二次防御）
-      if (Array.isArray(res)) {
-        data = res
-      }
-      
-      if (Array.isArray(data)) {
-        orders.value = data
-      } else if (data && Array.isArray(data.list)) {
-        orders.value = data.list
-      } else if (data && typeof data === 'object') {
-        // 尝试寻找对象中的数组字段
-        const arrayField = Object.values(data).find(val => Array.isArray(val))
-        orders.value = arrayField || []
-      } else {
-        orders.value = []
-      }
-      console.log('处理后的订单列表数据:', JSON.parse(JSON.stringify(orders.value)))
-    }
-  } catch (error) {
-    console.error('加载订单列表失败:', error)
-  } finally {
-    loading.value = false
-  }
+const goToOrderDetail = (orderNo) => {
+  router.push(`/order-detail/${orderNo}`)
 }
 
-const goToOrderDetail = (id) => {
-  router.push(`/order-detail/${id}`)
+const payOrder = (orderNo) => {
+  router.push({ path: '/payment', query: { orderNo } })
 }
 
-const payOrder = (id) => {
-  router.push({ path: '/payment', query: { orderId: id } })
-}
-
-const cancelOrder = async (id) => {
+const cancelOrder = async (orderNo) => {
   if (confirm('确定要取消该订单吗？')) {
-    try {
-      const res = await orderApi.cancelOrder(id)
-      if (res.code === 200) {
-        alert('订单已取消')
-        loadOrders()
-      } else {
-        alert(res.message || '取消失败')
-      }
-    } catch (error) {
-      console.error('取消订单失败:', error)
-    }
-  }
-}
-
-const remindOrder = async (id) => {
-  try {
-    const res = await orderApi.remindOrder(id)
+    const res = await orderApi.cancelOrder(orderNo)
     if (res.code === 200) {
-      alert(res.data?.message || '已提醒商家尽快制作')
-    } else {
-      alert(res.message || '催单失败')
+      alert('订单已取消')
+      loadOrders()
     }
-  } catch (error) {
-    console.error('催单失败:', error)
   }
 }
 
-const reviewOrder = (id) => {
-  router.push(`/review/${id}`)
+const remindOrder = async (orderNo) => {
+  const res = await orderApi.remindOrder(orderNo)
+  if (res.code === 200) {
+    alert('已提醒商家尽快制作')
+  }
 }
 
 const confirmOrder = async (orderNo) => {
-  if (confirm('确认已取餐/收到商品吗？')) {
-    try {
-      const res = await orderApi.confirmOrder(orderNo)
-      if (res.code === 200) {
-        alert('操作成功')
-        loadOrders()
-      } else {
-        alert(res.message || '操作失败')
-      }
-    } catch (error) {
-      console.error('确认订单失败:', error)
+  if (confirm('确认已收到/取走商品吗？')) {
+    const res = await orderApi.confirmOrder(orderNo)
+    if (res.code === 200) {
+      loadOrders()
     }
   }
 }
 
 const reorder = (order) => {
-  order.items.forEach(item => {
+  order.orderItems.forEach(item => {
     cartStore.addItem({
-      id: item.id,
-      name: item.name,
-      image: item.image,
+      productId: item.productId,
+      name: item.productName,
+      image: item.productImage,
       price: item.price,
-      quantity: item.quantity
+      quantity: item.quantity,
+      customizations: item.customizations
     })
   })
-  alert('已添加到购物车')
   router.push('/cart')
 }
 
+const reviewOrder = (orderNo) => {
+  router.push(`/review/${orderNo}`)
+}
+
 const contactService = () => {
-  alert('联系电话：400-123-4567')
+  window.location.href = 'tel:4001234567'
 }
 
 const goToIndex = () => {
@@ -323,10 +259,8 @@ const getProgressWidth = (status) => {
     'MAKING': '60%',
     'READY': '80%',
     'DELIVERING': '85%',
-    'DELIVERED': '90%',
     'COMPLETED': '100%',
-    'FINISHED': '100%',
-    'REVIEWED': '100%'
+    'FINISHED': '100%'
   }
   return statusMap[status] || '0%'
 }
@@ -338,13 +272,10 @@ const isStepActive = (status, step) => {
     'MAKING': 3,
     'READY': 4,
     'DELIVERING': 4,
-    'DELIVERED': 4,
     'COMPLETED': 5,
-    'FINISHED': 5,
-    'REVIEWED': 5
+    'FINISHED': 5
   }
-  const currentLevel = statusLevel[status] || 0
-  return currentLevel >= step
+  return (statusLevel[status] || 0) >= step
 }
 </script>
 

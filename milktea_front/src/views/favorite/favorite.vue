@@ -1,6 +1,6 @@
 <template>
   <div class="favorite-page">
-    <!-- 顶部操作栏 -->
+    <!-- 顶部操作栏：仅在有数据或加载中时显示 -->
     <div class="top-bar" v-if="favoriteList.length > 0 || loading">
       <span class="count-text">共{{ total }}件收藏</span>
       <div class="actions">
@@ -19,8 +19,12 @@
         :key="item.id"
         @click="onProductTap(item.product.id)"
       >
-        <!-- 左侧图片：统一使用 formatImageUrl 处理图片路径 -->
-        <img class="product-image" :src="formatImageUrl(item.product.image || item.product.productImage || item.product.mainImageUrl || item.product.imageUrl) || defaultImage" />
+        <!-- 左侧图片：直接使用 API 返回的 image 字段 -->
+        <img 
+          class="product-image" 
+          :src="formatImageUrl(item.product.image) || defaultImage" 
+          :alt="item.product.name"
+        />
         
         <!-- 中间信息 -->
         <div class="product-info">
@@ -47,7 +51,7 @@
         </div>
       </div>
 
-      <!-- 加载更多 -->
+      <!-- 分页加载控制 -->
       <div class="load-more" v-if="hasMore" @click="loadMore">
         {{ loading ? '加载中...' : '点击加载更多' }}
       </div>
@@ -56,17 +60,17 @@
       </div>
     </div>
 
-    <!-- 空状态 -->
-    <div class="empty-state" v-if="favoriteList.length === 0 && !loading">
+    <!-- 空状态：仅在加载完成且确实没数据时显示 -->
+    <div class="empty-state" v-if="!loading && favoriteList.length === 0">
       <div class="empty-icon">❤️</div>
       <p class="empty-text">还没有收藏任何商品哦~</p>
-      <button class="go-shopping-btn" @click="goToOrder">去逛逛</button>
+      <button class="go-shopping-btn" @click="goToHome">去逛逛</button>
     </div>
 
-    <!-- 加载状态 -->
+    <!-- 初次进入的加载状态 -->
     <div class="loading-state" v-if="loading && favoriteList.length === 0">
       <div class="loading-spinner"></div>
-      <p>加载中...</p>
+      <p>正在获取收藏列表...</p>
     </div>
   </div>
 </template>
@@ -79,6 +83,7 @@ import { formatImageUrl } from '@/utils/util'
 
 const router = useRouter()
 
+// 状态管理
 const favoriteList = ref([])
 const loading = ref(false)
 const isEditMode = ref(false)
@@ -86,17 +91,14 @@ const page = ref(1)
 const size = ref(10)
 const total = ref(0)
 const hasMore = ref(false)
+
+// 占位图
 const defaultImage = 'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=400'
 
-onMounted(() => {
-  const token = localStorage.getItem('token')
-  if (token && token !== 'undefined' && token !== 'null') {
-    loadFavorites()
-  } else {
-    loading.value = false
-  }
-})
-
+/**
+ * 核心逻辑：从 API 加载数据
+ * @param {Boolean} isLoadMore 是否为翻页加载
+ */
 const loadFavorites = async (isLoadMore = false) => {
   if (loading.value) return
   
@@ -106,25 +108,35 @@ const loadFavorites = async (isLoadMore = false) => {
       page: page.value,
       size: size.value
     }
+    
+    // 发起真实网络请求
     const res = await favoriteApi.getFavorites(params)
-    const pageData = res.data || res
-    if (pageData && pageData.content) {
+    
+    if (res.code === 200) {
+      const pageData = res.data
+      
       if (isLoadMore) {
         favoriteList.value = [...favoriteList.value, ...pageData.content]
       } else {
         favoriteList.value = pageData.content
       }
-      total.value = pageData.totalElements || pageData.total || 0
+      
+      total.value = pageData.totalElements || 0
       hasMore.value = !pageData.last
     }
   } catch (error) {
-    console.error('加载收藏失败:', error)
-    alert('加载收藏失败，请稍后重试')
+    console.error('API请求失败:', error)
   } finally {
     loading.value = false
   }
 }
 
+// 生命周期
+onMounted(() => {
+  loadFavorites()
+})
+
+// 分页逻辑
 const loadMore = () => {
   if (hasMore.value && !loading.value) {
     page.value++
@@ -136,29 +148,29 @@ const toggleEditMode = () => {
   isEditMode.value = !isEditMode.value
 }
 
+/**
+ * 删除收藏
+ * 逻辑：先请求 API，成功后再更新本地 UI 状态
+ */
 const removeFavorite = async (productId) => {
-  if (confirm('确定要取消收藏吗？')) {
-    try {
-      await favoriteApi.removeFavorite(productId)
-      favoriteList.value = favoriteList.value.filter(item => item.product.id !== productId)
-      total.value--
-      alert('已取消收藏')
-    } catch (error) {
-      console.error('取消收藏失败:', error)
-      alert('操作失败，请稍后重试')
+  try {
+    await favoriteApi.removeFavorite(productId)
+    // 接口调用成功后，从本地列表中剔除
+    favoriteList.value = favoriteList.value.filter(item => item.product.id !== productId)
+    total.value = Math.max(0, total.value - 1)
+    
+    // 如果删完了，自动退出编辑模式
+    if (favoriteList.value.length === 0) {
+      isEditMode.value = false
     }
+  } catch (error) {
+    console.error('删除操作失败:', error)
   }
 }
 
-const onProductTap = (id) => {
-  if (isEditMode.value) return
-  router.push(`/product/${id}`)
-}
-
-const addToCart = (id) => {
-  router.push(`/product/${id}`)
-}
-
+/**
+ * 清空收藏
+ */
 const clearAll = async () => {
   if (confirm('确定要清空所有收藏吗？')) {
     try {
@@ -166,15 +178,24 @@ const clearAll = async () => {
       favoriteList.value = []
       total.value = 0
       isEditMode.value = false
-      alert('已清空')
     } catch (error) {
-      console.error('清空收藏失败:', error)
-      alert('操作失败，请稍后重试')
+      console.error('清空失败:', error)
     }
   }
 }
 
-const goToOrder = () => {
+// 导航逻辑
+const onProductTap = (id) => {
+  if (isEditMode.value) return
+  router.push(`/product/${id}`)
+}
+
+const addToCart = (id) => {
+  // 收藏页直接跳详情，或可扩展为直接调用购物车 API
+  router.push(`/product/${id}`)
+}
+
+const goToHome = () => {
   router.push('/')
 }
 </script>

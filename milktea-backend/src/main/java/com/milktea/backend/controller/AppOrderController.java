@@ -100,6 +100,12 @@ public class AppOrderController {
         return ApiResponse.success(null);
     }
 
+    @GetMapping("/complaints")
+    public ApiResponse<List<com.milktea.milktea_backend.model.entity.Complaint>> getComplaints() {
+        Long userId = userService.getCurrentUser().getId();
+        return ApiResponse.success(orderService.getUserComplaints(userId));
+    }
+
     @PostMapping("/{orderNo}/cancel")
     public ApiResponse<Void> cancelOrder(@PathVariable String orderNo) {
         orderService.cancelOrder(orderNo);

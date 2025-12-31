@@ -11,7 +11,7 @@ public class ProductFilterDTO {
     private String temperature;
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
-    private String sort; // PRICE_ASC, PRICE_DESC, SALES_DESC, NEWEST
+    private String sort;
     private Integer page = 1;
     private Integer size = 20;
 }

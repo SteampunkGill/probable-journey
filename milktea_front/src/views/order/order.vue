@@ -8,13 +8,13 @@
           type="text" 
           placeholder="搜索饮品..." 
           v-model="searchKeyword"
-          @confirm="onSearch"
+          @keyup.enter="onSearch"
         />
         <img 
           class="clear-icon" 
           src="../../assets/images/icons/close.png" 
           v-if="searchKeyword"
-          @click="searchKeyword = ''"
+          @click="searchKeyword = ''; onSearch()"
         />
       </div>
     </div>
@@ -37,19 +37,19 @@
       </div>
 
       <!-- 右侧商品列表 -->
-      <div class="product-section" @scroll="onScroll">
+      <div class="product-section">
         <!-- 筛选栏 -->
         <div class="filter-bar">
           <div class="sort-options">
             <div
               class="sort-item"
               :class="{ active: filterConfig.sortBy === 'default' }"
-              @click="filterConfig.sortBy = 'default'"
+              @click="handleSort('default')"
             >综合</div>
             <div
               class="sort-item"
               :class="{ active: filterConfig.sortBy === 'sales' }"
-              @click="filterConfig.sortBy = 'sales'"
+              @click="handleSort('sales')"
             >销量</div>
             <div
               class="sort-item"
@@ -63,46 +63,6 @@
               </div>
             </div>
           </div>
-          <div class="filter-dropdown" @click="showFilterPanel = !showFilterPanel">
-            <span :class="{ active: filterConfig.sugarLevel !== 'all' }">
-              {{ sugarLevelLabel }}
-            </span>
-            <i class="iconfont icon-filter"></i>
-          </div>
-          
-          <!-- 糖度筛选面板 -->
-          <div class="filter-panel" v-if="showFilterPanel">
-            <div class="panel-mask" @click="showFilterPanel = false"></div>
-            <div class="panel-content">
-              <div class="panel-title">糖度筛选</div>
-              <div class="filter-options">
-                <div
-                  class="filter-opt-item"
-                  :class="{ active: filterConfig.sugarLevel === 'all' }"
-                  @click="selectSugar('all')"
-                >全部</div>
-                <div
-                  class="filter-opt-item"
-                  :class="{ active: filterConfig.sugarLevel === 'no' }"
-                  @click="selectSugar('no')"
-                >无糖</div>
-                <div
-                  class="filter-opt-item"
-                  :class="{ active: filterConfig.sugarLevel === 'low' }"
-                  @click="selectSugar('low')"
-                >低糖</div>
-                <div
-                  class="filter-opt-item"
-                  :class="{ active: filterConfig.sugarLevel === 'normal' }"
-                  @click="selectSugar('normal')"
-                >正常糖</div>
-              </div>
-              <div class="panel-footer">
-                <button class="reset-btn" @click="resetFilter">重置</button>
-                <button class="confirm-btn" @click="showFilterPanel = false">确定</button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- 骨架屏 -->
@@ -110,28 +70,21 @@
           <div class="skeleton-product" v-for="i in 5" :key="i"></div>
         </div>
 
+        <!-- 商品列表 -->
         <div class="product-list" v-else>
           <div 
             class="product-card"
-            v-for="item in filteredProductList"
+            v-for="item in productList"
             :key="item.id"
             @click="onProductTap(item)"
           >
             <!-- 左侧图片 -->
             <div class="product-image-wrapper">
-              <img class="product-image" :src="item.image" />
-              <div class="tag hot" v-if="item.hot">热销</div>
-              <div class="tag discount" v-if="item.originalPrice">折扣</div>
-              <!-- 收藏按钮 -->
-              <div 
-                class="favorite-btn"
-                :class="{ active: item.isFavorite }"
-                @click.stop="toggleFavorite(item)"
-              >
-                <img 
-                  class="favorite-icon"
-                  :src="item.isFavorite ? heartFillIcon : heartIcon"
-                />
+              <img class="product-image" :src="formatImageUrl(item.productImage)" />
+              <div class="tag hot" v-if="item.isHot">热销</div>
+              <!-- 收藏 -->
+              <div class="favorite-btn" :class="{ active: item.isFavorite }" @click.stop="toggleFavorite(item)">
+                <img :src="item.isFavorite ? heartFillIcon : heartIcon" class="favorite-icon" />
               </div>
             </div>
 
@@ -139,17 +92,15 @@
             <div class="product-info">
               <div class="name-row">
                 <span class="product-name">{{ item.name }}</span>
-                <span class="promo-badge" v-if="item.promoTag">{{ item.promoTag }}</span>
               </div>
               <span class="product-desc">{{ item.description }}</span>
               
               <div class="product-footer">
                 <div class="price-box">
                   <span class="price">¥{{ item.price }}</span>
-                  <span class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</span>
                 </div>
                 <div class="action-box">
-                  <span class="sales">已售{{ item.sales }}</span>
+                  <span class="sales">已售{{ item.sales || 0 }}</span>
                   <div class="add-cart-btn" @click.stop="onAddCartClick(item)">
                     <span class="plus-icon">+</span>
                   </div>
@@ -160,14 +111,14 @@
         </div>
 
         <!-- 空状态 -->
-        <div class="empty-tip" v-if="!loading && filteredProductList.length === 0">
+        <div class="empty-tip" v-if="!loading && productList.length === 0">
           <img class="empty-icon" src="../../assets/images/icons/cart.png" />
           <span>暂无商品</span>
         </div>
       </div>
     </div>
 
-    <!-- 底部购物车栏 -->
+    <!-- 底部购物车栏 (Pinia 驱动) -->
     <div class="cart-bar" v-if="cartCount > 0">
       <div class="cart-bar-content" @click="router.push('/cart')">
         <div class="cart-icon-wrapper">
@@ -176,118 +127,57 @@
         </div>
         <div class="cart-info">
           <div class="total-price">¥{{ cartStore.totalPrice.toFixed(2) }}</div>
-          <div class="delivery-info">另需配送费约 ¥5</div>
+          <div class="delivery-info">另需配送费以结算页为准</div>
         </div>
-        <button class="checkout-btn" @click.stop="router.push('/cart')">去结算</button>
+        <button class="checkout-btn">去结算</button>
       </div>
     </div>
 
-    <!-- 定制弹窗 -->
+    <!-- 定制弹窗 (选规格) -->
     <div class="custom-modal" v-if="showCustomModal">
       <div class="modal-mask" @click="showCustomModal = false"></div>
       <div class="modal-content">
-        <!-- 商品信息 -->
         <div class="modal-header">
-          <img class="modal-image" :src="selectedProduct.image" />
+          <img class="modal-image" :src="formatImageUrl(selectedProduct.productImage)" />
           <div class="modal-info">
             <span class="modal-name">{{ selectedProduct.name }}</span>
-            <span class="modal-price">¥{{ totalPrice }}</span>
+            <span class="modal-price">¥{{ calcTotalPrice }}</span>
           </div>
-          <div class="close-btn" @click="showCustomModal = false">
-            <img class="close-icon" src="../../assets/images/icons/close.png" />
-          </div>
+          <div class="close-btn" @click="showCustomModal = false">×</div>
         </div>
 
         <div class="modal-body">
-          <!-- 杯型选择 -->
-          <div class="option-group">
-            <span class="option-title">杯型</span>
+          <div class="option-group" v-for="group in specifications" :key="group.name">
+            <span class="option-title">{{ group.name }}</span>
             <div class="option-list">
               <div 
                 class="option-item"
-                :class="{ active: customizations.size === item }"
-                v-for="item in sizeOptions"
-                :key="item"
-                @click="customizations.size = item"
+                :class="{ active: customizations[group.key] === opt }"
+                v-for="opt in group.options"
+                :key="opt"
+                @click="customizations[group.key] = opt"
               >
-                {{ item }}
+                {{ opt }}
               </div>
             </div>
           </div>
 
-          <!-- 温度选择 -->
-          <div class="option-group">
-            <span class="option-title">温度</span>
-            <div class="option-list">
-              <div 
-                class="option-item"
-                :class="{ active: customizations.temperature === item }"
-                v-for="item in temperatureOptions"
-                :key="item"
-                @click="customizations.temperature = item"
-              >
-                {{ item }}
-              </div>
-            </div>
-          </div>
-
-          <!-- 甜度选择 -->
-          <div class="option-group">
-            <span class="option-title">甜度</span>
-            <div class="option-list">
-              <div 
-                class="option-item"
-                :class="{ active: customizations.sweetness === item }"
-                v-for="item in sweetnessOptions"
-                :key="item"
-                @click="customizations.sweetness = item"
-              >
-                {{ item }}
-              </div>
-            </div>
-          </div>
-
-          <!-- 加料选择 -->
-          <div class="option-group">
-            <span class="option-title">加料（可多选）</span>
-            <div class="option-list">
-              <div 
-                class="option-item topping"
-                :class="{ active: customizations.toppings.includes(item.id) }"
-                v-for="item in toppingOptions"
-                :key="item.id"
-                @click="toggleTopping(item.id)"
-              >
-                <span>{{ item.name }}</span>
-                <span class="topping-price">+¥{{ item.price }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 数量选择 -->
           <div class="option-group">
             <span class="option-title">数量</span>
             <div class="quantity-control">
-              <div 
-                class="quantity-btn" 
-                :class="{ disabled: quantity <= 1 }" 
-                @click="quantity > 1 && quantity--"
-              >-</div>
+              <div class="quantity-btn" @click="quantity > 1 && quantity--">-</div>
               <span class="quantity-value">{{ quantity }}</span>
               <div class="quantity-btn" @click="quantity++">+</div>
             </div>
           </div>
         </div>
 
-        <!-- 底部操作栏 -->
         <div class="modal-footer">
           <div class="total-price">
             <span class="total-label">合计</span>
-            <span class="total-value">￥{{ totalPrice }}</span>
+            <span class="total-value">￥{{ calcTotalPrice }}</span>
           </div>
-          <button class="confirm-btn" @click="confirmAddToCart">
-            加入购物车
-          </button>
+          <button class="confirm-btn" @click="confirmAddToCart">加入购物车</button>
         </div>
       </div>
     </div>
@@ -295,11 +185,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
 import { useUserStore } from '../../store/user'
-import { productApi, promotionApi } from '@/utils/api'
+import { productApi } from '@/utils/api'
 import { formatImageUrl } from '@/utils/util'
 import heartIcon from '../../assets/images/icons/heart.png'
 import heartFillIcon from '../../assets/images/icons/heart-fill.png'
@@ -309,200 +199,56 @@ const cartStore = useCartStore()
 const userStore = useUserStore()
 
 const categories = ref([])
-const activeCategoryId = ref(null)
+const activeCategoryId = ref('all')
 const productList = ref([])
-const promoFilterIds = ref(null)
-const promoName = ref('')
 const searchKeyword = ref('')
 const loading = ref(false)
-const cartCount = computed(() => cartStore.totalCount)
 const cartAnimating = ref(false)
+const cartCount = computed(() => cartStore.totalCount)
 
-// 筛选相关状态
-const showFilterPanel = ref(false)
+// 规格选项 (通常根据后端返回，这里定义标准结构)
+const specifications = [
+  { name: '杯型', key: 'size', options: ['中杯', '大杯'] },
+  { name: '温度', key: 'temperature', options: ['常规冰', '多冰', '去冰', '热饮'] },
+  { name: '糖度', key: 'sweetness', options: ['标准', '半糖', '微糖', '不加糖'] }
+]
+
 const filterConfig = ref({
-  sortBy: 'default', // default, sales, price
-  sortOrder: 'desc', // asc, desc
-  sugarLevel: 'all' // all, no, low, normal
+  sortBy: 'default',
+  sortOrder: 'desc'
 })
 
-const sugarLevelLabel = computed(() => {
-  const map = {
-    'all': '糖度',
-    'no': '无糖',
-    'low': '低糖',
-    'normal': '正常糖'
-  }
-  return map[filterConfig.value.sugarLevel]
-})
-
-const togglePriceSort = () => {
-  if (filterConfig.value.sortBy !== 'price') {
-    filterConfig.value.sortBy = 'price'
-    filterConfig.value.sortOrder = 'asc'
-  } else {
-    filterConfig.value.sortOrder = filterConfig.value.sortOrder === 'asc' ? 'desc' : 'asc'
-  }
-}
-
-const selectSugar = (level) => {
-  filterConfig.value.sugarLevel = level
-}
-
-const resetFilter = () => {
-  filterConfig.value.sugarLevel = 'all'
-  filterConfig.value.sortBy = 'default'
-}
-
-const showCustomModal = ref(false)
-const selectedProduct = ref(null)
-const quantity = ref(1)
-const customizations = ref({
-  size: '中杯',
-  temperature: '常温',
-  sweetness: '正常糖',
-  toppings: []
-})
-
-const sizeOptions = ref(['小杯', '中杯', '大杯'])
-const temperatureOptions = ref(['热饮', '常温', '冷饮'])
-const sweetnessOptions = ref(['无糖', '三分糖', '五分糖', '七分糖', '正常糖'])
-const toppingOptions = ref([
-  { id: 1, name: '珍珠', price: 3 },
-  { id: 2, name: '椰果', price: 3 },
-  { id: 3, name: '布丁', price: 4 }
-])
-
-const filteredProductList = computed(() => {
-  let list = [...productList.value]
-
-  // 1. 搜索关键词过滤
-  if (searchKeyword.value) {
-    list = list.filter(p =>
-      (p.name && p.name.includes(searchKeyword.value)) ||
-      (p.description && p.description.includes(searchKeyword.value))
-    )
-  }
-
-  // 2. 糖度筛选 (纯前端模拟逻辑)
-  if (filterConfig.value.sugarLevel !== 'all') {
-    list = list.filter(p => p.sugarLevel === filterConfig.value.sugarLevel)
-  }
-
-  // 3. DEMO ONLY: 促销活动筛选逻辑 (在分类加载后执行)
-  const filterIdsStr = sessionStorage.getItem('promo_filter_ids')
-  if (filterIdsStr) {
-    const filterIds = JSON.parse(filterIdsStr)
-    // 仅保留活动指定的商品
-    const activeProducts = list.filter(p => filterIds.includes(p.id))
-    if (activeProducts.length > 0) {
-      // 模拟“装模作样”筛选：随机选 2-3 个
-      const count = Math.min(activeProducts.length, Math.floor(Math.random() * 2) + 2)
-      list = activeProducts.sort(() => 0.5 - Math.random()).slice(0, count)
-      console.log(`[DEMO] 促销筛选生效: 展示 ${count} 款活动商品`)
-    }
-    // 注意：这里不立即清除，因为 computed 会多次触发，我们在 onUnmounted 或跳转时清除更稳妥
-    // 或者在 loadProducts 结束时清除
-  }
-
-  // 4. 排序逻辑
-  list.sort((a, b) => {
-    if (filterConfig.value.sortBy === 'sales') {
-      return b.sales - a.sales
-    } else if (filterConfig.value.sortBy === 'price') {
-      return filterConfig.value.sortOrder === 'asc'
-        ? a.price - b.price
-        : b.price - a.price
-    }
-    return 0 // 默认排序（综合）
-  })
-
-  return list
-})
-
-const toppingsCost = computed(() => {
-  const toppings = customizations.value.toppings || []
-  return toppings.reduce((total, id) => {
-    const topping = toppingOptions.value.find(t => t.id === id)
-    return total + (topping ? topping.price : 0)
-  }, 0)
-})
-
-const totalPrice = computed(() => {
-  if (!selectedProduct.value) return 0
-  return ((selectedProduct.value.price + toppingsCost.value) * quantity.value).toFixed(2)
-})
-
+// 加载分类列表
 const loadCategories = async () => {
   try {
     const res = await productApi.getCategories()
-    const resData = res.data || res
-    const list = Array.isArray(resData) ? resData : (resData.list || [])
-    
-    if (list.length > 0) {
-      const formattedCategories = list.map(c => ({
-        id: c.id,
-        name: c.name,
-        icon: c.iconUrl && !c.iconUrl.includes('/') ? c.iconUrl : '🧋'
-      }))
-      
-      // 添加“全部”分类
+    if (res.code === 200) {
       categories.value = [
         { id: 'all', name: '全部', icon: '🌟' },
-        ...formattedCategories
+        ...(res.data || [])
       ]
-      
-      if (!activeCategoryId.value) {
-        activeCategoryId.value = 'all'
-      }
     }
-  } catch (error) {
-    console.error('加载分类失败:', error)
+  } catch (err) {
+    console.error('加载分类失败', err)
   }
 }
 
+// 加载商品列表 (包含搜索、排序、分类)
 const loadProducts = async () => {
-  if (!activeCategoryId.value) return
   loading.value = true
   try {
-    // 如果是“全部”分类，传 null 或不传 ID
-    const categoryId = activeCategoryId.value === 'all' ? null : activeCategoryId.value
-    const res = await productApi.getProducts(categoryId)
-    const resData = res.data || res
-    let rawList = Array.isArray(resData) ? resData : (resData.list || [])
-    
-    // DEMO ONLY: 注入 IndexedDB 中的模拟商品
-    try {
-      const { productDB } = await import('@/utils/db')
-      let dbProducts = await productDB.getAll()
-      if (dbProducts && dbProducts.length > 0) {
-        // 仅在“全部”分类或匹配分类时注入，避免在所有分类下都显示
-        if (activeCategoryId.value !== 'all') {
-          dbProducts = dbProducts.filter(p => p.categoryId === activeCategoryId.value)
-        }
-        if (dbProducts.length > 0) {
-          rawList = [...dbProducts, ...rawList]
-          console.log('[DEMO] 已从 IndexedDB 注入模拟商品:', dbProducts.length)
-        }
-      }
-    } catch (e) {
-      console.warn('注入模拟商品失败:', e)
+    const params = {
+      categoryId: activeCategoryId.value === 'all' ? null : activeCategoryId.value,
+      keyword: searchKeyword.value,
+      sortBy: filterConfig.value.sortBy,
+      sortOrder: filterConfig.value.sortOrder
     }
-
-
-    productList.value = rawList.map(item => {
-      // 统一使用 formatImageUrl 处理图片路径，并兼容多种可能的字段名
-      const imageUrl = item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl || item.mainImageUrl || item.imageUrl
-      return {
-        ...item,
-        image: formatImageUrl(imageUrl) || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200',
-        hot: item.isHot || false,
-        sales: item.sales || 0,
-        sugarLevel: 'normal' // 默认糖度
-      }
-    })
-  } catch (error) {
-    console.error('加载商品失败:', error)
+    const res = await productApi.getProducts(params)
+    if (res.code === 200) {
+      productList.value = res.data || []
+    }
+  } catch (err) {
+    console.error('加载商品失败', err)
   } finally {
     loading.value = false
   }
@@ -510,70 +256,68 @@ const loadProducts = async () => {
 
 const selectCategory = (id) => {
   activeCategoryId.value = id
-  // 切换分类时清除促销筛选，确保分类功能正常
-  sessionStorage.removeItem('promo_filter_ids')
   loadProducts()
 }
 
-const onProductTap = (product) => {
-  // 将奶茶完整对象存入 localStorage
-  localStorage.setItem('current_tea', JSON.stringify(product))
-  // 跳转到详情页
-  router.push(`/product/${product.id}`)
+const onSearch = () => {
+  loadProducts()
 }
+
+const handleSort = (type) => {
+  filterConfig.value.sortBy = type
+  loadProducts()
+}
+
+const togglePriceSort = () => {
+  filterConfig.value.sortBy = 'price'
+  filterConfig.value.sortOrder = filterConfig.value.sortOrder === 'asc' ? 'desc' : 'asc'
+  loadProducts()
+}
+
+// 购物车逻辑
+const showCustomModal = ref(false)
+const selectedProduct = ref(null)
+const quantity = ref(1)
+const customizations = ref({ size: '中杯', temperature: '常规冰', sweetness: '标准' })
+
+const calcTotalPrice = computed(() => {
+  if (!selectedProduct.value) return 0
+  return (selectedProduct.value.price * quantity.value).toFixed(2)
+})
 
 const onAddCartClick = (product) => {
   selectedProduct.value = product
   quantity.value = 1
-  customizations.value = {
-    size: '中杯',
-    temperature: '常温',
-    sweetness: '正常糖',
-    toppings: []
-  }
+  customizations.value = { size: '中杯', temperature: '常规冰', sweetness: '标准' }
   showCustomModal.value = true
-}
-
-const toggleTopping = (id) => {
-  if (!customizations.value.toppings) {
-    customizations.value.toppings = []
-  }
-  const index = customizations.value.toppings.indexOf(id)
-  if (index > -1) {
-    customizations.value.toppings.splice(index, 1)
-  } else {
-    customizations.value.toppings.push(id)
-  }
-}
-
-const toggleFavorite = (product) => {
-  product.isFavorite = !product.isFavorite
 }
 
 const confirmAddToCart = () => {
   cartStore.addToCart({
     ...selectedProduct.value,
-    storeId: userStore.selectedStore?.id,
     quantity: quantity.value,
-    customizations: { ...customizations.value },
-    totalPrice: parseFloat(totalPrice.value)
+    customizations: { ...customizations.value }
   })
   showCustomModal.value = false
   cartAnimating.value = true
   setTimeout(() => cartAnimating.value = false, 600)
 }
 
-onMounted(async () => {
-  await loadCategories()
-  if (activeCategoryId.value) {
-    loadProducts()
-  }
-})
+const toggleFavorite = (product) => {
+  product.isFavorite = !product.isFavorite
+  // 实际开发中应调用 userApi.toggleFavorite(product.id)
+}
 
-watch(activeCategoryId, () => {
+const onProductTap = (product) => {
+  router.push(`/product/${product.id}`)
+}
+
+onMounted(() => {
+  loadCategories()
   loadProducts()
 })
 </script>
+
 
 <style scoped>
 .order-page {

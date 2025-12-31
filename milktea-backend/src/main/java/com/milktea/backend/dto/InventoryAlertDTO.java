@@ -15,5 +15,5 @@ public class InventoryAlertDTO {
     private String specName;
     private Integer currentStock;
     private Integer threshold;
-    private String status; // "LOW_STOCK", "OUT_OF_STOCK"
+    private String status;
 }

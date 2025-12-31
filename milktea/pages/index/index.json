@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "奶茶点餐",
-  "navigationBarTextStyle": "black",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "product-card": "/components/product-card/index"
-  }
-}

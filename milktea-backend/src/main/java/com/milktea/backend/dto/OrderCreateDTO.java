@@ -7,7 +7,7 @@ import java.util.List;
 @Data
 public class OrderCreateDTO {
     private Long storeId;
-    private String deliveryType; // PICKUP, DELIVERY
+    private String deliveryType;
     private String addressJson;
     private String remark;
     private Integer usePoints; // 使用的积分

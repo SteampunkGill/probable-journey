@@ -188,7 +188,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { pointsDB } from '@/utils/db'
+import { pointsApi, userApi } from '@/utils/api'
 
 const router = useRouter()
 const userPoints = ref(0)
@@ -207,58 +207,12 @@ const exchangeForm = ref({
 
 const categories = ref([
   { id: 'all', name: '全部' },
-  { id: 'drink', name: '饮品券' },
-  { id: 'peripheral', name: '周边礼品' },
-  { id: 'virtual', name: '虚拟权益' }
+  { id: 'DRINK', name: '饮品券' },
+  { id: 'PERIPHERAL', name: '周边礼品' },
+  { id: 'VIRTUAL', name: '虚拟权益' }
 ])
 
-const productList = ref([
-  {
-    id: 1,
-    name: '经典珍珠奶茶兑换券',
-    description: '凭此券可免费兑换中杯珍珠奶茶一杯',
-    points: 200,
-    stock: 99,
-    category: 'drink',
-    isHot: true
-  },
-  {
-    id: 2,
-    name: '多肉葡萄兑换券',
-    description: '凭此券可免费兑换大杯多肉葡萄一杯',
-    points: 350,
-    stock: 50,
-    category: 'drink',
-    isHot: false
-  },
-  {
-    id: 3,
-    name: 'SipSipTea 限量马克杯',
-    description: '品牌定制陶瓷马克杯，简约时尚',
-    points: 800,
-    stock: 10,
-    category: 'peripheral',
-    isHot: true
-  },
-  {
-    id: 4,
-    name: '品牌帆布袋',
-    description: '环保耐用，出街必备',
-    points: 500,
-    stock: 25,
-    category: 'peripheral',
-    isHot: false
-  },
-  {
-    id: 5,
-    name: '5元无门槛代金券',
-    description: '全场通用，无门槛使用',
-    points: 100,
-    stock: 999,
-    category: 'virtual',
-    isHot: false
-  }
-])
+const productList = ref([])
 
 const filteredProducts = computed(() => {
   if (activeCategoryId.value === 'all') return productList.value
@@ -268,8 +222,17 @@ const filteredProducts = computed(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const points = await pointsDB.getUserPoints()
-    userPoints.value = points
+    // 获取用户积分
+    const userRes = await userApi.getUserInfo()
+    if (userRes.code === 200) {
+      userPoints.value = userRes.data.points || 0
+    }
+
+    // 获取积分商品列表
+    const productRes = await pointsApi.getPointsProducts()
+    if (productRes.code === 200) {
+      productList.value = productRes.data
+    }
   } catch (error) {
     console.error('加载积分数据失败:', error)
   } finally {
@@ -281,8 +244,10 @@ const toggleRecords = async () => {
   showRecords.value = !showRecords.value
   if (showRecords.value) {
     try {
-      const records = await pointsDB.getAllRecords()
-      exchangeRecords.value = records.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
+      const res = await pointsApi.getExchangeRecords()
+      if (res.code === 200) {
+        exchangeRecords.value = res.data
+      }
     } catch (error) {
       console.error('加载兑换记录失败:', error)
     }
@@ -306,43 +271,21 @@ const confirmExchange = async () => {
 
   submitting.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 1200))
-
-    const product = selectedProduct.value
-    if (userPoints.value < product.points) {
-      alert('积分不足')
-      return
-    }
-
-    const newPoints = userPoints.value - product.points
-    await pointsDB.updateUserPoints(newPoints)
-    userPoints.value = newPoints
-
-    await pointsDB.addRecord({
-      productId: product.id,
-      productName: product.name,
-      points: product.points,
-      receiver: exchangeForm.value.name,
-      phone: exchangeForm.value.phone,
-      address: exchangeForm.value.address
+    const res = await pointsApi.exchangeProduct({
+      productId: selectedProduct.value.id,
+      receiverName: exchangeForm.value.name,
+      receiverPhone: exchangeForm.value.phone,
+      receiverAddress: exchangeForm.value.address
     })
 
-    // 如果是券类商品，塞入优惠券库
-    if (product.category === 'drink' || product.category === 'virtual') {
-      await pointsDB.addCoupon({
-        name: product.name,
-        type: product.category === 'drink' ? 'CASH' : 'DISCOUNT',
-        value: product.points > 200 ? 10 : 5, // 模拟面值
-        minAmount: 0,
-        description: product.description,
-        expireTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      })
+    if (res.code === 200) {
+      alert('兑换成功！')
+      showExchangeModal.value = false
+      exchangeForm.value = { name: '', phone: '', address: '' }
+      loadData() // 刷新积分和列表
+    } else {
+      alert(res.message || '兑换失败')
     }
-
-    product.stock -= 1
-    alert('兑换成功！')
-    showExchangeModal.value = false
-    exchangeForm.value = { name: '', phone: '', address: '' }
   } catch (error) {
     console.error('兑换失败:', error)
     alert('兑换失败，请稍后重试')

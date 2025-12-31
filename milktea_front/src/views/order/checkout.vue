@@ -103,7 +103,6 @@
         <div class="value">
           <div v-if="selectedCoupon" class="selected-coupon-info">
             <span class="coupon-name">{{ selectedCoupon.name }}</span>
-            <span class="coupon-tag" v-if="isBestCoupon">最优</span>
           </div>
           <span v-else class="placeholder">请选择优惠券</span>
           <span class="count" v-if="availableCoupons.length > 0">{{ availableCoupons.length }}张可用</span>
@@ -185,7 +184,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../../store/cart'
-import { addressApi, couponApi, pointsApi, orderApi, cartApi, userApi, storeApi, promotionApi } from '../../utils/api'
+import { addressApi, couponApi, orderApi, userApi, storeApi } from '../../utils/api'
 import { formatImageUrl } from '../../utils/util'
 
 const router = useRouter()
@@ -203,29 +202,7 @@ const usePoints = ref(false)
 const pointsToUse = ref(0)
 const availablePoints = ref(0)
 const remark = ref('')
-const estimatedDeliveryTime = ref('预计30分钟送达')
-
-const isBestCoupon = computed(() => {
-  if (!selectedCoupon.value || availableCoupons.value.length === 0) return false
-  const amount = parseFloat(subtotal.value)
-  
-  const calculateDiscount = (coupon) => {
-    let discount = 0
-    const type = coupon.type?.toUpperCase()
-    if (type === 'REDUCTION' || type === 'DISCOUNT_FIXED' || coupon.type === 'discount') {
-      discount = coupon.value
-    } else if (type === 'DISCOUNT' || type === 'PERCENTAGE' || coupon.type === 'percentage') {
-      const rate = coupon.value < 1 ? coupon.value : coupon.value / 100
-      discount = amount * (1 - rate)
-    }
-    return discount
-  }
-
-  const currentDiscount = calculateDiscount(selectedCoupon.value)
-  const maxDiscount = Math.max(...availableCoupons.value.map(calculateDiscount))
-  
-  return currentDiscount >= maxDiscount
-})
+const estimatedDeliveryTime = ref('')
 
 const subtotal = computed(() => {
   return orderItems.value.reduce((total, item) => total + item.price * item.quantity, 0).toFixed(2)
@@ -241,115 +218,71 @@ const packagingFee = computed(() => {
 })
 
 const couponDiscount = computed(() => {
-  if (!selectedCoupon.value) return '0.00'
-  return selectedCoupon.value.value.toFixed(2)
+  if (!selectedCoupon.value) return 0
+  return selectedCoupon.value.value || 0
 })
 
 const pointsDiscount = computed(() => {
-  if (!usePoints.value) return '0.00'
-  return (pointsToUse.value / 100).toFixed(2)
+  if (!usePoints.value) return 0
+  return (pointsToUse.value / 100)
 })
 
 const totalAmount = computed(() => {
   const total = parseFloat(subtotal.value) + 
                 parseFloat(deliveryFee.value) + 
                 parseFloat(packagingFee.value) - 
-                parseFloat(couponDiscount.value) - 
-                parseFloat(pointsDiscount.value)
+                couponDiscount.value - 
+                pointsDiscount.value
   return Math.max(0, total).toFixed(2)
 })
 
 const loadOrderData = async () => {
   loading.value = true
   try {
+    // 1. 从本地缓存获取待结算商品
     const items = localStorage.getItem('checkoutItems')
     if (items) {
-      orderItems.value = JSON.parse(items).map(item => {
-        // 兼容后端不同的字段名
-        const imageUrl = item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl
-        const name = item.name || item.productName || item.product?.name
-        return {
-          ...item,
-          name: name,
-          image: formatImageUrl(imageUrl)
-        }
-      })
+      orderItems.value = JSON.parse(items)
     }
-    const savedRemark = localStorage.getItem('orderRemark')
-    if (savedRemark) {
-      remark.value = savedRemark
-    }
-    
-    // 并行获取地址、优惠券和用户信息（积分）
-    const [addressRes, couponRes, profileRes] = await Promise.all([
+
+    // 2. 并行请求后端接口
+    const [addressRes, couponRes, profileRes, storeRes] = await Promise.all([
       addressApi.getAddressList(),
       couponApi.getMyCoupons(),
-      userApi.getUserProfile()
+      userApi.getUserProfile(),
+      storeApi.getNearbyStores({ limit: 1 })
     ])
     
+    // 地址处理
     if (addressRes.code === 200 && addressRes.data.length > 0) {
       selectedAddress.value = addressRes.data.find(a => a.isDefault) || addressRes.data[0]
     }
 
-    // 获取默认门店（用于外卖配送）
-    const storeRes = await storeApi.getNearbyStores({ limit: 1 })
+    // 门店处理
     if (storeRes.code === 200 && storeRes.data?.length > 0) {
       selectedStore.value = storeRes.data[0]
     }
     
+    // 优惠券处理：过滤出状态可用且满足金额条件的
     if (couponRes.code === 200) {
       const amount = parseFloat(subtotal.value)
-      // 过滤出当前订单可用的优惠券
       availableCoupons.value = couponRes.data.filter(c =>
         c.status === 'UNUSED' && amount >= c.minAmount
       )
       
-      // 优先从缓存获取用户手动选择的优惠券
-      const savedCoupon = localStorage.getItem('selectedCoupon')
-      if (savedCoupon) {
-        const coupon = JSON.parse(savedCoupon)
-        // 检查该优惠券是否在可用列表中
-        const isAvailable = availableCoupons.value.find(c => c.id === coupon.id)
-        if (isAvailable) {
-          selectedCoupon.value = isAvailable
-        }
-      }
-
-      // 如果没有手动选择或手动选择的不可用，则自动匹配最佳优惠券
-      if (!selectedCoupon.value && availableCoupons.value.length > 0) {
-        // 计算每张优惠券的实际折扣金额并排序
-        const sortedCoupons = [...availableCoupons.value].map(coupon => {
-          let discount = 0
-          // 兼容后端字段名：REDUCTION/DISCOUNT 或 模拟数据中的 discount/percentage
-          const type = coupon.type?.toUpperCase()
-          if (type === 'REDUCTION' || type === 'DISCOUNT_FIXED' || coupon.type === 'discount') {
-            discount = coupon.value
-          } else if (type === 'DISCOUNT' || type === 'PERCENTAGE' || coupon.type === 'percentage') {
-            // 如果是折扣率（如0.8表示8折），折扣金额 = 总额 * (1 - 0.8)
-            // 如果是百分比（如80表示8折），折扣金额 = 总额 * (1 - 80/100)
-            const rate = coupon.value < 1 ? coupon.value : coupon.value / 100
-            discount = amount * (1 - rate)
-          }
-          return { ...coupon, _discount: discount }
-        }).sort((a, b) => b._discount - a._discount)
-
-        // 默认选中折扣最大的那张
-        selectedCoupon.value = sortedCoupons[0]
-        
-        // 记录前三张最优优惠券供 UI 展示（可选）
-        const topThree = sortedCoupons.slice(0, 3)
-        console.log('推荐的前三张优惠券:', topThree)
+      // 如果有之前选择的优惠券，尝试还原
+      const savedCouponId = localStorage.getItem('selectedCouponId')
+      if (savedCouponId) {
+        selectedCoupon.value = availableCoupons.value.find(c => String(c.id) === savedCouponId)
       }
     }
     
+    // 积分处理
     if (profileRes.code === 200) {
       availablePoints.value = profileRes.data.points || 0
     }
     
-    // 获取预计时间
-    // 如果有订单号可以调用 orderApi.getEstimatedTime，这里是下单前，可以根据门店获取
     estimatedDeliveryTime.value = '预计30分钟送达'
-    
   } catch (error) {
     console.error('加载结算数据失败:', error)
   } finally {
@@ -372,104 +305,34 @@ const submitOrder = async () => {
   
   submitting.value = true
   try {
-    // 计算优惠券折扣分摊（如果是本地优惠券，直接减去价格，不传 ID 给后端）
-    const totalDiscount = parseFloat(couponDiscount.value)
-    const totalQty = orderItems.value.reduce((sum, i) => sum + i.quantity, 0)
-    const discountPerItem = totalQty > 0 ? totalDiscount / totalQty : 0
-
     const orderData = {
-      items: orderItems.value.map(item => {
-        // 转换 customizations 为后端需要的格式
-        const customizations = []
-        if (item.customizations) {
-          if (item.customizations.sweetness) {
-            customizations.push({ optionName: '甜度', valueName: item.customizations.sweetness, additionalPrice: 0 })
-          }
-          if (item.customizations.temperature) {
-            customizations.push({ optionName: '温度', valueName: item.customizations.temperature, additionalPrice: 0 })
-          }
-          if (Array.isArray(item.customizations.toppings)) {
-            item.customizations.toppings.forEach(t => {
-              customizations.push({ optionName: '加料', valueName: t.name, additionalPrice: t.price || 0 })
-            })
-          }
-        }
-
-        // 如果使用了本地优惠券，将折扣应用到单价上发送给后端
-        const finalPrice = Math.max(0, item.price - discountPerItem).toFixed(2)
-
-        return {
-          productId: item.productId || item.product?.id || item.id,
-          quantity: item.quantity,
-          price: finalPrice,
-          customizations: customizations
-        }
-      }),
+      items: orderItems.value.map(item => ({
+        productId: item.productId || item.id,
+        quantity: item.quantity,
+        price: item.price,
+        customizations: item.customizations // 传原始结构，由后端解析
+      })),
       deliveryType: deliveryType.value.toUpperCase(),
-      addressJson: selectedAddress.value ? JSON.stringify(selectedAddress.value) : null,
+      addressId: selectedAddress.value?.id,
       storeId: selectedStore.value?.id,
-      // 如果 ID 包含非数字字符（如 SHARE_），说明是本地模拟券，不传给后端
-      couponId: (selectedCoupon.value && !isNaN(selectedCoupon.value.id)) ? selectedCoupon.value.id : null,
+      couponId: selectedCoupon.value?.id || null,
       usePoints: usePoints.value ? pointsToUse.value : 0,
-      balanceDiscountAmount: 0,
       remark: remark.value
     }
     
     const res = await orderApi.createOrder(orderData)
     if (res.code === 200) {
-      const orderNo = res.data.orderNo
-
-      // DEMO ONLY: 在前端 IndexedDB 模拟扣除积分
-      if (usePoints.value && pointsToUse.value > 0) {
-        try {
-          const { pointsDB } = await import('../../utils/db.js')
-          const currentPoints = await pointsDB.getUserPoints()
-          await pointsDB.updateUserPoints(currentPoints - pointsToUse.value)
-          await pointsDB.addRecord({
-            type: 'EXCHANGE',
-            points: -pointsToUse.value,
-            reason: `订单 ${orderNo} 抵现`
-          })
-        } catch (e) {
-          console.error('模拟扣除积分失败:', e)
-        }
-      }
-      
-      // DEMO ONLY: 增加历史地址记录逻辑
-      if (deliveryType.value === 'delivery' && selectedAddress.value) {
-        const history = JSON.parse(localStorage.getItem('demo_address_history') || '[]');
-        const existingIndex = history.findIndex(h =>
-          h.province === selectedAddress.value.province &&
-          h.city === selectedAddress.value.city &&
-          h.district === selectedAddress.value.district &&
-          h.detail === selectedAddress.value.detail
-        );
-        
-        if (existingIndex > -1) {
-          history[existingIndex].usedCount = (history[existingIndex].usedCount || 0) + 1;
-        } else {
-          history.unshift({
-            ...selectedAddress.value,
-            id: Date.now(),
-            usedCount: 1
-          });
-        }
-        localStorage.setItem('demo_address_history', JSON.stringify(history.slice(0, 10)));
-      }
-
       alert('订单提交成功！')
-      // 清除结算缓存
       localStorage.removeItem('checkoutItems')
-      localStorage.removeItem('selectedCoupon')
-      localStorage.removeItem('orderRemark')
+      localStorage.removeItem('selectedCouponId')
       cartStore.clearCart()
-      router.push(`/payment?orderNo=${orderNo}&amount=${totalAmount.value}`)
+      router.push(`/payment?orderNo=${res.data.orderNo}&amount=${totalAmount.value}`)
     } else {
       alert(res.message || '提交订单失败')
     }
   } catch (error) {
     console.error('提交订单失败:', error)
-    alert('提交订单失败，请稍后重试')
+    alert('网络异常，请稍后重试')
   } finally {
     submitting.value = false
   }
@@ -481,12 +344,15 @@ onMounted(() => {
 
 watch(usePoints, (val) => {
   if (val) {
-    pointsToUse.value = Math.min(availablePoints.value, Math.floor(parseFloat(subtotal.value) * 100))
+    // 默认抵扣最大可用值（通常100积分抵1元）
+    const maxNeeded = Math.floor(parseFloat(subtotal.value) * 100)
+    pointsToUse.value = Math.min(availablePoints.value, maxNeeded)
   } else {
     pointsToUse.value = 0
   }
 })
 </script>
+
 <style scoped>
 .checkout-page {
   min-height: 100vh;

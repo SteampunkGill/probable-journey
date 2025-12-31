@@ -246,26 +246,6 @@ onMounted(() => {
 const loadProductDetail = async () => {
   loading.value = true
 
-  // 优先从 localStorage 读取
-  const cachedTea = localStorage.getItem('current_tea')
-  if (cachedTea) {
-    try {
-      const tea = JSON.parse(cachedTea)
-      if (String(tea.id) === String(productId.value)) {
-        const imageUrl = tea.image || tea.productImage || tea.product?.mainImageUrl || tea.product?.imageUrl || tea.mainImageUrl || tea.imageUrl
-        const mainImage = formatImageUrl(imageUrl)
-        product.value = {
-          ...product.value,
-          ...tea,
-          images: tea.images || [mainImage].filter(Boolean)
-        }
-        console.log('从本地存储读取商品信息成功')
-      }
-    } catch (e) {
-      console.error('解析本地存储商品信息失败:', e)
-    }
-  }
-
   try {
     // 获取商品详情
     const detailRes = await productApi.getProductDetail(productId.value)
@@ -276,14 +256,9 @@ const loadProductDetail = async () => {
       const mainImage = formatImageUrl(imageUrl)
       const otherImages = (res.images || []).map(img => formatImageUrl(img))
       
-      // 严格保护缓存数据
-      const cachedName = product.value.name
-      const cachedImages = product.value.images
-
       product.value = {
         ...res,
-        name: cachedName || res.name,
-        images: (cachedImages && cachedImages.length > 0) ? cachedImages : (otherImages.length > 0 ? otherImages : [mainImage].filter(Boolean))
+        images: otherImages.length > 0 ? otherImages : [mainImage].filter(Boolean)
       }
     }
 
@@ -415,6 +390,7 @@ const buyNow = () => {
     quantity: customizations.value.quantity,
     customizations: { ...customizations.value }
   }
+  // 暂时保留 localStorage 用于页面间简单传参，但不再作为持久化数据库使用
   localStorage.setItem('buyNowItem', JSON.stringify(buyNowItem))
   router.push({ path: '/checkout', query: { type: 'buyNow' } })
 }

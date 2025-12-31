@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface UserShareRewardRepository extends JpaRepository<UserShareReward, Long> {
     List<UserShareReward> findByUserId(Long userId);
+    boolean existsByUserIdAndShareId(Long userId, Long shareId);
 }

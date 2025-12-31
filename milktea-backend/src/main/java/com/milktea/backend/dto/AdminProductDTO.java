@@ -13,7 +13,7 @@ public class AdminProductDTO {
     private String description;
     private String imageUrl;
     private BigDecimal price;
-    private BigDecimal costPrice;  // 新增：成本价
+    private BigDecimal costPrice;
     private Boolean isMemberExclusive;
     private BigDecimal memberPrice;
     private Integer stock;

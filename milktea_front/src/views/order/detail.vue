@@ -31,7 +31,7 @@
       </div>
 
       <!-- 取餐码（自取订单） -->
-      <div class="pickup-section" v-if="order.deliveryType === 'pickup' &amp;&amp; order.pickupCode">
+      <div class="pickup-section" v-if="order.deliveryType === 'pickup' && order.pickupCode">
         <div class="pickup-card">
           <span class="pickup-label">取餐码</span>
           <h1 class="pickup-code">{{ order.pickupCode }}</h1>
@@ -46,7 +46,7 @@
         </h3>
         
         <!-- 配送地址 -->
-        <div class="address-card" v-if="order.deliveryType === 'delivery' &amp;&amp; order.address">
+        <div class="address-card" v-if="order.deliveryType === 'delivery' && order.address">
           <div class="address-header">
             <span class="name">{{ order.address.name }}</span>
             <span class="phone">{{ order.address.phone }}</span>
@@ -55,7 +55,7 @@
         </div>
 
         <!-- 自提门店 -->
-        <div class="store-card" v-if="order.deliveryType === 'pickup' &amp;&amp; order.store">
+        <div class="store-card" v-if="order.deliveryType === 'pickup' && order.store">
           <div class="store-header">
             <span class="store-name">{{ order.store.name }}</span>
             <button class="call-btn" @click="callStore">
@@ -73,10 +73,12 @@
         <h3 class="section-title">商品清单</h3>
         <div class="goods-list">
           <div class="goods-item" v-for="item in order.orderItems" :key="item.id">
-            <img class="goods-image" :src="formatImageUrl(item.image || item.productImage || item.product?.mainImageUrl || item.product?.imageUrl || item.mainImageUrl || item.imageUrl)" />
+            <!-- 简化图片字段，直接使用后端返回的标准字段 -->
+            <img class="goods-image" :src="formatImageUrl(item.productImage)" />
             <div class="goods-info">
               <h4 class="goods-name">{{ item.productName }}</h4>
               <div class="goods-specs" v-if="item.customizations">
+                <!-- 假设后端已将规格序列化为对象 -->
                 <span>{{ item.customizations.sweetness }} / {{ item.customizations.temperature }}</span>
                 <span v-if="item.customizations.toppings?.length > 0">
                   + {{ item.customizations.toppings.length }}种加料
@@ -110,41 +112,9 @@
             <span class="label">支付时间</span>
             <span class="value">{{ order.payTime }}</span>
           </div>
-          <div class="info-item">
-            <span class="label">支付方式</span>
-            <span class="value">{{ order.paymentMethodText }}</span>
-          </div>
           <div class="info-item" v-if="order.remark">
             <span class="label">订单备注</span>
             <span class="value">{{ order.remark }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 评价信息 -->
-      <div class="review-section" v-if="order.status === 'REVIEWED' && order.review">
-        <h3 class="section-title">我的评价</h3>
-        <div class="review-card">
-          <div class="review-header">
-            <div class="review-scores">
-              <div class="score-item">
-                <span class="score-label">商品</span>
-                <div class="stars">
-                  <span v-for="i in 5" :key="i" class="star" :class="{ active: i <= order.review.productScore }">⭐</span>
-                </div>
-              </div>
-              <div class="score-item">
-                <span class="score-label">配送</span>
-                <div class="stars">
-                  <span v-for="i in 5" :key="i" class="star" :class="{ active: i <= order.review.deliveryScore }">⭐</span>
-                </div>
-              </div>
-            </div>
-            <span class="review-time">{{ order.review.createdAt }}</span>
-          </div>
-          <p class="review-content">{{ order.review.content }}</p>
-          <div class="review-images" v-if="order.review.images">
-            <img v-for="(img, index) in order.review.images" :key="index" :src="formatImageUrl(img)" @click="previewImage(img)" />
           </div>
         </div>
       </div>
@@ -169,10 +139,6 @@
             <span class="label">优惠券优惠</span>
             <span class="value">-¥{{ order.couponDiscount }}</span>
           </div>
-          <div class="amount-item discount" v-if="order.pointsDiscount > 0">
-            <span class="label">积分抵扣</span>
-            <span class="value">-¥{{ order.pointsDiscount }}</span>
-          </div>
           <div class="amount-item total">
             <span class="label">实付款</span>
             <span class="value">¥{{ order.totalAmount }}</span>
@@ -184,104 +150,22 @@
     <!-- 底部操作栏 -->
     <div class="footer" v-if="!loading">
       <!-- 待支付 -->
-      <template v-if="order.status === 'PENDING_PAYMENT' || order.canPay">
+      <template v-if="order.status === 'PENDING_PAYMENT'">
         <button class="footer-btn secondary" @click="cancelOrder">取消订单</button>
         <button class="footer-btn primary" @click="payOrder">立即支付</button>
       </template>
 
-      <!-- 制作中 -->
-      <template v-else-if="order.status === 'MAKING' || order.canRemind">
-        <button class="footer-btn secondary" @click="contactService">联系客服</button>
-        <button class="footer-btn primary" @click="remindOrder">催单</button>
-      </template>
-
-      <!-- 待确认 -->
-      <template v-else-if="order.status === 'DELIVERED' || order.status === 'READY' || order.status === 'DELIVERING'">
-        <button class="footer-btn secondary" @click="contactService">联系客服</button>
-        <button class="footer-btn primary" @click="confirmOrder">确认收货</button>
-      </template>
-
-      <!-- 已完成 -->
-      <template v-else-if="order.status === 'COMPLETED' || order.status === 'FINISHED' || order.canReview">
+      <!-- 已完成可评价 -->
+      <template v-else-if="order.status === 'COMPLETED' || order.status === 'FINISHED'">
         <button class="footer-btn secondary" @click="reorder">再来一单</button>
         <button class="footer-btn primary" @click="reviewOrder">去评价</button>
       </template>
 
-      <!-- 已评价 -->
-      <template v-else-if="order.status === 'REVIEWED'">
-        <button class="footer-btn secondary" @click="showComplaintDialog">投诉建议</button>
-        <button class="footer-btn primary" @click="showAppealDialog">申诉退款</button>
-      </template>
-
-      <!-- 其他状态 -->
+      <!-- 通用：制作中/配送中 -->
       <template v-else>
-        <button class="footer-btn secondary" @click="showComplaintDialog">投诉建议</button>
+        <button class="footer-btn secondary" @click="contactService">联系客服</button>
         <button class="footer-btn primary" @click="reorder">再来一单</button>
       </template>
-    </div>
-
-    <!-- 投诉建议弹窗 -->
-    <div class="modal" v-if="showComplaintModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>投诉与建议</h3>
-          <button class="close-btn" @click="showComplaintModal = false">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-item">
-            <label>反馈类型</label>
-            <select v-model="complaintForm.type">
-              <option value="服务态度">服务态度</option>
-              <option value="制作速度">制作速度</option>
-              <option value="菜品质量">菜品质量</option>
-              <option value="卫生问题">卫生问题</option>
-              <option value="其他">其他</option>
-            </select>
-          </div>
-          <div class="form-item">
-            <label>详细内容</label>
-            <textarea v-model="complaintForm.content" placeholder="请写下您的宝贵意见..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="modal-btn secondary" @click="showComplaintModal = false">取消</button>
-          <button class="modal-btn primary" @click="submitComplaint">提交反馈</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 申诉弹窗 -->
-    <div class="modal" v-if="showAppealModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>申请申诉退款</h3>
-          <button class="close-btn" @click="showAppealModal = false">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-item">
-            <label>申诉原因</label>
-            <select v-model="appealForm.reason">
-              <option value="商品质量问题">商品质量问题</option>
-              <option value="配送超时严重">配送超时严重</option>
-              <option value="商家态度恶劣">商家态度恶劣</option>
-              <option value="其他原因">其他原因</option>
-            </select>
-          </div>
-          <div class="form-item">
-            <label>详细描述</label>
-            <textarea v-model="appealForm.description" placeholder="请详细描述您的问题..."></textarea>
-          </div>
-          <div class="form-item">
-            <label>退款金额</label>
-            <input type="number" v-model="appealForm.amount" :max="order.totalAmount" />
-            <span class="hint">最多可退 ¥{{ order.totalAmount }}</span>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="modal-btn secondary" @click="showAppealModal = false">取消</button>
-          <button class="modal-btn primary" @click="submitAppeal">提交申诉</button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -297,18 +181,11 @@ const route = useRoute()
 const router = useRouter()
 const cartStore = useCartStore()
 
-const orderNo = ref(route.params.id) // 接口文档中使用 orderNo
+const orderNo = ref(route.params.id)
 const order = ref({})
 const loading = ref(true)
 const statusSteps = ref([])
 const currentStep = ref(0)
-
-const showAppealModal = ref(false)
-const appealForm = ref({
-  reason: '商品质量问题',
-  description: '',
-  amount: 0
-})
 
 onMounted(() => {
   loadOrderDetail()
@@ -319,27 +196,9 @@ const loadOrderDetail = async () => {
   try {
     const res = await orderApi.getOrderDetail(orderNo.value)
     if (res.code === 200) {
-      const data = res.data
-      // 预处理订单项数据
-      if (data.orderItems) {
-        data.orderItems = data.orderItems.map(item => {
-          // 解析规格 JSON
-          let customizations = null
-          if (item.specJson) {
-            try {
-              customizations = JSON.parse(item.specJson)
-            } catch (e) {
-              console.error('解析规格失败', e)
-            }
-          }
-          return {
-            ...item,
-            customizations: customizations
-          }
-        })
-      }
-      order.value = data
-      generateStatusSteps(data)
+      // 直接使用后端返回的数据对象，不进行繁琐的本地 fallback 解析
+      order.value = res.data
+      generateStatusSteps(res.data)
     }
   } catch (error) {
     console.error('加载订单详情失败:', error)
@@ -349,6 +208,7 @@ const loadOrderDetail = async () => {
 }
 
 const generateStatusSteps = (orderData) => {
+  // 定义标准流程
   if (orderData.deliveryType === 'delivery') {
     statusSteps.value = [
       { key: 'created', title: '订单已提交', time: orderData.createTime },
@@ -367,6 +227,7 @@ const generateStatusSteps = (orderData) => {
     ]
   }
   
+  // 状态与步骤的映射映射
   const stepMap = {
     'PENDING_PAYMENT': 0,
     'PAID': 1,
@@ -382,8 +243,6 @@ const generateStatusSteps = (orderData) => {
 }
 
 const getStatusText = (status) => {
-  if (!status) return '未知状态'
-  const s = status.toUpperCase()
   const statusMap = {
     'PENDING_PAYMENT': '待支付',
     'PAID': '待接单',
@@ -398,7 +257,7 @@ const getStatusText = (status) => {
     'CANCELLED': '已取消',
     'REVIEWED': '已评价'
   }
-  return statusMap[s] || status
+  return statusMap[status] || status
 }
 
 const copyOrderNo = () => {
@@ -411,22 +270,12 @@ const copyPickupCode = () => {
   alert('已复制取餐码')
 }
 
-const callStore = () => {
-  alert('正在拨打：' + order.value.store.phone)
-}
-
 const cancelOrder = async () => {
   if (confirm('确定要取消订单吗？')) {
-    try {
-      const res = await orderApi.cancelOrder(orderNo.value)
-      if (res.code === 200) {
-        alert('订单已取消')
-        router.back()
-      } else {
-        alert(res.message || '取消失败')
-      }
-    } catch (error) {
-      console.error('取消订单失败:', error)
+    const res = await orderApi.cancelOrder(orderNo.value)
+    if (res.code === 200) {
+      alert('订单已取消')
+      router.back()
     }
   }
 }
@@ -435,85 +284,23 @@ const payOrder = () => {
   router.push({ path: '/payment', query: { orderNo: orderNo.value } })
 }
 
-const remindOrder = async () => {
-  try {
-    const res = await orderApi.remindOrder(orderNo.value)
-    if (res.code === 200) {
-      alert(res.data?.message || '已提醒商家尽快制作')
-    } else {
-      alert(res.message || '催单失败')
-    }
-  } catch (error) {
-    console.error('催单失败:', error)
-  }
-}
-
-const confirmOrder = async () => {
-  if (confirm('确认已收到商品吗？')) {
-    try {
-      const res = await orderApi.confirmOrder(orderNo.value)
-      if (res.code === 200) {
-        alert('已确认收货')
-        loadOrderDetail()
-      } else {
-        alert(res.message || '确认收货失败')
-      }
-    } catch (error) {
-      console.error('确认收货失败:', error)
-    }
-  }
-}
-
-const reviewOrder = () => {
-  router.push(`/review/${order.value.orderNo}`)
-}
-
 const reorder = () => {
   const items = order.value.orderItems || []
-  const storeId = order.value.storeId
   items.forEach(item => {
     cartStore.addItem({
       productId: item.productId,
-      id: item.productId,
-      storeId: storeId,
       name: item.productName,
       image: item.productImage,
       price: item.price,
       quantity: item.quantity,
-      specId: item.specId,
       customizations: item.customizations
     })
   })
-  alert('已添加到购物车')
   router.push('/cart')
 }
 
 const contactService = () => {
-  alert('联系客服：400-123-4567')
-}
-
-const showAppealDialog = () => {
-  appealForm.value.amount = order.value.totalAmount
-  showAppealModal.value = true
-}
-
-const submitAppeal = async () => {
-  if (!appealForm.value.description) {
-    alert('请填写详细描述')
-    return
-  }
-  try {
-    const res = await orderApi.submitAppeal(order.value.orderNo, appealForm.value)
-    if (res.code === 200) {
-      alert('申诉已提交，请耐心等待后台处理')
-      showAppealModal.value = false
-      loadOrderDetail()
-    } else {
-      alert(res.message || '提交失败')
-    }
-  } catch (error) {
-    console.error('提交申诉失败:', error)
-  }
+  window.location.href = 'tel:4001234567'
 }
 </script>
 

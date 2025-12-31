@@ -105,13 +105,6 @@
             @click.stop="() => {
               const productId = goods.productId || goods.id;
               if (!productId) return;
-              const tea = {
-                id: productId,
-                name: goods.name || goods.productName,
-                image: goods.image || goods.productImage || goods.product?.mainImageUrl || goods.product?.imageUrl || goods.mainImageUrl || goods.imageUrl,
-                price: goods.price
-              };
-              localStorage.setItem('current_tea', JSON.stringify(tea));
               router.push(`/product/${productId}`);
             }"
           >

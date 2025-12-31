@@ -21,12 +21,7 @@ public class StoreService {
         this.storeRepository = storeRepository;
     }
 
-    /**
-     * 创建新的门店
-     * @param store 要创建的门店实体
-     * @return 已保存的门店实体
-     * @throws ServiceException 如果门店信息无效
-     */
+
     @Transactional
     public Store createStore(Store store) {
         // 验证输入
@@ -43,28 +38,17 @@ public class StoreService {
         return storeRepository.save(store);
     }
 
-    /**
-     * 根据ID获取门店信息
-     * @param id 门店ID
-     * @return 门店实体Optional
-     */
+
     public Optional<Store> getStoreById(Long id) {
         return storeRepository.findById(id);
     }
 
-    /**
-     * 根据门店编码获取门店信息
-     * @param code 门店编码
-     * @return 门店实体Optional
-     */
+
     public Optional<Store> getStoreByCode(String code) {
         return storeRepository.findByCode(code);
     }
 
-    /**
-     * 获取所有门店列表
-     * @return 门店列表
-     */
+
     public List<Store> findAllStores() {
         try {
             return storeRepository.findAll();
@@ -73,21 +57,12 @@ public class StoreService {
         }
     }
 
-    /**
-     * 获取营业中的门店列表
-     * @return 门店列表
-     */
+
     public List<Store> findOpenStores() {
         return storeRepository.findOpenStores();
     }
 
-    /**
-     * 根据区域获取营业中的门店列表
-     * @param province 省
-     * @param city 市
-     * @param district 区
-     * @return 门店列表
-     */
+
     public List<Store> findOpenStoresByRegion(String province, String city, String district) {
         if (StringUtils.hasText(district)) {
             return storeRepository.findByDistrictAndStatus(district, "OPEN");
@@ -99,29 +74,17 @@ public class StoreService {
         return findOpenStores();
     }
 
-    /**
-     * 获取支持配送的门店列表
-     * @return 门店列表
-     */
+
     public List<Store> findDeliveryStores() {
         return storeRepository.findDeliveryStores();
     }
 
-    /**
-     * 获取最近创建的门店列表
-     * @return 门店列表
-     */
+
     public List<Store> findRecentStores() {
         return storeRepository.findRecentStores();
     }
 
-    /**
-     * 更新门店信息
-     * @param id 门店ID
-     * @param storeDetails 要更新的门店详情
-     * @return 更新后的门店实体Optional
-     * @throws ServiceException 如果门店不存在或信息无效
-     */
+
     @Transactional
     public Optional<Store> updateStore(Long id, Store storeDetails) {
         // 验证输入
@@ -209,13 +172,6 @@ public class StoreService {
         });
     }
 
-    /**
-     * 更新门店状态
-     * @param id 门店ID
-     * @param status 新状态
-     * @return 更新后的门店实体Optional
-     * @throws ServiceException 如果门店不存在或状态无效
-     */
     @Transactional
     public Optional<Store> updateStoreStatus(Long id, String status) {
         if (!isValidStatus(status)) {
@@ -234,26 +190,13 @@ public class StoreService {
         });
     }
 
-    /**
-     * 更新门店营业状态（支持 businessStatus 和 status 同步）
-     * @param id 门店ID
-     * @param status 新状态字符串 (OPEN/CLOSED)
-     * @return 更新后的门店实体Optional
-     */
+
     @Transactional
     public Optional<Store> updateStoreBusinessStatus(Long id, String status) {
         return updateStoreStatus(id, status);
     }
 
-    /**
-     * 更新门店配送设置
-     * @param id 门店ID
-     * @param deliveryRadius 配送半径
-     * @param deliveryFee 配送费
-     * @param minOrderAmount 最低订单金额
-     * @return 更新后的门店实体Optional
-     * @throws ServiceException 如果门店不存在或参数无效
-     */
+
     @Transactional
     public Optional<Store> updateStoreDeliverySettings(Long id, Integer deliveryRadius, 
                                                       BigDecimal deliveryFee, BigDecimal minOrderAmount) {
@@ -282,11 +225,7 @@ public class StoreService {
         });
     }
 
-    /**
-     * 根据ID删除门店
-     * @param id 门店ID
-     * @throws ServiceException 如果门店不存在
-     */
+
     @Transactional
     public void deleteStore(Long id) {
         if (!storeRepository.existsById(id)) {
@@ -295,147 +234,76 @@ public class StoreService {
         storeRepository.deleteById(id);
     }
 
-    /**
-     * 根据门店名称模糊查询
-     * @param name 门店名称
-     * @return 匹配的门店列表
-     */
+
     public List<Store> findStoresByName(String name) {
         return storeRepository.findByNameContainingIgnoreCase(name);
     }
 
-    /**
-     * 根据地址模糊查询
-     * @param address 地址
-     * @return 匹配的门店列表
-     */
+
     public List<Store> findStoresByAddress(String address) {
         return storeRepository.findByAddressContainingIgnoreCase(address);
     }
 
-    /**
-     * 根据状态查找门店
-     * @param status 状态
-     * @return 匹配的门店列表
-     */
+
     public List<Store> findStoresByStatus(String status) {
         return storeRepository.findByStatusIgnoreCase(status);
     }
 
-    /**
-     * 根据经纬度范围查找门店
-     * @param minLat 最小纬度
-     * @param maxLat 最大纬度
-     * @param minLng 最小经度
-     * @param maxLng 最大经度
-     * @return 匹配的门店列表
-     */
+
     public List<Store> findStoresByLocationRange(BigDecimal minLat, BigDecimal maxLat, 
                                                 BigDecimal minLng, BigDecimal maxLng) {
         return storeRepository.findByLocationRange(minLat, maxLat, minLng, maxLng);
     }
 
-    /**
-     * 查找附近门店
-     * @param latitude 纬度
-     * @param longitude 经度
-     * @param radius 半径（公里）
-     * @return 匹配的门店列表
-     */
+
     public List<Store> findNearbyStores(BigDecimal latitude, BigDecimal longitude, Double radius) {
         return storeRepository.findNearbyStores(latitude, longitude, radius);
     }
 
-    /**
-     * 获取所有营业中的门店并按距离排序
-     * @param latitude 纬度
-     * @param longitude 经度
-     * @return 门店列表
-     */
+
     public List<Store> findAllOpenStoresOrderByDistance(BigDecimal latitude, BigDecimal longitude) {
         return storeRepository.findAllOpenStoresOrderByDistance(latitude, longitude);
     }
 
-    /**
-     * 根据配送费范围查找门店
-     * @param minFee 最小配送费
-     * @param maxFee 最大配送费
-     * @return 匹配的门店列表
-     */
     public List<Store> findStoresByDeliveryFeeRange(BigDecimal minFee, BigDecimal maxFee) {
         return storeRepository.findByDeliveryFeeBetween(minFee, maxFee);
     }
 
-    /**
-     * 根据最低订单金额范围查找门店
-     * @param minAmount 最低订单金额
-     * @param maxAmount 最高订单金额
-     * @return 匹配的门店列表
-     */
+
     public List<Store> findStoresByMinOrderAmountRange(BigDecimal minAmount, BigDecimal maxAmount) {
         return storeRepository.findByMinOrderAmountBetween(minAmount, maxAmount);
     }
 
-    /**
-     * 根据是否自动接单查找门店
-     * @param isAutoAccept 是否自动接单
-     * @return 匹配的门店列表
-     */
+
     public List<Store> findStoresByAutoAccept(Boolean isAutoAccept) {
         return storeRepository.findByIsAutoAccept(isAutoAccept);
     }
 
-    /**
-     * 根据是否支持在线支付查找门店
-     * @param isOnlinePayment 是否支持在线支付
-     * @return 匹配的门店列表
-     */
+
     public List<Store> findStoresByOnlinePayment(Boolean isOnlinePayment) {
         return storeRepository.findByIsOnlinePayment(isOnlinePayment);
     }
 
-    /**
-     * 统计门店总数
-     * @return 门店总数
-     */
+
     public long countAllStores() {
         return storeRepository.count();
     }
 
-    /**
-     * 统计营业中的门店数量
-     * @return 营业中门店数量
-     */
+
     public long countOpenStores() {
         return storeRepository.countOpenStores();
     }
 
-    /**
-     * 统计支持配送的门店数量
-     * @return 支持配送的门店数量
-     */
     public long countDeliveryStores() {
         return storeRepository.countDeliveryStores();
     }
 
-    /**
-     * 根据状态统计门店数量
-     * @param status 状态
-     * @return 门店数量
-     */
+
     public long countStoresByStatus(String status) {
         return storeRepository.countByStatus(status);
     }
 
-    /**
-     * 搜索门店（综合条件）
-     * @param name 门店名称（可选）
-     * @param address 地址（可选）
-     * @param status 状态（可选）
-     * @param isAutoAccept 是否自动接单（可选）
-     * @param isOnlinePayment 是否支持在线支付（可选）
-     * @return 匹配的门店列表
-     */
+
     public List<Store> searchStores(String name, String address, String status, 
                                    Boolean isAutoAccept, Boolean isOnlinePayment) {
         // 简化处理：根据条件组合调用不同的查询
@@ -458,12 +326,7 @@ public class StoreService {
         }
     }
 
-    /**
-     * 批量更新门店状态
-     * @param ids 门店ID列表
-     * @param status 新状态
-     * @throws ServiceException 如果状态无效
-     */
+
     @Transactional
     public void batchUpdateStoreStatus(List<Long> ids, String status) {
         if (!isValidStatus(status)) {
@@ -477,31 +340,20 @@ public class StoreService {
         storeRepository.saveAll(stores);
     }
 
-    /**
-     * 验证门店是否营业
-     * @param id 门店ID
-     * @return 是否营业
-     */
+
     public boolean isStoreOpen(Long id) {
         Optional<Store> store = storeRepository.findById(id);
         return store.isPresent() && "OPEN".equals(store.get().getStatus());
     }
 
-    /**
-     * 验证门店是否支持配送
-     * @param id 门店ID
-     * @return 是否支持配送
-     */
+
     public boolean isStoreDeliveryAvailable(Long id) {
         Optional<Store> store = storeRepository.findById(id);
         return store.isPresent() && store.get().getDeliveryRadius() != null 
                 && store.get().getDeliveryRadius() > 0;
     }
 
-    /**
-     * 获取门店统计信息
-     * @return 门店统计信息
-     */
+
     public StoreStats getStoreStats() {
         long totalStores = storeRepository.count();
         long openStores = storeRepository.countOpenStores();
@@ -544,9 +396,7 @@ public class StoreService {
         }
     }
 
-    /**
-     * 验证创建门店的输入
-     */
+
     private void validateStoreForCreate(Store store) {
         if (store == null) {
             throw new ServiceException("STORE_REQUIRED", "门店信息不能为空");
@@ -557,15 +407,7 @@ public class StoreService {
         if (!StringUtils.hasText(store.getAddress())) {
             throw new ServiceException("STORE_ADDRESS_REQUIRED", "门店地址不能为空");
         }
-        // 暂时放宽电话和经纬度要求，或者在 setDefaultValues 中处理
-        /*
-        if (!StringUtils.hasText(store.getPhone())) {
-            throw new ServiceException("STORE_PHONE_REQUIRED", "门店电话不能为空");
-        }
-        if (store.getLatitude() == null || store.getLongitude() == null) {
-            throw new ServiceException("STORE_LOCATION_REQUIRED", "门店经纬度不能为空");
-        }
-        */
+
         
         // 验证经纬度范围（如果提供）
         if (store.getLatitude() != null) {
@@ -582,9 +424,7 @@ public class StoreService {
         }
     }
     
-    /**
-     * 验证更新门店的输入
-     */
+
     private void validateStoreForUpdate(Store store) {
         if (store == null) {
             throw new ServiceException("STORE_REQUIRED", "门店信息不能为空");
@@ -610,18 +450,14 @@ public class StoreService {
         }
     }
     
-    /**
-     * 验证门店状态是否有效
-     */
+
     private boolean isValidStatus(String status) {
         return status != null && 
                (status.equals("OPEN") || status.equals("CLOSED") || 
                 status.equals("MAINTENANCE") || status.equals("VACATION"));
     }
 
-    /**
-     * 门店统计信息
-     */
+
     public static class StoreStats {
         private final long totalStores;
         private final long openStores;

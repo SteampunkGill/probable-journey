@@ -177,6 +177,7 @@ com\milktea\backend\dto\RegionDTO.class
 com\milktea\backend\repository\UserInviteRewardRepository.class
 com\milktea\backend\service\StoreService.class
 com\milktea\milktea_backend\model\entity\ProductOption.class
+com\milktea\backend\config\DataInitializer.class
 com\milktea\backend\dto\OrderDTO.class
 com\milktea\backend\controller\CommonController.class
 com\milktea\backend\repository\SysPermissionRepository.class
@@ -217,6 +218,7 @@ com\milktea\backend\dto\SystemConfigDTO.class
 com\milktea\backend\repository\ProductSpecCombinationPriceRepository.class
 com\milktea\milktea_backend\model\entity\ProductAllergen.class
 com\milktea\backend\service\RecipeService.class
+com\milktea\backend\config\AlipayConfig.class
 com\milktea\backend\dto\CategoryDTO.class
 com\milktea\backend\util\JwtUtils.class
 com\milktea\milktea_backend\model\entity\ProductSpecCombination.class

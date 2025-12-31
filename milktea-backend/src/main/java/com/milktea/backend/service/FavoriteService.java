@@ -26,8 +26,7 @@ public class FavoriteService {
     public Page<UserFavoriteProduct> getMyFavorites(int page, int size) {
         User user = userService.getCurrentUser();
         Page<UserFavoriteProduct> favorites = favoriteRepository.findByUser(user, PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt")));
-        
-        // 防御性编程：确保 Product 被加载，触发 Hibernate 代理初始化
+
         favorites.forEach(fav -> {
             if (fav.getProduct() != null) {
                 fav.getProduct().getName();

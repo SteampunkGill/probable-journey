@@ -22,7 +22,7 @@ public class Banner {
     private String imageUrl;
 
     @Column(name = "link_type", length = 20)
-    private String linkType; // PRODUCT, URL, NONE
+    private String linkType;
 
     @Column(name = "link_value", length = 255)
     private String linkValue;

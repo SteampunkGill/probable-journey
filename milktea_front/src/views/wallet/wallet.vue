@@ -8,7 +8,7 @@
         <h1 class="balance-amount">{{ balance.toFixed(2) }}</h1>
         
         <div class="card-actions">
-          <button class="action-btn" @click="recharge">
+          <button class="action-btn" @click="showRechargeModal = true">
             <span class="icon">💰</span>
             <span>充值</span>
           </button>
@@ -22,7 +22,7 @@
 
     <!-- 功能菜单 -->
     <div class="menu-section">
-      <div class="menu-item" @click="viewDetail">
+      <div class="menu-item" @click="showTransactions = true">
         <div class="menu-left">
           <span class="menu-icon">📋</span>
           <span class="menu-title">交易明细</span>
@@ -30,7 +30,7 @@
         <span class="menu-arrow">›</span>
       </div>
       
-      <div class="menu-item" @click="viewDetail">
+      <div class="menu-item" @click="alert('暂无充值优惠')">
         <div class="menu-left">
           <span class="menu-icon">🎁</span>
           <span class="menu-title">充值优惠</span>
@@ -46,24 +46,85 @@
       <p class="tips-text">• 提现将在1-3个工作日内到账</p>
       <p class="tips-text">• 充值赠送积分，多充多送</p>
     </div>
+
+    <!-- 充值弹窗 -->
+    <div v-if="showRechargeModal" class="modal-mask" @click="showRechargeModal = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>选择充值金额</h3>
+          <span class="close-btn" @click="showRechargeModal = false">×</span>
+        </div>
+        <div class="recharge-options">
+          <div 
+            v-for="amount in rechargeAmounts" 
+            :key="amount"
+            class="recharge-item"
+            :class="{ active: selectedAmount === amount }"
+            @click="selectedAmount = amount"
+          >
+            <span class="amount">¥{{ amount }}</span>
+          </div>
+        </div>
+        <div class="custom-amount">
+          <input 
+            type="number" 
+            v-model="customAmount" 
+            placeholder="输入其他金额"
+            @focus="selectedAmount = null"
+          />
+        </div>
+        <button 
+          class="confirm-btn" 
+          :disabled="submitting || (!selectedAmount && !customAmount)"
+          @click="handleRecharge"
+        >
+          {{ submitting ? '处理中...' : '立即充值' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 交易明细弹窗 -->
+    <div v-if="showTransactions" class="modal-mask" @click="showTransactions = false">
+      <div class="modal-content transactions-modal" @click.stop>
+        <div class="modal-header">
+          <h3>交易明细</h3>
+          <span class="close-btn" @click="showTransactions = false">×</span>
+        </div>
+        <div class="transactions-list" v-if="transactions.length > 0">
+          <div v-for="item in transactions" :key="item.id" class="transaction-item">
+            <div class="item-left">
+              <span class="item-title">{{ formatType(item.type) }}</span>
+              <span class="item-time">{{ formatDate(item.createdAt) }}</span>
+            </div>
+            <div class="item-right" :class="{ plus: item.amount > 0 }">
+              {{ item.amount > 0 ? '+' : '' }}{{ item.amount.toFixed(2) }}
+            </div>
+          </div>
+        </div>
+        <div v-else class="empty-transactions">
+          暂无交易记录
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { userApi } from '../../utils/api'
+import { ref, onMounted, watch } from 'vue'
+import { walletApi } from '../../utils/api'
 
 const balance = ref(0)
-
-onMounted(() => {
-  loadBalance()
-})
-
-import { authApi } from '../../utils/api'
+const showRechargeModal = ref(false)
+const showTransactions = ref(false)
+const rechargeAmounts = [10, 20, 50, 100, 200, 500]
+const selectedAmount = ref(50)
+const customAmount = ref('')
+const submitting = ref(false)
+const transactions = ref([])
 
 const loadBalance = async () => {
   try {
-    const res = await authApi.getUserProfile()
+    const res = await walletApi.getBalance()
     if (res.code === 200) {
       balance.value = res.data.balance || 0
     }
@@ -72,68 +133,84 @@ const loadBalance = async () => {
   }
 }
 
-const recharge = () => {
-  // 实际项目中应跳转到充值页面或调用支付接口
-  alert('充值功能请前往柜台或使用支付宝/微信充值')
+const loadTransactions = async () => {
+  try {
+    const res = await walletApi.getTransactions()
+    if (res.code === 200) {
+      transactions.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载交易记录失败:', error)
+  }
+}
+
+const handleRecharge = async () => {
+  const amount = selectedAmount.value || parseFloat(customAmount.value)
+  if (!amount || amount <= 0) return
+
+  submitting.value = true
+  try {
+    const res = await walletApi.recharge(amount)
+    if (res.code === 200) {
+      alert('充值成功！')
+      showRechargeModal.value = false
+      loadBalance()
+      loadTransactions()
+    } else {
+      alert(res.message || '充值失败')
+    }
+  } catch (error) {
+    console.error('充值失败:', error)
+    alert('充值失败，请重试')
+  } finally {
+    submitting.value = false
+  }
 }
 
 const withdraw = () => {
-  alert('提现申请已提交，请等待审核')
+  alert('提现功能暂未开放，请联系客服')
 }
 
-const viewDetail = () => {
-  // 实际项目中应跳转到明细列表页
-  alert('暂无更多交易明细')
+const formatType = (type) => {
+  const map = {
+    'RECHARGE': '在线充值',
+    'CONSUME': '订单消费',
+    'WITHDRAW': '余额提现',
+    'REFUND': '订单退款'
+  }
+  return map[type] || type
 }
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return `${date.getMonth() + 1}-${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+watch(showTransactions, (val) => {
+  if (val) loadTransactions()
+})
+
+onMounted(() => {
+  loadBalance()
+})
 </script>
 
 <style scoped>
-/* 饮饮茶(SipSipTea) 奶茶主题 - 钱包页面 */
 .wallet-page {
   min-height: 100vh;
-  background: var(--background-color);
-  font-family: var(--font-body);
-  color: var(--text-color-dark);
-  position: relative;
-  overflow-x: hidden;
-  padding: var(--spacing-lg);
+  background: #f8f8f8;
+  padding: 20px;
 }
 
-/* 背景装饰元素 */
-.wallet-page::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background:
-      radial-gradient(circle at 20% 80%, rgba(255, 248, 220, 0.15) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(222, 184, 135, 0.15) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* 余额卡片 */
 .balance-card {
-  height: 220px;
+  height: 180px;
   position: relative;
-  border-radius: var(--border-radius-xl);
+  border-radius: 16px;
   overflow: hidden;
-  color: var(--accent-cream);
-  margin-bottom: var(--spacing-xl);
-  box-shadow:
-      0 15px 40px rgba(139, 69, 19, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.balance-card:hover {
-  transform: translateY(-5px);
-  box-shadow:
-      0 20px 50px rgba(139, 69, 19, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: white;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 20px rgba(255, 107, 0, 0.2);
 }
 
 .card-bg {
@@ -142,446 +219,243 @@ const viewDetail = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  background: linear-gradient(135deg, #ff9d00, #ff6b00);
   z-index: 1;
-}
-
-.card-bg::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background:
-      radial-gradient(circle at 30% 30%, rgba(255, 192, 203, 0.15) 0%, transparent 50%),
-      radial-gradient(circle at 70% 70%, rgba(255, 248, 220, 0.15) 0%, transparent 50%);
 }
 
 .card-content {
   position: relative;
   height: 100%;
-  padding: var(--spacing-xl);
+  padding: 25px;
   display: flex;
   flex-direction: column;
   z-index: 2;
 }
 
 .balance-label {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
   opacity: 0.9;
-  letter-spacing: 0.5px;
-  margin-bottom: var(--spacing-sm);
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .balance-amount {
-  font-size: 56px;
-  font-weight: 800;
-  font-family: var(--font-heading);
-  margin: var(--spacing-sm) 0 var(--spacing-lg);
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-  letter-spacing: 1px;
-  position: relative;
-  display: inline-block;
-}
-
-.balance-amount::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: linear-gradient(to right, transparent, var(--accent-cream), transparent);
-  border-radius: 2px;
+  font-size: 40px;
+  font-weight: bold;
+  margin: 10px 0;
 }
 
 .card-actions {
   display: flex;
-  gap: var(--spacing-md);
+  gap: 15px;
   margin-top: auto;
 }
 
 .action-btn {
   flex: 1;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.15);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--border-radius-xl);
-  color: var(--accent-cream);
+  height: 36px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 18px;
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
-  font-size: 15px;
-  font-weight: 600;
+  gap: 5px;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(5px);
 }
 
-.action-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s ease-out;
-}
-
-.action-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-}
-
-.action-btn:hover::before {
-  left: 100%;
-}
-
-.action-btn:active {
-  transform: translateY(0);
-}
-
-.action-btn .icon {
-  font-size: 18px;
-  transition: transform 0.3s ease-out;
-}
-
-.action-btn:hover .icon {
-  transform: scale(1.1) rotate(5deg);
-}
-
-/* 功能菜单 */
 .menu-section {
-  background: var(--surface-color);
-  border-radius: var(--border-radius-lg);
+  background: white;
+  border-radius: 12px;
   overflow: hidden;
-  margin-bottom: var(--spacing-xl);
-  box-shadow:
-      0 8px 32px rgba(139, 69, 19, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  border: 1px solid var(--border-color);
-  position: relative;
-  z-index: 1;
-}
-
-.menu-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(to right, var(--accent-pink), var(--primary-color), var(--accent-brown));
-  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+  margin-bottom: 20px;
 }
 
 .menu-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-lg) var(--spacing-xl);
-  border-bottom: 1px solid var(--border-color);
+  padding: 15px 20px;
+  border-bottom: 1px solid #f5f5f5;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  background: var(--surface-color);
-  position: relative;
-  overflow: hidden;
 }
 
 .menu-item:last-child {
   border-bottom: none;
 }
 
-.menu-item:hover {
-  background: var(--accent-cream);
-  padding-left: calc(var(--spacing-xl) + 8px);
-}
-
-.menu-item:hover::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  background: linear-gradient(to bottom, var(--accent-pink), var(--primary-color));
-  border-radius: 0 3px 3px 0;
-}
-
 .menu-left {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  position: relative;
-  z-index: 1;
+  gap: 12px;
 }
 
 .menu-icon {
-  font-size: 24px;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: var(--border-radius-md);
-  transition: all 0.3s ease-out;
-}
-
-.menu-item:hover .menu-icon {
-  transform: scale(1.1);
-  background: white;
+  font-size: 20px;
 }
 
 .menu-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-color-dark);
-  transition: all 0.3s ease-out;
-}
-
-.menu-item:hover .menu-title {
-  color: var(--primary-color);
+  font-size: 15px;
+  color: #333;
 }
 
 .menu-arrow {
-  font-size: 24px;
-  color: var(--text-color-light);
-  transition: all 0.3s ease-out;
-  position: relative;
-  z-index: 1;
+  color: #ccc;
+  font-size: 20px;
 }
 
-.menu-item:hover .menu-arrow {
-  color: var(--primary-color);
-  transform: translateX(4px);
-}
-
-/* 提示说明 */
 .tips-section {
-  background: var(--accent-cream);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow:
-      0 4px 16px rgba(139, 69, 19, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  border: 1px solid var(--border-color);
-  position: relative;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.tips-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: linear-gradient(to bottom, var(--accent-pink), var(--primary-color));
-  border-radius: 2px;
+  background: #fff9f5;
+  border-radius: 12px;
+  padding: 15px;
 }
 
 .tips-title {
-  font-size: 16px;
-  font-weight: 700;
-  font-family: var(--font-heading);
-  color: var(--primary-dark);
-  margin-bottom: var(--spacing-md);
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-}
-
-.tips-title::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  background: var(--primary-color);
-  border-radius: 50%;
-  opacity: 0.6;
+  font-size: 15px;
+  color: #ff6b00;
+  margin-bottom: 10px;
 }
 
 .tips-text {
-  font-size: 14px;
-  color: var(--text-color-medium);
-  margin-bottom: var(--spacing-sm);
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 5px;
+}
+
+/* 弹窗样式 */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  z-index: 100;
+}
+
+.modal-content {
+  width: 100%;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.close-btn {
+  font-size: 28px;
+  color: #999;
+  cursor: pointer;
+}
+
+.recharge-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.recharge-item {
+  height: 60px;
+  border: 1px solid #eee;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
-  position: relative;
-  z-index: 1;
-  padding-left: var(--spacing-sm);
-  transition: all 0.3s ease-out;
+  justify-content: center;
+  cursor: pointer;
 }
 
-.tips-text:hover {
-  color: var(--primary-color);
-  transform: translateX(4px);
+.recharge-item.active {
+  border-color: #ff6b00;
+  background: #fff9f5;
+  color: #ff6b00;
 }
 
-.tips-text::before {
-  content: '•';
-  color: var(--primary-light);
-  font-size: 18px;
-  transition: all 0.3s ease-out;
+.custom-amount input {
+  width: 100%;
+  height: 44px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 0 15px;
+  margin-bottom: 20px;
 }
 
-.tips-text:hover::before {
-  color: var(--accent-pink);
-  transform: scale(1.2);
+.confirm-btn {
+  width: 100%;
+  height: 48px;
+  background: #ff6b00;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: bold;
 }
 
-/* 装饰元素 */
-.wallet-page::after {
-  content: '';
-  position: fixed;
-  bottom: -100px;
-  right: -100px;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, var(--accent-pink) 0%, transparent 70%);
-  opacity: 0.08;
-  border-radius: 50%;
-  z-index: 0;
-  animation: float 20s ease-in-out infinite;
+.confirm-btn:disabled {
+  background: #ccc;
 }
 
-@keyframes float {
-  0%, 100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  33% {
-    transform: translate(-40px, 20px) rotate(120deg);
-  }
-  66% {
-    transform: translate(20px, -40px) rotate(240deg);
-  }
+.transactions-modal {
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .wallet-page {
-    padding: var(--spacing-md);
-  }
-
-  .balance-card {
-    height: 200px;
-    padding: var(--spacing-lg);
-  }
-
-  .balance-amount {
-    font-size: 48px;
-  }
-
-  .card-actions {
-    gap: var(--spacing-sm);
-  }
-
-  .action-btn {
-    height: 40px;
-    font-size: 14px;
-  }
-
-  .menu-item {
-    padding: var(--spacing-md) var(--spacing-lg);
-  }
-
-  .menu-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-  }
-
-  .menu-title {
-    font-size: 15px;
-  }
+.transactions-list {
+  flex: 1;
+  overflow-y: auto;
 }
 
-@media (max-width: 480px) {
-  .wallet-page {
-    padding: var(--spacing-sm);
-  }
-
-  .balance-card {
-    height: 180px;
-    padding: var(--spacing-md);
-  }
-
-  .balance-amount {
-    font-size: 40px;
-  }
-
-  .balance-label {
-    font-size: 14px;
-  }
-
-  .card-actions {
-    flex-direction: column;
-    gap: var(--spacing-xs);
-  }
-
-  .action-btn {
-    height: 36px;
-  }
-
-  .menu-item {
-    padding: var(--spacing-sm) var(--spacing-md);
-  }
-
-  .tips-section {
-    padding: var(--spacing-md);
-  }
-
-  .tips-text {
-    font-size: 13px;
-  }
+.transaction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  border-bottom: 1px solid #f5f5f5;
 }
 
-/* 自定义滚动条 */
-.wallet-page::-webkit-scrollbar {
-  width: 8px;
+.item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
-.wallet-page::-webkit-scrollbar-track {
-  background: var(--surface-color);
-  border-radius: 4px;
+.item-title {
+  font-size: 15px;
+  color: #333;
 }
 
-.wallet-page::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, var(--primary-light), var(--primary-color));
-  border-radius: 4px;
+.item-time {
+  font-size: 12px;
+  color: #999;
 }
 
-.wallet-page::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+.item-right {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
 }
 
-/* 加载动画 */
-.loading {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 3px solid var(--primary-light);
-  border-top-color: var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.item-right.plus {
+  color: #ff6b00;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.empty-transactions {
+  text-align: center;
+  padding: 50px 0;
+  color: #999;
 }
 </style>

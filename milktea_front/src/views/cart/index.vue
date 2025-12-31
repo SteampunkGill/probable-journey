@@ -233,9 +233,9 @@ const increaseQuantity = (item) => {
 const loadAvailableCouponCount = async () => {
   try {
     const res = await couponApi.getMyCoupons()
-    if (res.data) {
+    if (res.code === 200 && res.data) {
       // 统计可用优惠券数量
-      const availableCoupons = res.data.filter(coupon => 
+      const availableCoupons = res.data.filter(coupon =>
         coupon.status === 'AVAILABLE' || coupon.status === 'UNUSED'
       )
       availableCouponCount.value = availableCoupons.length

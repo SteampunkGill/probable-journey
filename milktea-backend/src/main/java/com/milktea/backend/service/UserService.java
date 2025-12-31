@@ -27,27 +27,25 @@ public class UserService {
     private final com.milktea.backend.repository.SysUserRepository sysUserRepository;
     private final com.milktea.backend.repository.SysRoleRepository sysRoleRepository;
     private final com.milktea.backend.repository.SysUserRoleRepository sysUserRoleRepository;
+    private final com.milktea.backend.repository.WalletTransactionRepository walletTransactionRepository;
 
     public UserService(UserRepository userRepository,
                        UserAddressRepository userAddressRepository,
                        PasswordEncoder passwordEncoder,
                        com.milktea.backend.repository.SysUserRepository sysUserRepository,
                        com.milktea.backend.repository.SysRoleRepository sysRoleRepository,
-                       com.milktea.backend.repository.SysUserRoleRepository sysUserRoleRepository) {
+                       com.milktea.backend.repository.SysUserRoleRepository sysUserRoleRepository,
+                       com.milktea.backend.repository.WalletTransactionRepository walletTransactionRepository) {
         this.userRepository = userRepository;
         this.userAddressRepository = userAddressRepository;
         this.passwordEncoder = passwordEncoder;
         this.sysUserRepository = sysUserRepository;
         this.sysRoleRepository = sysRoleRepository;
         this.sysUserRoleRepository = sysUserRoleRepository;
+        this.walletTransactionRepository = walletTransactionRepository;
     }
 
-    /**
-     * 用户登录（支持用户名或手机号）
-     * @param account 用户名或手机号
-     * @param password 密码
-     * @return User
-     */
+
     @Transactional
     public Optional<User> login(String account, String password) {
         if (!StringUtils.hasText(account) || !StringUtils.hasText(password)) {
@@ -84,9 +82,7 @@ public class UserService {
         return Optional.empty();
     }
 
-    /**
-     * 获取当前登录用户信息
-     */
+
     @Transactional
     public User getCurrentUser() {
         org.springframework.security.core.Authentication authentication =
@@ -115,18 +111,11 @@ public class UserService {
         });
     }
 
-    /**
-     * 获取个人信息
-     * @param userId 用户ID
-     * @return User
-     */
+
     public Optional<User> getUserProfile(Long userId) {
         return userRepository.findById(userId);
     }
 
-    /**
-     * 更新个人信息
-     */
     @Transactional(readOnly = false)
     public User updateProfile(User userDetails) {
         User user = getCurrentUser();
@@ -169,9 +158,7 @@ public class UserService {
         return user;
     }
 
-    /**
-     * 绑定会员卡
-     */
+
     @Transactional
     public void bindMemberCard(String cardNumber) {
         User user = getCurrentUser();
@@ -179,9 +166,33 @@ public class UserService {
         userRepository.save(user);
     }
 
-    /**
-     * 解绑会员卡
-     */
+    @Transactional
+    public User recharge(java.math.BigDecimal amount) {
+        User user = getCurrentUser();
+        if (amount.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new ServiceException("INVALID_AMOUNT", "充值金额必须大于0");
+        }
+        user.setBalance(user.getBalance().add(amount));
+        User savedUser = userRepository.save(user);
+
+        // 记录交易
+        com.milktea.milktea_backend.model.entity.WalletTransaction transaction = com.milktea.milktea_backend.model.entity.WalletTransaction.builder()
+                .user(savedUser)
+                .type("RECHARGE")
+                .amount(amount)
+                .balanceAfter(savedUser.getBalance())
+                .remark("在线充值")
+                .build();
+        walletTransactionRepository.save(transaction);
+
+        return savedUser;
+    }
+
+    public List<com.milktea.milktea_backend.model.entity.WalletTransaction> getWalletTransactions(Long userId) {
+        return walletTransactionRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+
     @Transactional
     public void unbindMemberCard() {
         User user = getCurrentUser();
@@ -189,9 +200,7 @@ public class UserService {
         userRepository.save(user);
     }
 
-    /**
-     * 申请电子会员卡
-     */
+
     @Transactional
     public void applyMemberCard(Map<String, Object> data) {
         User user = getCurrentUser();
@@ -210,9 +219,7 @@ public class UserService {
         userRepository.save(user);
     }
 
-    /**
-     * 修改密码
-     */
+
     @Transactional
     public void changePassword(String oldPassword, String newPassword) {
         User user = getCurrentUser();
@@ -224,17 +231,12 @@ public class UserService {
         }
     }
 
-    /**
-     * 注销前验证
-     */
+
     public boolean verifyDeactivation() {
         // 检查是否有未完成订单等
         return true;
     }
 
-    /**
-     * 执行注销
-     */
     @Transactional
     public void deactivate() {
         User user = getCurrentUser();
@@ -242,12 +244,7 @@ public class UserService {
         userRepository.save(user);
     }
 
-    /**
-     * 用户注册
-     * @param request 注册请求DTO
-     * @return 注册成功的用户
-     * @throws ServiceException 如果用户信息无效或已存在
-     */
+
     @Transactional
     public User register(com.milktea.backend.dto.RegisterRequestDTO request) {
         if (request == null) {
@@ -305,7 +302,7 @@ public class UserService {
         com.milktea.milktea_backend.model.entity.SysUser sysUser = new com.milktea.milktea_backend.model.entity.SysUser();
         sysUser.setUsername(request.getUsername());
         sysUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        // 兼容旧数据库字段 password (如果存在)
+        // 兼容旧数据库字段 password
         sysUser.setPassword(sysUser.getPasswordHash());
         sysUser.setPhone(request.getPhone());
         sysUser.setRealName(request.getUsername());
@@ -328,10 +325,6 @@ public class UserService {
         sysUserRoleRepository.save(userRole);
     }
 
-    /**
-     * 用户注册核心逻辑
-     * 确保密码在此处仅加密一次
-     */
     @Transactional
     public User registerUser(User user) {
         // 1. 验证输入（此时密码应为明文以满足长度校验）
@@ -364,13 +357,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    /**
-     * 更新用户信息
-     * @param userId 用户ID
-     * @param userDetails 用户信息
-     * @return 更新后的用户
-     * @throws ServiceException 如果用户不存在或信息无效
-     */
+
     @Transactional
     public Optional<User> updateUserProfile(Long userId, User userDetails) {
         // 验证输入
@@ -402,14 +389,7 @@ public class UserService {
         });
     }
 
-    /**
-     * 更新用户密码
-     * @param userId 用户ID
-     * @param oldPassword 旧密码
-     * @param newPassword 新密码
-     * @return 是否成功
-     * @throws ServiceException 如果密码不符合要求
-     */
+
     @Transactional
     public boolean updatePassword(Long userId, String oldPassword, String newPassword) {
         // 验证新密码
@@ -429,11 +409,7 @@ public class UserService {
         return false;
     }
 
-    /**
-     * 删除用户
-     * @param userId 用户ID
-     * @throws ServiceException 如果用户不存在
-     */
+
     @Transactional
     public void deleteUser(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -442,54 +418,30 @@ public class UserService {
         userRepository.deleteById(userId);
     }
 
-    /**
-     * 获取所有用户列表
-     * @return 用户列表
-     */
+
     public List<User> findAllUsers() {
         return userRepository.findAll();
     }
 
-    /**
-     * 根据状态获取用户列表
-     * @param status 状态
-     * @return 用户列表
-     */
+
     public List<User> findUsersByStatus(String status) {
         return userRepository.findByStatus(status);
     }
 
-    /**
-     * 根据用户名查找用户
-     * @param username 用户名
-     * @return 用户Optional
-     */
     public Optional<User> findUserByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
-    /**
-     * 根据邮箱查找用户
-     * @param email 邮箱
-     * @return 用户Optional
-     */
     public Optional<User> findUserByEmail(String email) {
         return userRepository.findByEmail(email);
     }
 
-    /**
-     * 根据手机号查找用户
-     * @param phone 手机号
-     * @return 用户Optional
-     */
+
     public Optional<User> findUserByPhone(String phone) {
         return userRepository.findByPhone(phone);
     }
 
-    /**
-     * 更新用户最后登录时间
-     * @param userId 用户ID
-     */
+
     @Transactional
     public void updateLastLoginTime(Long userId) {
         userRepository.findById(userId).ifPresent(user -> {
@@ -498,40 +450,21 @@ public class UserService {
         });
     }
 
-    /**
-     * 检查用户名是否存在
-     * @param username 用户名
-     * @return 是否存在
-     */
+
     public boolean existsByUsername(String username) {
         return userRepository.findByUsername(username).isPresent();
     }
 
-    /**
-     * 检查邮箱是否存在
-     * @param email 邮箱
-     * @return 是否存在
-     */
+
     public boolean existsByEmail(String email) {
         return userRepository.findByEmail(email).isPresent();
     }
 
-    /**
-     * 检查手机号是否存在
-     * @param phone 手机号
-     * @return 是否存在
-     */
     public boolean existsByPhone(String phone) {
         return userRepository.findByPhone(phone).isPresent();
     }
 
-    /**
-     * 更新用户状态
-     * @param userId 用户ID
-     * @param status 状态
-     * @return 更新后的用户Optional
-     * @throws ServiceException 如果状态无效
-     */
+
     @Transactional
     public Optional<User> updateUserStatus(Long userId, String status) {
         if (!isValidUserStatus(status)) {
@@ -544,13 +477,7 @@ public class UserService {
         });
     }
 
-    /**
-     * 重置用户密码
-     * @param userId 用户ID
-     * @param newPassword 新密码
-     * @return 是否成功
-     * @throws ServiceException 如果密码不符合要求
-     */
+
     @Transactional
     public boolean resetPassword(Long userId, String newPassword) {
         // 验证新密码
@@ -568,56 +495,32 @@ public class UserService {
         return false;
     }
 
-    /**
-     * 根据微信OpenID查找用户
-     * @param wechatOpenid 微信OpenID
-     * @return 用户Optional
-     */
+
     public Optional<User> findUserByWechatOpenid(String wechatOpenid) {
         return userRepository.findByWechatOpenid(wechatOpenid);
     }
 
-    /**
-     * 根据微信UnionID查找用户
-     * @param wechatUnionid 微信UnionID
-     * @return 用户Optional
-     */
+
     public Optional<User> findUserByWechatUnionid(String wechatUnionid) {
         return userRepository.findByWechatUnionid(wechatUnionid);
     }
 
-    /**
-     * 根据昵称搜索用户
-     * @param nickname 昵称
-     * @return 用户列表
-     */
     public List<User> searchUsersByNickname(String nickname) {
         return userRepository.findByNicknameContaining(nickname);
     }
 
-    /**
-     * 根据会员等级查找用户
-     * @param memberLevelId 会员等级ID
-     * @return 用户列表
-     */
+
     public List<User> findUsersByMemberLevel(Long memberLevelId) {
         return userRepository.findByMemberLevelId(memberLevelId);
     }
 
-    /**
-     * 根据邀请人查找用户
-     * @param inviterId 邀请人ID
-     * @return 用户列表
-     */
+
     public List<User> findUsersByInviter(Long inviterId) {
         return userRepository.findByInviterId(inviterId);
     }
 
     // ========== 私有方法 ==========
-    
-    /**
-     * 验证用户注册信息
-     */
+
     private void validateUserForRegistration(User user) {
         if (user == null) {
             throw new ServiceException("USER_REQUIRED", "用户信息不能为空");
@@ -648,9 +551,7 @@ public class UserService {
         }
     }
     
-    /**
-     * 验证用户更新信息
-     */
+
     private void validateUserForUpdate(User user) {
         if (user == null) {
             throw new ServiceException("USER_REQUIRED", "用户信息不能为空");
@@ -677,9 +578,7 @@ public class UserService {
         }
     }
     
-    /**
-     * 验证用户状态是否有效
-     */
+
     private boolean isValidUserStatus(String status) {
         return status != null && 
                (status.equals("ACTIVE") || status.equals("INACTIVE") || 

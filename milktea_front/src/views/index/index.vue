@@ -47,9 +47,8 @@
           ></div>
         </div>
       </div>
-      <div class="banner-placeholder" v-else></div>
 
-      <!-- 门店选择组件 -->
+      <!-- 门店选择 -->
       <div class="store-selector-section">
         <div class="current-store" @click="router.push('/address?type=select_store')">
           <div class="store-main">
@@ -57,7 +56,9 @@
             <div class="store-info-content">
               <div class="store-name-wrapper">
                 <span class="store-name">{{ userStore.selectedStore?.name || '正在定位...' }}</span>
-                <span class="store-distance" v-if="userStore.selectedStore?.distance">距您 {{ userStore.selectedStore.distance.toFixed(2) }}km</span>
+                <span class="store-distance" v-if="userStore.selectedStore?.distance">
+                  距您 {{ userStore.selectedStore.distance.toFixed(2) }}km
+                </span>
               </div>
               <div class="store-address-text">{{ userStore.selectedStore?.address || '请选择门店' }}</div>
             </div>
@@ -70,7 +71,7 @@
         </div>
       </div>
 
-      <!-- 点餐方式选择 -->
+      <!-- 点餐方式 -->
       <div class="order-mode-section">
         <div class="mode-title">选择点餐方式</div>
         <div class="mode-buttons">
@@ -78,22 +79,21 @@
             <img class="mode-icon" src="@/assets/images/icons/order.png" />
             <div class="mode-info">
               <span class="mode-name">外卖配送</span>
-              <span class="mode-desc">30分钟送达</span>
+              <span class="mode-desc">品质外送，准时送达</span>
             </div>
           </div>
-          
           <div class="mode-card pickup" @click="selectOrderMode('pickup')">
             <img class="mode-icon" src="@/assets/images/icons/pick_up_food.png" />
             <div class="mode-info">
               <span class="mode-name">到店自取</span>
-              <span class="mode-desc">预计制作时间</span>
+              <span class="mode-desc">提前下单，免排队</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 促销活动入口 (DEMO ONLY) -->
-      <div class="promo-banner-section" v-if="activePromotions && activePromotions.length > 0">
+      <!-- 促销活动 -->
+      <div class="promo-banner-section" v-if="activePromotions.length > 0">
         <div
           class="promo-banner-card"
           v-for="promo in activePromotions"
@@ -101,12 +101,12 @@
           @click="goToPromoOrder(promo)"
         >
           <div class="promo-banner-content">
-            <div class="promo-tag">限时活动</div>
+            <div class="promo-tag">官方活动</div>
             <div class="promo-title">{{ promo.name }}</div>
-            <div class="promo-subtitle">指定商品享超值折扣，点击立即抢购</div>
+            <div class="promo-subtitle">点击查看详情并参与活动</div>
           </div>
           <div class="promo-action">
-            <span>去抢购</span>
+            <span>立即参与</span>
             <img class="arrow-icon" src="@/assets/images/icons/right.png" />
           </div>
         </div>
@@ -114,7 +114,7 @@
 
       <!-- 快捷入口 -->
       <div class="quick-menu">
-        <div class="menu-item" @click="router.push('/address?type=select_store')">
+        <div class="menu-item" @click="router.push('/order')">
           <div class="menu-icon-wrapper">
             <img class="menu-icon" src="@/assets/images/icons/order.png" />
           </div>
@@ -137,7 +137,7 @@
           <div class="menu-icon-wrapper">
             <img class="menu-icon" src="@/assets/images/icons/gift.png" />
           </div>
-          <span class="menu-name">分享有礼</span>
+          <span class="menu-name">分享</span>
         </div>
       </div>
 
@@ -150,14 +150,13 @@
             <img class="arrow-icon" src="@/assets/images/icons/right.png" />
           </div>
         </div>
-        
         <div class="recommend-scroll">
           <div class="recommend-list">
             <div
               class="recommend-item"
               v-for="item in recommendProducts"
               :key="item.id"
-              @click="() => { localStorage.setItem('current_tea', JSON.stringify(item)); router.push(`/product/${item.id}`) }"
+              @click="router.push(`/product/${item.id}`)"
             >
               <img :src="item.image" class="recommend-image" />
               <div class="recommend-info">
@@ -176,12 +175,7 @@
       <div class="section" v-if="hotProducts.length > 0">
         <div class="section-header">
           <span class="section-title">今日热门</span>
-          <div class="section-more" @click="router.push('/order')">
-            <span>更多</span>
-            <img class="arrow-icon" src="@/assets/images/icons/right.png" />
-          </div>
         </div>
-        
         <div class="hot-list">
           <div 
             class="hot-item" 
@@ -204,44 +198,9 @@
           </div>
         </div>
       </div>
-
-      <!-- 附近门店 -->
-      <div class="section" v-if="userStore.selectedStore">
-        <div class="section-header">
-          <span class="section-title">附近门店</span>
-          <div class="section-more" @click="router.push('/address?type=select_store')">
-            <span>更多</span>
-            <img class="arrow-icon" src="@/assets/images/icons/right.png" />
-          </div>
-        </div>
-        
-        <div class="store-card" @click="router.push('/address?type=select_store')">
-          <div class="store-header">
-            <span class="store-name">{{ userStore.selectedStore.name }}</span>
-            <div class="store-status" :class="userStore.selectedStore.status === 'OPEN' ? 'open' : 'closed'">
-              {{ userStore.selectedStore.status === 'OPEN' ? '营业中' : '休息中' }}
-            </div>
-          </div>
-          <div class="store-info">
-            <img class="info-icon" src="@/assets/images/icons/address.png" />
-            <span class="store-address">{{ userStore.selectedStore.address }}</span>
-          </div>
-          <div class="store-info">
-            <img class="info-icon" src="@/assets/images/icons/info.png" />
-            <span class="store-hours">{{ userStore.selectedStore.businessHours || '09:00-22:00' }}</span>
-          </div>
-          <div class="store-footer">
-            <span class="store-distance" v-if="userStore.selectedStore.distance">距您 {{ userStore.selectedStore.distance.toFixed(2) }}km</span>
-            <div class="store-call" @click.stop="makePhoneCall(userStore.selectedStore.phone)">
-              <img class="call-icon" src="@/assets/images/icons/phone.png" />
-              <span>联系门店</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
     
-    <!-- 购物车浮动按钮 -->
+    <!-- 购物车浮窗 -->
     <div class="cart-float" :class="{ show: cartCount > 0 }" @click="router.push('/cart')">
       <img class="cart-icon" src="@/assets/images/icons/cart.png" />
       <div class="cart-badge" :class="{ bounce: cartAnimating }">{{ cartCount }}</div>
@@ -250,25 +209,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { useUserStore } from '@/store/user'
-import { homeApi, storeApi, bannerApi, productApi, couponApi, promotionApi, addressApi, authApi } from '@/utils/api'
+import { homeApi, storeApi, bannerApi, couponApi, promotionApi } from '@/utils/api'
 import { getDistance, formatImageUrl } from '@/utils/util'
-import { userDB } from '@/utils/db'
 
 const router = useRouter()
 const cartStore = useCartStore()
-
-// 使用工具类计算距离 (单位: km)
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return null
-  // getDistance 返回的是米，转换为千米
-  return getDistance(lat1, lon1, lat2, lon2) / 1000
-}
 const userStore = useUserStore()
 
+// 状态变量
 const loading = ref(true)
 const isLocating = ref(false)
 const scrollTop = ref(0)
@@ -278,129 +230,18 @@ const recommendProducts = ref([])
 const hotProducts = ref([])
 const availableCouponCount = ref(0)
 const activePromotions = ref([])
-const notifications = ref([])
 const showNotification = ref(false)
 const currentNotification = ref(null)
-const cartCount = ref(0)
 const cartAnimating = ref(false)
+
+const cartCount = computed(() => cartStore.totalCount)
 
 let bannerTimer = null
 
-const getLocation = () => {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      alert('您的浏览器不支持地理定位功能')
-      resolve(null)
-      return
-    }
-
-    // 检查是否是安全上下文 (HTTPS 或 localhost)
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      console.warn('地理定位需要 HTTPS 环境或 localhost')
-      // 在非安全环境下，getCurrentPosition 可能不会触发任何回调
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        console.log('定位成功:', position.coords)
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
-        })
-      },
-      (error) => {
-        console.error('获取定位失败:', error)
-        let msg = '定位失败'
-        switch(error.code) {
-          case error.PERMISSION_DENIED:
-            msg = '您已拒绝地理定位权限，请在浏览器设置中开启'
-            break
-          case error.POSITION_UNAVAILABLE:
-            msg = '无法获取当前位置信息'
-            break
-          case error.TIMEOUT:
-            msg = '定位请求超时，请重试'
-            break
-        }
-        alert(msg)
-        resolve(null)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    )
-  })
-}
-
-const updateLocationAndNearbyStores = async () => {
-  isLocating.value = true
-  try {
-    const location = await getLocation()
-    
-    // 如果定位失败，尝试获取用户默认地址作为参考
-    let refProvince = '', refCity = '', refDistrict = ''
-    if (!location) {
-      try {
-        const addrRes = await addressApi.getAddressList()
-        const defaultAddr = addrRes.find(a => a.isDefault) || addrRes[0]
-        if (defaultAddr) {
-          refProvince = defaultAddr.province
-          refCity = defaultAddr.city
-          refDistrict = defaultAddr.district
-          console.log('定位失败，使用默认地址参考:', refCity)
-        }
-      } catch (e) {
-        console.warn('获取参考地址失败')
-      }
-    }
-
-    const params = {
-      latitude: location?.latitude || null,
-      longitude: location?.longitude || null,
-      province: refProvince,
-      city: refCity,
-      district: refDistrict
-    }
-    
-    const nearbyRes = await storeApi.getNearbyStores(params)
-    
-    // 统一处理后端返回的数据结构
-    const resData = nearbyRes.data || nearbyRes
-    if (resData && (Array.isArray(resData) || Array.isArray(resData.list))) {
-      let stores = Array.isArray(resData) ? resData : resData.list
-      
-      // 如果有定位，计算精确距离并排序
-      if (location) {
-        stores = stores.map(store => {
-          const distance = calculateDistance(
-            location.latitude,
-            location.longitude,
-            store.latitude,
-            store.longitude
-          )
-          return { ...store, distance }
-        }).sort((a, b) => a.distance - b.distance)
-      } else if (refCity) {
-        // 如果没有定位但有参考城市，优先匹配同城门店
-        stores = stores.sort((a, b) => {
-          if (a.city === refCity && b.city !== refCity) return -1
-          if (a.city !== refCity && b.city === refCity) return 1
-          return 0
-        })
-      }
-      
-      const store = stores[0]
-      userStore.setSelectedStore(store)
-    }
-  } catch (e) {
-    console.error('更新定位和门店失败:', e)
-  } finally {
-    isLocating.value = false
-  }
-}
-
+/**
+ * 核心逻辑：从 API 加载数据
+ * 移除了所有 localStorage 模拟逻辑
+ */
 const loadData = async () => {
   loading.value = true
   try {
@@ -410,73 +251,74 @@ const loadData = async () => {
       homeApi.getRecommendations()
     ])
     
+    // 轮播图数据
+    const bList = bannersRes.data || bannersRes || []
+    banners.value = bList.map(b => ({
+      ...b,
+      imageUrl: formatImageUrl(b.imageUrl || b.image)
+    }))
+    
+    // 推荐产品
+    const rList = recommendRes.data || recommendRes || []
+    recommendProducts.value = rList.map(p => ({
+      ...p,
+      image: formatImageUrl(p.image || p.productImage || p.mainImageUrl)
+    }))
+    
+    // 热门产品
     const homeData = homeRes.data || homeRes || {}
-    const bannersData = bannersRes.data || bannersRes || []
-    const recommendData = recommendRes.data || recommendRes || []
-    
-    banners.value = (Array.isArray(bannersData) ? bannersData : bannersData.list || []).map(b => {
-      const imageUrl = b.imageUrl || b.image
-      return { ...b, imageUrl: formatImageUrl(imageUrl) }
-    })
-    
-    recommendProducts.value = (Array.isArray(recommendData) ? recommendData : recommendData.list || []).map(p => {
-      const imageUrl = p.image || p.productImage || p.product?.mainImageUrl || p.product?.imageUrl || p.mainImageUrl || p.imageUrl
-      return {
-        ...p,
-        image: formatImageUrl(imageUrl) || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
-      }
-    })
-    
-    const hotList = homeData.hotProducts || []
-    hotProducts.value = hotList.map(p => {
-      const imageUrl = p.image || p.productImage || p.product?.mainImageUrl || p.product?.imageUrl || p.mainImageUrl || p.imageUrl
-      return {
-        ...p,
-        image: formatImageUrl(imageUrl) || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
-      }
-    })
+    const hList = homeData.hotProducts || []
+    hotProducts.value = hList.map(p => ({
+      ...p,
+      image: formatImageUrl(p.image || p.productImage || p.mainImageUrl)
+    }))
 
-    // DEMO ONLY: 将数据存入本地供搜索页面使用
-    localStorage.setItem('demo_all_products', JSON.stringify([...recommendProducts.value, ...hotProducts.value]))
-    
-    // 获取促销活动 (DEMO ONLY)
-    try {
-      const promoRes = await promotionApi.getPromotionList()
-      const resData = promoRes.data || promoRes
-      const list = Array.isArray(resData) ? resData : (resData.list || [])
-      activePromotions.value = list.filter(p => p.isActive && p.type === 'PROMOTION_DISCOUNT')
-      console.log('首页加载促销活动成功:', activePromotions.value)
-    } catch (e) {
-      console.warn('获取促销活动失败:', e)
-    }
+    // 促销活动 (纯 API 获取)
+    const promoRes = await promotionApi.getPromotionList()
+    const pList = promoRes.data || promoRes || []
+    activePromotions.value = pList.filter(p => p.isActive)
 
-    // 异步获取定位，不阻塞页面显示
-    updateLocationAndNearbyStores()
+    // 定位处理
+    updateLocation()
     
-    // 获取可用优惠券数量 (仅在已登录时获取)
-    const token = localStorage.getItem('token')
-    if (token && token !== 'undefined' && token !== 'null') {
-      try {
-        const couponRes = await couponApi.getMyCoupons()
-        if (couponRes && (couponRes.code === 200 || couponRes.status === 'success')) {
-          const resData = couponRes.data || couponRes
-          const coupons = resData.list || resData || []
-          if (Array.isArray(coupons)) {
-            availableCouponCount.value = coupons.filter(c => c.status === 'UNUSED').length
-          }
-        }
-      } catch (e) {
-        console.warn('获取优惠券数量失败，用户可能未登录或Token失效:', e.message)
-        // 不触发登出逻辑，静默失败
-      }
-    }
+    // 优惠券数量 (仅 API 获取)
+    fetchCouponCount()
     
   } catch (error) {
     console.error('加载首页数据失败:', error)
-    // 可选的错误处理，例如显示错误消息
   } finally {
     loading.value = false
     startBannerTimer()
+  }
+}
+
+const updateLocation = async () => {
+  isLocating.value = true
+  try {
+    // 调用 API 获取附近门店，由后端处理定位逻辑或返回默认门店
+    const nearbyRes = await storeApi.getNearbyStores()
+    const stores = nearbyRes.data || nearbyRes || []
+    if (stores.length > 0) {
+      userStore.setSelectedStore(stores[0])
+    }
+  } catch (e) {
+    console.warn('获取门店失败')
+  } finally {
+    isLocating.value = false
+  }
+}
+
+const fetchCouponCount = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) return
+  try {
+    const res = await couponApi.getMyCoupons()
+    if (res.code === 200) {
+      const list = res.data || []
+      availableCouponCount.value = list.filter(c => c.status === 'AVAILABLE').length
+    }
+  } catch (e) {
+    console.warn('无法获取优惠券信息')
   }
 }
 
@@ -493,87 +335,43 @@ const onScroll = (e) => {
 }
 
 const selectOrderMode = (mode) => {
-  localStorage.setItem('orderMode', mode)
   userStore.setOrderType(mode)
-  // 确保跳转到点餐页面
   router.push('/order')
 }
 
-const quickAdd = (product) => {
-  cartStore.addToCart({
-    ...product,
-    storeId: userStore.selectedStore?.id,
-    quantity: 1
-  })
-  cartCount.value = cartStore.totalCount
-  cartAnimating.value = true
-  setTimeout(() => cartAnimating.value = false, 600)
-}
-
-const onScan = () => {
-  alert('扫码功能仅在移动端可用')
-}
-
-const reLocation = async () => {
-  isLocating.value = true
-  await loadData()
-  isLocating.value = false
-}
-
-const makePhoneCall = (phone) => {
-  window.location.href = `tel:${phone}`
-}
-const goToPromoOrder = (promo) => {
-  // DEMO ONLY: 处理促销跳转筛选
-  let productIds = []
-  if (promo.rulesJson) {
-    try {
-      const rules = JSON.parse(promo.rulesJson)
-      productIds = rules.productIds || []
-    } catch (e) {
-      console.error('解析规则失败:', e)
-    }
-  } else if (promo.productIds) {
-    productIds = promo.productIds
-  }
-
-  if (productIds && productIds.length > 0) {
-    sessionStorage.setItem('promo_filter_ids', JSON.stringify(productIds))
-    sessionStorage.setItem('promo_name', promo.name)
-    sessionStorage.setItem('promo_id', promo.id)
-    
-    // DEMO ONLY: 将当前首页已有的奶茶数据塞入 sessionStorage，供活动页复用，不瞎编
-    const allProducts = [...recommendProducts.value, ...hotProducts.value]
-    // 使用 Map 去重，防止重复显示
-    const uniqueProductsMap = new Map()
-    allProducts.forEach(p => {
-      if (productIds.includes(p.id)) {
-        uniqueProductsMap.set(p.id, p)
-      }
+const quickAdd = async (product) => {
+  try {
+    await cartStore.addToCart({
+      ...product,
+      productId: product.id,
+      storeId: userStore.selectedStore?.id,
+      quantity: 1
     })
-    const promoProducts = Array.from(uniqueProductsMap.values())
-    if (promoProducts.length > 0) {
-      sessionStorage.setItem('promo_products_data', JSON.stringify(promoProducts))
-    }
+    cartAnimating.value = true
+    setTimeout(() => cartAnimating.value = false, 600)
+  } catch (error) {
+    console.error('快速加入购物车失败:', error)
   }
-  
-  // 修改为跳转到专门的活动下单页面
-  router.push('/order/promo')
 }
 
+const goToPromoOrder = (promo) => {
+  // 不再使用 sessionStorage 传递大对象数据，只传递 ID
+  router.push({
+    path: '/order/promo',
+    query: { id: promo.id, name: promo.name }
+  })
+}
 
 const closeNotification = () => {
-  if (currentNotification.value) {
-    const closedNotices = JSON.parse(localStorage.getItem('closedNotices') || '[]')
-    closedNotices.push(currentNotification.value.id)
-    localStorage.setItem('closedNotices', JSON.stringify(closedNotices))
-  }
   showNotification.value = false
+}
+
+const reLocation = () => {
+  updateLocation()
 }
 
 onMounted(() => {
   loadData()
-  cartCount.value = cartStore.totalCount
 })
 
 onUnmounted(() => {

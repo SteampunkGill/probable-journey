@@ -173,7 +173,7 @@ const loadMembers = async () => {
       list = res.content || res.list || res || []
     }
     
-    // 纯前端查询过滤逻辑（基于后端返回的真实数据）
+    // 查询过滤逻辑
     if (query.value.nickname) {
       const k = query.value.nickname.toLowerCase()
       list = list.filter(m =>
@@ -194,12 +194,14 @@ const loadMembers = async () => {
 }
 
 const loadLevels = async () => {
-  // DEMO ONLY: 纯前端等级数据
-  levels.value = [
-    { id: 1, name: '普通会员' },
-    { id: 2, name: '黄金会员' },
-    { id: 3, name: '钻石会员' }
-  ]
+  try {
+    const res = await get('/api/admin/member-levels')
+    if (res.code === 200) {
+      levels.value = res.data
+    }
+  } catch (e) {
+    console.error('加载等级列表失败:', e)
+  }
 }
 
 const loadTags = async () => {

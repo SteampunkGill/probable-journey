@@ -13,5 +13,4 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class ProductSpecCombinationPriceId implements Serializable {
     private Long combinationId;
-    private Long specItemId; // 这个字段在ProductSpecCombinationPriceId中是缺失的，但根据ProductSpecCombinationItemId，它应该存在
-}
+    private Long specItemId; }

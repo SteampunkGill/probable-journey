@@ -180,7 +180,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import request from '../../../utils/request'
-import { complaintDB, refundDB } from '../../../utils/db'
 
 const orders = ref([])
 const complaints = ref([])
@@ -233,12 +232,6 @@ const loadOrders = async () => {
 
 const loadComplaints = async () => {
   try {
-    // 优先从 IndexedDB 获取投诉
-    const dbComplaints = await complaintDB.getAll()
-    if (dbComplaints && dbComplaints.length > 0) {
-      complaints.value = dbComplaints
-      return
-    }
     const res = await request.get('/api/admin/complaints')
     complaints.value = res.data || []
   } catch (error) {
@@ -249,12 +242,6 @@ const loadComplaints = async () => {
 const refunds = ref([])
 const loadRefunds = async () => {
   try {
-    // 优先从 IndexedDB 获取退款
-    const dbRefunds = await refundDB.getAll()
-    if (dbRefunds && dbRefunds.length > 0) {
-      refunds.value = dbRefunds
-      return
-    }
     const res = await request.get('/api/admin/refunds')
     refunds.value = res.data || []
   } catch (error) {
@@ -373,11 +360,6 @@ const handleAppeal = async (a) => {
 const handleRefund = async (r) => {
   if (confirm(`确定要处理订单 ${r.orderId} 的退款申请吗？`)) {
     try {
-      // DEMO ONLY: 更新 IndexedDB 状态
-      // 转换为普通对象以避免 DataCloneError (Vue Proxy 问题)
-      const refundData = JSON.parse(JSON.stringify(r))
-      refundData.status = 'RESOLVED'
-      await refundDB.add(refundData)
       alert('处理成功')
       loadRefunds()
     } catch (error) {

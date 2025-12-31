@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class RefundReviewDTO {
-    private String status; // APPROVED, REJECTED
+    private String status;
     private String reply;
 }

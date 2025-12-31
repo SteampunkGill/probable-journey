@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface UserInviteRewardRepository extends JpaRepository<UserInviteReward, Long> {
     List<UserInviteReward> findByInviterId(Long inviterId);
+    boolean existsByInviteeId(Long inviteeId);
 }

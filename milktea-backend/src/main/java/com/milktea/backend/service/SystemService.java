@@ -266,7 +266,7 @@ public class SystemService {
             while (tables.next()) {
                 String tableName = tables.getString("TABLE_NAME");
                 
-                // 生成建表语句 (简化版)
+                // 生成建表语句
                 sqlContent.append("DROP TABLE IF EXISTS `").append(tableName).append("`;\n");
                 ResultSet createTableRs = stmt.executeQuery("SHOW CREATE TABLE `" + tableName + "`");
                 if (createTableRs.next()) {
@@ -315,9 +315,14 @@ public class SystemService {
         SysBackup backup = sysBackupRepository.findById(id)
                 .orElseThrow(() -> new com.milktea.backend.exception.ServiceException("BACKUP_NOT_FOUND", "备份不存在"));
         try {
-            return Files.readAllBytes(new File(backup.getFilePath()).toPath());
+            File file = new File(backup.getFilePath());
+            if (!file.exists()) {
+                // 如果是相对路径，尝试拼接 uploads 目录
+                file = new File("uploads/backups/" + backup.getFileName());
+            }
+            return Files.readAllBytes(file.toPath());
         } catch (IOException e) {
-            throw new com.milktea.backend.exception.ServiceException("FILE_READ_ERROR", "文件读取失败");
+            throw new com.milktea.backend.exception.ServiceException("FILE_READ_ERROR", "文件读取失败: " + e.getMessage());
         }
     }
 

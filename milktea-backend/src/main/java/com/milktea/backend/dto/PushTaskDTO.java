@@ -8,7 +8,7 @@ public class PushTaskDTO {
     private Long id;
     private String title;
     private String content;
-    private String targetType; // ALL, MEMBER_LEVEL, INDIVIDUAL
+    private String targetType;
     private String targetValue;
     private LocalDateTime sentTime;
     private String status;

@@ -20,28 +20,17 @@ public class SysUserService {
         this.sysUserRepository = sysUserRepository;
     }
 
-    /**
-     * 获取所有员工列表
-     * @return 员工列表
-     */
+
     public List<SysUser> findAllSysUsers() {
         return sysUserRepository.findAll();
     }
 
-    /**
-     * 根据ID获取员工信息
-     * @param id 员工ID
-     * @return 员工实体Optional
-     */
+
     public Optional<SysUser> getSysUserById(Long id) {
         return sysUserRepository.findById(id);
     }
 
-    /**
-     * 创建新的员工
-     * @param sysUser 要创建的员工实体
-     * @return 已保存的员工实体
-     */
+
     @Transactional
     public SysUser createSysUser(SysUser sysUser) {
         // 验证输入
@@ -70,12 +59,7 @@ public class SysUserService {
         return sysUserRepository.save(sysUser);
     }
 
-    /**
-     * 更新员工信息
-     * @param id 员工ID
-     * @param sysUserDetails 要更新的员工详情
-     * @return 更新后的员工实体Optional
-     */
+
     @Transactional
     public Optional<SysUser> updateSysUser(Long id, SysUser sysUserDetails) {
         return sysUserRepository.findById(id).map(sysUser -> {
@@ -137,10 +121,6 @@ public class SysUserService {
         });
     }
 
-    /**
-     * 根据ID删除员工
-     * @param id 员工ID
-     */
     @Transactional
     public void deleteSysUser(Long id) {
         if (!sysUserRepository.existsById(id)) {
@@ -149,48 +129,26 @@ public class SysUserService {
         sysUserRepository.deleteById(id);
     }
 
-    /**
-     * 根据用户名查找员工
-     * @param username 用户名
-     * @return 员工实体Optional
-     */
     public Optional<SysUser> findSysUserByUsername(String username) {
         return sysUserRepository.findByUsername(username);
     }
 
-    /**
-     * 根据状态查询员工
-     * @param status 员工状态
-     * @return 员工列表
-     */
+
     public List<SysUser> findSysUsersByStatus(String status) {
         return sysUserRepository.findByStatus(status);
     }
 
-    /**
-     * 根据邮箱查询员工
-     * @param email 邮箱
-     * @return 员工实体Optional
-     */
+
     public Optional<SysUser> findSysUserByEmail(String email) {
         return sysUserRepository.findByEmail(email);
     }
 
-    /**
-     * 根据手机号查询员工
-     * @param phone 手机号
-     * @return 员工实体Optional
-     */
+
     public Optional<SysUser> findSysUserByPhone(String phone) {
         return sysUserRepository.findByPhone(phone);
     }
 
-    /**
-     * 更新员工最后登录信息
-     * @param id 员工ID
-     * @param loginIp 登录IP
-     * @return 更新后的员工实体Optional
-     */
+
     @Transactional
     public Optional<SysUser> updateLastLoginInfo(Long id, String loginIp) {
         return sysUserRepository.findById(id).map(sysUser -> {
@@ -200,11 +158,7 @@ public class SysUserService {
         });
     }
 
-    /**
-     * 检查员工是否存在
-     * @param id 员工ID
-     * @return 是否存在
-     */
+
     public boolean existsSysUser(Long id) {
         return sysUserRepository.existsById(id);
     }

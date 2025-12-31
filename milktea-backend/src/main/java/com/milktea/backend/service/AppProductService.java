@@ -37,7 +37,7 @@ public class AppProductService {
     }
 
     public List<Product> advancedFilter(ProductFilterDTO filter) {
-        // 简化实现，实际应使用 Specification 或 QueryDSL
+
         if (filter.getCategoryId() != null) {
             return productRepository.findByPriceRangeAndCategory(filter.getMinPrice(), filter.getMaxPrice(), filter.getCategoryId());
         }

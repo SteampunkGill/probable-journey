@@ -61,15 +61,18 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { refundDB } from '../../utils/db'
+import { orderApi } from '../../utils/api' // 确保此处的 api 内部已切换为真实后台接口
 
 const router = useRouter()
 const route = useRoute()
+
+// 状态变量
 const orderId = route.query.orderId
 const selectedReason = ref('')
 const description = ref('')
 const submitting = ref(false)
 
+// 退款原因选项（通常也可从后端字典接口获取）
 const reasons = [
   '点错了/不想要了',
   '商品售罄',
@@ -79,23 +82,33 @@ const reasons = [
   '其他原因'
 ]
 
+/**
+ * 提交退款申请
+ * 直接对接后端 API，不再处理任何 IndexedDB 本地存储逻辑
+ */
 const submitRefund = async () => {
+  if (!orderId) return
+  
   submitting.value = true
-  // DEMO ONLY: 模拟退款逻辑
   try {
-    await refundDB.add({
-      orderId: orderId,
-      reason: selectedReason.value,
-      description: description.value,
-      status: 'PENDING'
+    // 拼接原因和描述
+    const reasonText = selectedReason.value + (description.value ? ': ' + description.value : '')
+    
+    // 发起网络请求
+    const res = await orderApi.applyRefund({
+      orderId,
+      reason: reasonText
     })
     
-    setTimeout(() => {
-      alert('退款申请已提交，请耐心等待')
+    if (res.code === 200 || res.success) {
+      alert('退款申请已提交')
       router.back()
-    }, 500)
-  } catch (e) {
-    console.error(e)
+    } else {
+      alert(res.message || '申请失败，请稍后重试')
+    }
+  } catch (error) {
+    console.error('退款提交异常:', error)
+    alert('网络异常，请检查网络连接')
   } finally {
     submitting.value = false
   }
@@ -103,12 +116,12 @@ const submitRefund = async () => {
 </script>
 
 <style scoped>
+/* 样式部分保持不变，仅用于UI展示 */
 .refund-page {
   min-height: 100vh;
   background: #f8f8f8;
   padding-bottom: 100px;
 }
-
 .header {
   background: white;
   padding: 40px 20px 20px;
@@ -118,49 +131,41 @@ const submitRefund = async () => {
   top: 0;
   z-index: 10;
 }
-
 .back-btn {
   background: none;
   border: none;
   font-size: 24px;
   margin-right: 15px;
 }
-
 .title {
   font-size: 18px;
   font-weight: 600;
 }
-
 .content {
   padding: 15px;
 }
-
 .card {
   background: white;
   border-radius: 12px;
   padding: 15px;
   margin-bottom: 15px;
 }
-
 .section-title {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 12px;
 }
-
 .info-item {
   font-size: 14px;
   color: #666;
   display: flex;
   justify-content: space-between;
 }
-
 .reason-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-
 .reason-item {
   padding: 12px;
   background: #f9f9f9;
@@ -168,14 +173,13 @@ const submitRefund = async () => {
   font-size: 14px;
   color: #333;
   border: 1px solid transparent;
+  cursor: pointer;
 }
-
 .reason-item.active {
   background: #fff5f0;
   color: #ff6b00;
   border-color: #ff6b00;
 }
-
 .desc-input {
   width: 100%;
   height: 100px;
@@ -185,15 +189,14 @@ const submitRefund = async () => {
   padding: 12px;
   font-size: 14px;
   resize: none;
+  box-sizing: border-box;
 }
-
 .tip {
   font-size: 12px;
   color: #999;
   text-align: center;
   padding: 10px 20px;
 }
-
 .footer {
   position: fixed;
   bottom: 0;
@@ -203,7 +206,6 @@ const submitRefund = async () => {
   background: white;
   box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
 }
-
 .submit-btn {
   width: 100%;
   height: 48px;
@@ -213,9 +215,10 @@ const submitRefund = async () => {
   border-radius: 24px;
   font-size: 16px;
   font-weight: 600;
+  cursor: pointer;
 }
-
 .submit-btn:disabled {
   background: #ccc;
+  cursor: not-allowed;
 }
 </style>

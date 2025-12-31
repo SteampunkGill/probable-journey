@@ -6,24 +6,26 @@
         <img src="../../assets/images/icons/close.png" />
       </div>
       <div class="title-box">
-        <h1 class="promo-title">{{ promoName || '限时特惠活动' }}</h1>
-        <span class="promo-subtitle">DEMO ONLY: 模拟下单与打折存根</span>
+        <h1 class="promo-title">{{ promoInfo.name || '特惠活动' }}</h1>
+        <span class="promo-subtitle" v-if="promoInfo.description">{{ promoInfo.description }}</span>
       </div>
     </div>
 
     <!-- 主体内容区 -->
     <div class="content-wrapper">
-      <!-- 商品列表 -->
+      <!-- 活动商品列表 -->
       <div class="product-section">
         <div class="section-header">
-          <span class="header-title">活动商品</span>
-          <span class="header-tip">选择心仪饮品，立享折扣</span>
+          <span class="header-title">特惠商品</span>
+          <span class="header-tip">选择活动商品，享受限时折扣</span>
         </div>
 
+        <!-- 加载中骨架屏 -->
         <div class="skeleton-list" v-if="loading">
           <div class="skeleton-product" v-for="i in 3" :key="i"></div>
         </div>
 
+        <!-- 商品列表 -->
         <div class="product-list" v-else>
           <div 
             class="product-card"
@@ -33,7 +35,7 @@
             @click="onProductSelect(item)"
           >
             <div class="product-image-wrapper">
-              <img class="product-image" :src="item.image" />
+              <img class="product-image" :src="formatImageUrl(item.productImage)" />
               <div class="tag discount">活动价</div>
             </div>
 
@@ -45,7 +47,8 @@
               
               <div class="product-footer">
                 <div class="price-box">
-                  <span class="price">¥{{ (item.price * discount).toFixed(2) }}</span>
+                  <!-- 直接展示后端计算好的促销价或通过比例计算 -->
+                  <span class="price">¥{{ item.promoPrice }}</span>
                   <span class="original-price">¥{{ item.price }}</span>
                 </div>
                 <div class="select-indicator">
@@ -69,13 +72,13 @@
       <div class="price-info">
         <div class="total-row">
           <span class="label">合计</span>
-          <span class="value">¥{{ finalPrice }}</span>
+          <span class="value">¥{{ selectedProduct.promoPrice }}</span>
         </div>
-        <div class="discount-row">
-          已省 ¥{{ savedAmount }} ({{ (discount * 10).toFixed(1) }}折)
+        <div class="discount-row" v-if="savedAmount > 0">
+          已省 ¥{{ savedAmount }}
         </div>
       </div>
-      <!-- 核心修复：使用 div 模拟按钮，彻底规避 button 默认行为或样式覆盖导致的点击失效 -->
+      
       <div 
         class="custom-submit-btn" 
         :class="{ 'is-loading': submitting }"
@@ -90,27 +93,27 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { productApi } from '@/utils/api'
+import { useRouter, useRoute } from 'vue-router'
+import { productApi, orderApi, promotionApi } from '@/utils/api'
 import { formatImageUrl } from '@/utils/util'
-import { orderDB, promoOrderDB, pointsDB } from '@/utils/db'
 
 const router = useRouter()
+const route = useRoute()
+
 const loading = ref(false)
 const submitting = ref(false)
 const productList = ref([])
 const selectedProduct = ref(null)
-const promoName = ref('')
-const discount = ref(0.8) // 默认 8 折
-
-const finalPrice = computed(() => {
-  if (!selectedProduct.value) return '0.00'
-  return (selectedProduct.value.price * discount.value).toFixed(2)
+const promoInfo = ref({
+  name: '',
+  description: ''
 })
 
+// 计算省下的金额
 const savedAmount = computed(() => {
-  if (!selectedProduct.value) return '0.00'
-  return (selectedProduct.value.price * (1 - discount.value)).toFixed(2)
+  if (!selectedProduct.value) return 0
+  const diff = selectedProduct.value.price - selectedProduct.value.promoPrice
+  return diff > 0 ? diff.toFixed(2) : 0
 })
 
 const goBack = () => {
@@ -122,128 +125,68 @@ const onProductSelect = (product) => {
 }
 
 const loadPromoData = async () => {
+  const promoId = route.params.id || route.query.id
+  if (!promoId) return
+  
   loading.value = true
   try {
-    promoName.value = sessionStorage.getItem('promo_name') || '限时特惠'
-    
-    // 模拟从活动规则中获取折扣
-    const promoId = sessionStorage.getItem('promo_id')
-    if (promoId) {
-      discount.value = promoId == 1 ? 0.8 : 0.9
+    // 1. 获取活动配置详情
+    const promoRes = await promotionApi.getPromotionDetail(promoId)
+    if (promoRes.code === 200) {
+      promoInfo.value = promoRes.data
     }
 
-    // 优先从 sessionStorage 获取首页传递过来的真实奶茶数据
-    const cachedData = sessionStorage.getItem('promo_products_data')
-    if (cachedData) {
-      const rawList = JSON.parse(cachedData)
-      // 再次去重，确保万无一失
-      const uniqueMap = new Map()
-      rawList.forEach(p => uniqueMap.set(p.id, p))
-      
-      productList.value = Array.from(uniqueMap.values()).map(item => ({
+    // 2. 获取该活动下的商品列表
+    const productRes = await productApi.getProducts({ promotionId: promoId })
+    if (productRes.code === 200) {
+      productList.value = (productRes.data || []).map(item => ({
         ...item,
-        image: formatImageUrl(item.image || item.productImage) || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
-      }))
-      console.log('[DEMO] 已复用首页真实奶茶数据并去重:', productList.value.length)
-    } else {
-      // 兜底逻辑：如果缓存失效，再请求接口
-      const filterIdsStr = sessionStorage.getItem('promo_filter_ids')
-      const res = await productApi.getProducts()
-      const resData = res.data || res
-      let rawList = Array.isArray(resData) ? resData : (resData.list || [])
-
-      if (filterIdsStr) {
-        const filterIds = JSON.parse(filterIdsStr)
-        rawList = rawList.filter(p => filterIds.includes(p.id))
-      }
-
-      productList.value = rawList.map(item => ({
-        ...item,
-        image: formatImageUrl(item.image || item.productImage) || 'https://images.unsplash.com/photo-1544787210-2827443cb39b?w=200'
+        // 如果后端没返回 promoPrice，前端可根据 discountRate 计算，此处假设后端已处理
+        promoPrice: item.promoPrice || (item.price * (promoRes.data.discountRate || 1)).toFixed(2)
       }))
     }
     
+    // 默认选中第一个
     if (productList.value.length > 0) {
       selectedProduct.value = productList.value[0]
     }
   } catch (error) {
-    console.error('加载活动商品失败:', error)
+    console.error('加载活动数据失败:', error)
   } finally {
     loading.value = false
   }
 }
 
+// 提交活动订单
 const handleOrder = async () => {
-  console.log('[DEMO] 尝试触发下单逻辑...')
-  if (!selectedProduct.value || submitting.value) {
-    console.log('[DEMO] 下单被拦截: ', !selectedProduct.value ? '未选择商品' : '正在提交中')
-    return
-  }
+  if (!selectedProduct.value || submitting.value) return
   
   submitting.value = true
-  
   try {
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 800))
-    
-    const orderNo = 'PROMO' + Date.now()
-    const now = new Date().toISOString()
-    
-    // 1. 构造订单基本信息 (模拟后端存储)
     const orderData = {
-      orderNo: orderNo,
-      status: 'MAKING',
-      statusText: '正在制作中',
-      createTime: now,
-      totalAmount: parseFloat(finalPrice.value),
-      deliveryType: 'pickup',
-      storeName: '王大妈的奶茶店（活动专供）',
-      pickupCode: 'P' + Math.floor(Math.random() * 900 + 100),
-      orderItems: [
+      items: [
         {
-          id: selectedProduct.value.id,
-          productName: selectedProduct.value.name,
-          price: selectedProduct.value.price,
+          productId: selectedProduct.value.id,
           quantity: 1,
-          image: selectedProduct.value.image
+          price: selectedProduct.value.price,
+          promoPrice: selectedProduct.value.promoPrice
         }
-      ]
+      ],
+      promotionId: route.params.id || route.query.id,
+      deliveryType: 'PICKUP', // 活动单通常默认为自提，也可根据实际业务调整
+      remark: `活动专享单: ${promoInfo.value.name}`
     }
     
-    // 2. 存储到通用订单库
-    await orderDB.add(orderData)
-    
-    // 3. 存储打折细节到 IndexedDB (DEMO ONLY: 核心要求)
-    await promoOrderDB.saveDetails({
-      orderNo: orderNo,
-      promoName: promoName.value,
-      discount: discount.value,
-      savedAmount: parseFloat(savedAmount.value),
-      discountDetail: `参与活动【${promoName.value}】，原价 ¥${selectedProduct.value.price}，享受 ${discount.value * 10} 折优惠。`
-    })
-    
-    // 4. 模拟扣除积分 (视觉真实)
-    try {
-      const currentPoints = await pointsDB.getUserPoints()
-      await pointsDB.updateUserPoints(currentPoints - 10)
-      await pointsDB.addRecord({
-        type: 'CONSUME',
-        points: -10,
-        title: '活动下单扣除',
-        orderNo: orderNo
-      })
-    } catch (e) {
-      console.warn('积分扣除模拟失败，不影响下单流程')
+    const res = await orderApi.createOrder(orderData)
+    if (res.code === 200) {
+      // 下单成功跳转详情
+      router.replace(`/order-detail/${res.data.orderNo}`)
+    } else {
+      alert(res.message || '下单失败')
     }
-
-    console.log('[DEMO] 活动下单成功:', orderNo)
-    
-    // 跳转到订单详情
-    router.replace(`/order-detail/${orderNo}`)
-    
   } catch (error) {
-    console.error('下单失败:', error)
-    alert('下单失败，请重试')
+    console.error('下单过程异常:', error)
+    alert('系统繁忙，请稍后重试')
   } finally {
     submitting.value = false
   }
@@ -253,6 +196,7 @@ onMounted(() => {
   loadPromoData()
 })
 </script>
+
 
 <style scoped>
 .order-page {

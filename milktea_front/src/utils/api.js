@@ -8,7 +8,7 @@ export const authApi = {
   // 账号密码登录
   login: (username, password) => post('/auth/login', { username, password }),
   
-  // 登出（后端未实现，前端本地处理）
+  // 登出
   logout: () => Promise.resolve(), // 本地处理，无需调用后端
   
   // 获取用户信息
@@ -85,56 +85,20 @@ export const productApi = {
   // 获取分类商品（兼容旧接口，推荐使用getProducts）
   getCategoryProducts: (categoryId, params) => get('/products', { categoryId, ...params }),
   
-  // 商品搜索（后端路径为 /search）
-  searchProducts: (keyword, params) => {
-    // DEMO ONLY: 纯前端搜索模拟
-    const products = JSON.parse(localStorage.getItem('demo_all_products') || '[]');
-    const filtered = products.filter(p => p.name.includes(keyword) || (p.description && p.description.includes(keyword)));
-    
-    // 保存搜索历史
-    const history = JSON.parse(localStorage.getItem('demo_search_history') || '[]');
-    if (!history.includes(keyword)) {
-      history.unshift(keyword);
-      localStorage.setItem('demo_search_history', JSON.stringify(history.slice(0, 10)));
-    }
-    
-    return Promise.resolve({ code: 200, data: { list: filtered }, message: 'success' });
-  },
+  // 商品搜索
+  searchProducts: (keyword, params) => get('/search', { keyword, ...params }),
   
-  // 获取搜索热词（后端路径为 /search/hot）
-  getHotKeywords: () => {
-    // DEMO ONLY: 随机抽取两个关键词
-    const products = JSON.parse(localStorage.getItem('demo_all_products') || '[]');
-    const keywords = products.map(p => p.name).sort(() => 0.5 - Math.random()).slice(0, 2);
-    const hotKeywords = [
-      { word: keywords[0] || '杨枝甘露', count: 999 },
-      { word: keywords[1] || '多肉葡萄', count: 888 },
-      { word: '生椰拿铁', count: 777 },
-      { word: '烤奶', count: 666 }
-    ];
-    return Promise.resolve({ code: 200, data: hotKeywords, message: 'success' });
-  },
+  // 获取搜索热词
+  getHotKeywords: () => get('/search/hot'),
   
   // 获取搜索历史
-  getSearchHistory: () => {
-    // DEMO ONLY
-    const history = JSON.parse(localStorage.getItem('demo_search_history') || '[]');
-    return Promise.resolve({ code: 200, data: history, message: 'success' });
-  },
+  getSearchHistory: () => get('/search/history'),
   
-  // 清空搜索历史（后端路径为 /search/history）
-  clearSearchHistory: () => {
-    // DEMO ONLY
-    localStorage.removeItem('demo_search_history');
-    return Promise.resolve({ code: 200, message: '已清空历史记录' });
-  },
+  // 清空搜索历史
+  clearSearchHistory: () => del('/search/history'),
   
-  // 门店搜索模拟（DEMO ONLY）
-  searchStores: (keyword) => {
-    const stores = JSON.parse(localStorage.getItem('demo_all_stores') || '[]');
-    const filtered = stores.filter(s => s.name.includes(keyword) || (s.address && s.address.includes(keyword)));
-    return Promise.resolve({ code: 200, data: { list: filtered }, message: 'success' });
-  }
+  // 门店搜索
+  searchStores: (keyword) => get('/stores/search', { keyword })
 }
 
 // 搜索相关（独立导出以修复 SyntaxError）
@@ -226,124 +190,38 @@ export const orderApi = {
 
 // 地址相关
 export const addressApi = {
-  // 获取地址列表（后端路径为 /address/list）
-  getAddressList: () => {
-    // DEMO ONLY: 模拟后端脱离
-    const saved = localStorage.getItem('demo_addresses');
-    const list = saved ? JSON.parse(saved) : [
-      { id: 1, name: '张三', phone: '13812345678', province: '广东省', city: '广州市', district: '天河区', detail: '珠江新城花城大道88号', tag: '公司', isDefault: true },
-      { id: 2, name: '张三', phone: '13812345678', province: '广东省', city: '广州市', district: '海珠区', detail: '新港中路397号', tag: '家', isDefault: false }
-    ];
-    if (!saved) localStorage.setItem('demo_addresses', JSON.stringify(list));
-    return Promise.resolve({ code: 200, data: list, message: 'success' });
-  },
+  // 获取地址列表
+  getAddressList: () => get('/address/list'),
   
-  // 添加地址（后端路径为 /address/add）
-  addAddress: (data) => {
-    // DEMO ONLY
-    const list = JSON.parse(localStorage.getItem('demo_addresses') || '[]');
-    const newAddress = { ...data, id: Date.now() };
-    list.push(newAddress);
-    localStorage.setItem('demo_addresses', JSON.stringify(list));
-    return Promise.resolve({ code: 200, data: newAddress, message: '添加成功' });
-  },
+  // 添加地址
+  addAddress: (data) => post('/address/add', data),
   
-  // 更新地址（后端路径为 /address/update/{id}）
-  updateAddress: (id, data) => {
-    // DEMO ONLY
-    let list = JSON.parse(localStorage.getItem('demo_addresses') || '[]');
-    list = list.map(item => item.id == id ? { ...item, ...data } : item);
-    localStorage.setItem('demo_addresses', JSON.stringify(list));
-    return Promise.resolve({ code: 200, data: true, message: '更新成功' });
-  },
+  // 更新地址
+  updateAddress: (id, data) => put(`/address/update/${id}`, data),
   
-  // 删除地址（后端路径为 /address/delete/{id}）
-  deleteAddress: (id) => {
-    // DEMO ONLY
-    let list = JSON.parse(localStorage.getItem('demo_addresses') || '[]');
-    list = list.filter(item => item.id != id);
-    localStorage.setItem('demo_addresses', JSON.stringify(list));
-    return Promise.resolve({ code: 200, data: true, message: '删除成功' });
-  },
+  // 删除地址
+  deleteAddress: (id) => del(`/address/delete/${id}`),
   
-  // 根据定位获取地址（后端路径为 /address/geolocation）
+  // 根据定位获取地址
   getAddressByLocation: (lat, lng) => get('/address/geolocation', { lat, lng }),
   
-  // 获取地址历史（后端路径为 /address/history）
-  getAddressHistory: (limit = 10) => {
-    // DEMO ONLY: 模拟历史地址记录
-    const saved = localStorage.getItem('demo_address_history');
-    const list = saved ? JSON.parse(saved) : [
-      { id: 999, name: '王大妈', phone: '13800138000', province: '广东省', city: '广州市', district: '天河区', detail: '兴盛路10号饮饮茶', usedCount: 5 },
-      { id: 998, name: '李大爷', phone: '13900139000', province: '广东省', city: '广州市', district: '越秀区', detail: '北京路步行街123号', usedCount: 2 }
-    ];
-    if (!saved) localStorage.setItem('demo_address_history', JSON.stringify(list));
-    return Promise.resolve({ code: 200, data: list.slice(0, limit), message: 'success' });
-  }
+  // 获取地址历史
+  getAddressHistory: (limit = 10) => get('/address/history', { limit })
 }
 
 // 优惠券相关
 export const couponApi = {
-  // 获取优惠券列表（后端路径为 /coupons/available）
-  getCouponList: () => {
-    // DEMO ONLY
-    const list = [
-      { id: 1, name: '新人大礼包', value: 10, minAmount: 30, type: '代金券', expireTime: '2026-01-31', description: '全场通用' },
-      { id: 2, name: '分享专属券', value: 5, minAmount: 0, type: '无门槛', expireTime: '2026-02-15', description: '仅限自取' },
-      { id: 3, name: '午后奶茶券', value: 3, minAmount: 20, type: '折扣券', expireTime: '2026-01-20', description: '14:00-17:00可用' }
-    ];
-    return Promise.resolve({ code: 200, data: list, message: 'success' });
-  },
+  // 获取优惠券列表
+  getCouponList: () => get('/coupons/available'),
   
-  // 领取优惠券（后端路径为 /coupons/receive）
-  receiveCoupon: (id) => {
-    // DEMO ONLY
-    const available = [
-      { id: 1, name: '新人大礼包', value: 10, minAmount: 30, type: '代金券', expireTime: '2026-01-31', description: '全场通用' },
-      { id: 2, name: '分享专属券', value: 5, minAmount: 0, type: '无门槛', expireTime: '2026-02-15', description: '仅限自取' },
-      { id: 3, name: '午后奶茶券', value: 3, minAmount: 20, type: '折扣券', expireTime: '2026-01-20', description: '14:00-17:00可用' }
-    ];
-    const coupon = available.find(c => c.id == id);
-    if (coupon) {
-      const myCoupons = JSON.parse(localStorage.getItem('demo_my_coupons') || '[]');
-      if (!myCoupons.find(c => c.id == id)) {
-        myCoupons.push({ ...coupon, receiveTime: '刚刚', status: 'UNUSED' });
-        localStorage.setItem('demo_my_coupons', JSON.stringify(myCoupons));
-      }
-      return Promise.resolve({ code: 200, message: '领取成功' });
-    }
-    return Promise.resolve({ code: 404, message: '优惠券不存在' });
-  },
+  // 领取优惠券
+  receiveCoupon: (id) => post('/coupons/receive', { id }),
   
-  // 获取我的优惠券（后端路径为 /coupons/my）
-  getMyCoupons: async () => {
-    // DEMO ONLY: 优先从 IndexedDB 获取
-    try {
-      const list = await pointsDB.getAllCoupons();
-      if (list && list.length > 0) {
-        return { code: 200, data: list, message: 'success' };
-      }
-    } catch (e) {
-      console.error('IndexedDB coupons error:', e);
-    }
-    
-    // 兜底使用 localStorage
-    const list = JSON.parse(localStorage.getItem('demo_my_coupons') || '[]');
-    if (list.length === 0) {
-      const defaultCoupon = { id: 99, name: '待领取优惠券', value: 5, minAmount: 0, type: '无门槛', expireTime: '2026-12-31', description: '演示专用', status: 'UNUSED' };
-      list.push(defaultCoupon);
-      localStorage.setItem('demo_my_coupons', JSON.stringify(list));
-    }
-    return { code: 200, data: list, message: 'success' };
-  },
+  // 获取我的优惠券
+  getMyCoupons: () => get('/coupons/my'),
   
-  // 获取优惠券详情（后端路径为 /coupons/{id}）
-  getCouponDetail: (id) => {
-    // DEMO ONLY
-    const myCoupons = JSON.parse(localStorage.getItem('demo_my_coupons') || '[]');
-    const coupon = myCoupons.find(c => c.id == id);
-    return Promise.resolve({ code: 200, data: coupon, message: 'success' });
-  }
+  // 获取优惠券详情
+  getCouponDetail: (id) => get(`/coupons/${id}`)
 }
 
 // 积分相关
@@ -418,96 +296,28 @@ export const memberApi = {
 
 // 社交功能
 export const socialApi = {
-  // 生成分享链接（后端路径为 /share/generate）
-  generateShareLink: () => {
-    // DEMO ONLY
-    return Promise.resolve({
-      code: 200,
-      data: { shareId: 'S' + Date.now(), link: window.location.origin + '/register?inviteCode=TEA888' },
-      message: '生成成功'
-    });
-  },
+  // 生成分享链接
+  generateShareLink: () => get('/share/generate'),
   
-  // 获取邀请列表（后端路径为 /share/invitations）
-  getInvitations: () => {
-    // DEMO ONLY
-    return Promise.resolve({
-      code: 200,
-      data: [
-        { id: 1, nickname: '王大妈', avatar: '', time: '2025-12-30 10:00', status: '已下单' },
-        { id: 2, nickname: '李大爷', avatar: '', time: '2025-12-30 11:30', status: '已注册' }
-      ],
-      message: 'success'
-    });
-  },
+  // 获取邀请列表
+  getInvitations: () => get('/share/invitations'),
   
-  // 领取分享优惠券（后端路径为 /share/receive-coupon）
-  receiveShareCoupon: (shareId) => {
-    // DEMO ONLY
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const myCoupons = JSON.parse(localStorage.getItem('demo_my_coupons') || '[]');
-        const newCoupon = {
-          id: Date.now(), // 使用数字 ID 修复后端 Long 类型反序列化错误
-          name: '分享专属优惠券',
-          value: 5,
-          minAmount: 0,
-          type: '无门槛',
-          expireTime: '2026-02-15',
-          description: '分享活动奖励',
-          status: 'UNUSED',
-          receiveTime: '刚刚'
-        };
-        myCoupons.push(newCoupon);
-        localStorage.setItem('demo_my_coupons', JSON.stringify(myCoupons));
-        
-        // 同时更新分享统计
-        const stats = JSON.parse(localStorage.getItem('demo_share_stats') || '{"inviteCount":0,"totalReward":0,"inviteCode":"TEA888"}');
-        stats.inviteCount += 1;
-        stats.totalReward += 5;
-        localStorage.setItem('demo_share_stats', JSON.stringify(stats));
-
-        resolve({ code: 200, message: '恭喜获得“分享专属5元优惠券”，已发放至您的账户' });
-      }, 500);
-    });
-  },
+  // 领取分享优惠券
+  receiveShareCoupon: (shareId) => post('/share/receive-coupon', { shareId }),
   
-  // 获取邀请规则（后端路径为 /share/invite-rules）
+  // 获取邀请规则
   getInviteRules: () => get('/share/invite-rules'),
   
-  // 奖励邀请（后端路径为 /share/reward-invite）
-  rewardInvite: (inviteeId) => {
-    // DEMO ONLY
-    return Promise.resolve({ code: 200, message: '奖励已发放' });
-  }
+  // 奖励邀请
+  rewardInvite: (inviteeId) => post('/share/reward-invite', { inviteeId })
 }
 
 // 分享相关
 export const shareApi = {
   // 获取分享统计
-  getShareStats: () => {
-    // DEMO ONLY
-    const saved = localStorage.getItem('demo_share_stats');
-    const stats = saved ? JSON.parse(saved) : {
-      inviteCount: 3,
-      totalReward: 15,
-      inviteCode: 'TEA888'
-    };
-    if (!saved) localStorage.setItem('demo_share_stats', JSON.stringify(stats));
-    return Promise.resolve({ code: 200, data: stats, message: 'success' });
-  },
+  getShareStats: () => get('/share/stats'),
   // 获取分享奖励记录
-  getRewardRecords: () => {
-    // DEMO ONLY
-    return Promise.resolve({
-      code: 200,
-      data: [
-        { id: 1, type: '邀请奖励', amount: 5, time: '刚刚', desc: '好友“王大妈”完成首单' },
-        { id: 2, type: '邀请奖励', amount: 5, time: '1小时前', desc: '好友“张三”完成首单' }
-      ],
-      message: 'success'
-    });
-  }
+  getRewardRecords: () => get('/share/reward-records')
 }
 
 // 公共接口
@@ -538,22 +348,10 @@ export const paymentApi = {
 
 
 // 营销活动相关
-import { promotionDB, pointsDB, userDB } from './db.js'
 
 export const promotionApi = {
   // 活动列表
-  getPromotionList: async () => {
-    // DEMO ONLY: 优先从 IndexedDB 获取促销活动
-    try {
-      const dbPromotions = await promotionDB.getAll();
-      if (dbPromotions && dbPromotions.length > 0) {
-        return { code: 200, data: dbPromotions, message: 'success' };
-      }
-    } catch (e) {
-      console.error('IndexedDB error:', e);
-    }
-    return get('/promotions');
-  },
+  getPromotionList: () => get('/promotions'),
   
   // 满减活动
   getFullReduction: () => get('/promotions/full-reduction'),
@@ -564,30 +362,26 @@ export const promotionApi = {
   // 限时折扣商品
   getFlashSale: () => get('/promotions/flash-sale'),
 
-  // DEMO ONLY: 保存促销活动到 IndexedDB
-  savePromotion: async (data) => {
+  // 保存促销活动
+  savePromotion: (data) => {
     if (data.id) {
-      await promotionDB.update(data);
+      return put(`/promotions/${data.id}`, data);
     } else {
-      await promotionDB.add({ ...data, id: Date.now() });
+      return post('/promotions', data);
     }
-    return { code: 200, message: '保存成功' };
   },
 
-  // DEMO ONLY: 删除促销活动
-  deletePromotion: async (id) => {
-    await promotionDB.delete(id);
-    return { code: 200, message: '删除成功' };
-  }
+  // 删除促销活动
+  deletePromotion: (id) => del(`/promotions/${id}`)
 }
 
 // 售后相关
 export const afterSalesApi = {
   // 提交投诉建议
-  submitComplaint: (data) => post('/complaints', data),
+  submitComplaint: (data) => post('/orders/complaint', data),
   
   // 售后记录查询
-  getAfterSalesRecords: () => get('/after-sales')
+  getAfterSalesRecords: () => get('/orders/complaints')
 }
 
 // 收藏相关
@@ -639,4 +433,14 @@ export const storeApi = {
   
   // 获取门店详情
   getStoreDetail: (id) => get(`/stores/${id}`)
+}
+
+// 钱包相关
+export const walletApi = {
+  // 获取余额
+  getBalance: () => get('/user/card-balance'),
+  // 充值
+  recharge: (amount) => post('/user/recharge', { amount }),
+  // 获取交易记录
+  getTransactions: () => get('/user/transactions')
 }

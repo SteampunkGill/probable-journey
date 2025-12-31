@@ -76,18 +76,9 @@ const stats = ref({
 
 const loadStats = async () => {
   try {
-    // 模拟数据，防止后端接口未实现导致报错
-    stats.value = {
-      inviteCount: 5,
-      totalReward: 25,
-      inviteCode: 'TEA' + Math.floor(Math.random() * 10000)
-    }
-    
-    const res = await shareApi.getShareStats().catch(() => null)
+    const res = await shareApi.getShareStats()
     if (res && res.code === 200) {
       stats.value = res.data
-    } else if (res && !res.code) {
-      stats.value = res
     }
   } catch (error) {
     console.error('加载分享统计失败:', error)
@@ -95,18 +86,24 @@ const loadStats = async () => {
 }
 
 const handleShare = async (type) => {
-  // DEMO ONLY: 模拟分享并获得奖励
   try {
-    const res = await socialApi.receiveShareCoupon('demo_share_id')
-    if (res.code === 200) {
-      alert(`分享成功！${res.message}`)
-      // 模拟数据变化
-      stats.value.inviteCount += 1
-      stats.value.totalReward += 5
-      localStorage.setItem('demo_share_stats', JSON.stringify(stats.value))
+    // 实际项目中此处应先调用微信/社交平台 SDK
+    console.log(`发起 ${type} 分享`)
+    
+    // 分享成功后，将数据持久化逻辑完全交给后端处理
+    const shareId = `share_${type}_${Date.now()}`
+    const res = await socialApi.receiveShareCoupon(shareId)
+    
+    if (res && res.code === 200) {
+      alert(`分享成功！奖励已发放至您的账户`)
+      // 重新从后端拉取最新统计数据，确保不依赖本地持久化
+      await loadStats()
+    } else {
+      alert(res.message || '分享处理失败，请稍后再试')
     }
   } catch (error) {
-    alert(`分享功能模拟失败: ${type}`)
+    console.error('分享接口调用异常:', error)
+    alert('网络请求失败，请检查您的网络连接')
   }
 }
 

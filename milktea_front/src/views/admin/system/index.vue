@@ -5,6 +5,7 @@
       <div class="tab-item" :class="{ active: activeTab === 'store' }" @click="activeTab = 'store'">门店设置</div>
       <div class="tab-item" :class="{ active: activeTab === 'config' }" @click="activeTab = 'config'">系统设置</div>
       <div class="tab-item" :class="{ active: activeTab === 'log' }" @click="activeTab = 'log'">操作日志</div>
+      <div class="tab-item" :class="{ active: activeTab === 'print' }" @click="activeTab = 'print'">打印管理</div>
     </div>
 
     <div class="content-container card">
@@ -161,6 +162,73 @@
       </div>
     </div>
   </div>
+    <!-- 模板编辑弹窗 -->
+    <div v-if="templateModal.show" class="modal-mask">
+      <div class="modal-container">
+        <h3>{{ templateModal.isEdit ? '编辑模板' : '新增模板' }}</h3>
+        <div class="form-item">
+          <label>模板名称：</label>
+          <input v-model="templateModal.form.name" class="admin-input" />
+        </div>
+        <div class="form-item">
+          <label>模板内容：</label>
+          <textarea v-model="templateModal.form.content" class="admin-input" rows="10" style="width: 100%; max-width: 100%;"></textarea>
+        </div>
+        <div class="form-item">
+          <label>
+            <input type="checkbox" v-model="templateModal.form.isDefault" /> 设为默认
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button @click="templateModal.show = false">取消</button>
+          <button class="btn-primary" @click="saveTemplate">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 打印机编辑弹窗 -->
+    <div v-if="printerModal.show" class="modal-mask">
+      <div class="modal-container">
+        <h3>{{ printerModal.isEdit ? '编辑设备' : '新增设备' }}</h3>
+        <div class="form-item">
+          <label>设备名称：</label>
+          <input v-model="printerModal.form.name" class="admin-input" />
+        </div>
+        <div class="form-item">
+          <label>SN码：</label>
+          <input v-model="printerModal.form.sn" class="admin-input" />
+        </div>
+        <div class="form-item">
+          <label>KEY：</label>
+          <input v-model="printerModal.form.key" class="admin-input" />
+        </div>
+        <div class="form-item">
+          <label>类型：</label>
+          <select v-model="printerModal.form.type" class="admin-select">
+            <option value="FEIE">飞鹅</option>
+            <option value="YILIAN">易联云</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>所属门店：</label>
+          <select v-model="printerModal.form.storeId" class="admin-select">
+            <option v-for="s in stores" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+        <div class="form-item">
+          <label>状态：</label>
+          <select v-model="printerModal.form.status" class="admin-select">
+            <option :value="1">正常</option>
+            <option :value="0">禁用</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button @click="printerModal.show = false">取消</button>
+          <button class="btn-primary" @click="savePrinter">保存</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 门店编辑弹窗 -->
     <div v-if="storeModal.show" class="modal-mask">
       <div class="modal-container">
@@ -187,7 +255,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { get, post, put } from '../../../utils/request'
+import { get, post, put, del } from '../../../utils/request'
 
 const activeTab = ref('staff')
 const staffList = ref([])
@@ -198,6 +266,8 @@ const logs = ref([])
 
 const staffModal = ref({ show: false, isEdit: false, form: {} })
 const storeModal = ref({ show: false, isEdit: false, form: {} })
+const templateModal = ref({ show: false, isEdit: false, form: {} })
+const printerModal = ref({ show: false, isEdit: false, form: {} })
 
 const showStoreModal = (s = null) => {
   if (s) {
@@ -285,6 +355,7 @@ watch(activeTab, (val) => {
   if (val === 'store') loadStores()
   if (val === 'config') { loadConfigs(); loadBackups(); }
   if (val === 'log') loadLogs()
+  if (val === 'print') { loadTemplates(); loadPrinters(); }
 })
 
 const saveConfig = async (c) => {

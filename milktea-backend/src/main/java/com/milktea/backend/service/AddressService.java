@@ -31,7 +31,7 @@ public class AddressService {
     @Value("${amap.regeo-url}")
     private String regeoUrl;
 
-    // 简单的本地缓存，实际生产环境建议使用 Redis
+
     private final Map<String, Object> geoCache = new ConcurrentHashMap<>();
 
     public AddressService(UserAddressRepository userAddressRepository, UserService userService) {
@@ -40,23 +40,17 @@ public class AddressService {
         this.restTemplate = new RestTemplate();
     }
 
-    /**
-     * 获取当前用户地址列表
-     */
+
     public List<UserAddress> listAddresses() {
         return userAddressRepository.findByUserIdAndIsHistoryFalseOrderByIsDefaultDescCreatedAtDesc(userService.getCurrentUser().getId());
     }
 
-    /**
-     * 获取用户地址列表
-     */
+
     public List<UserAddress> getUserAddresses(Long userId) {
         return userAddressRepository.findByUserIdAndIsHistoryFalseOrderByIsDefaultDescCreatedAtDesc(userId);
     }
 
-    /**
-     * 根据坐标获取地址
-     */
+
     public Object getAddressByGeolocation(Double lat, Double lng) {
         if (lat == null || lng == null) {
             throw new ServiceException("INVALID_PARAMS", "经纬度不能为空");

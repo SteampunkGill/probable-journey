@@ -421,38 +421,32 @@ const addToCart = async () => {
   }
 }
 
-const buyNow = () => {
-  const orderItem = {
-    ...product.value,
-    customizations: { ...customizations.value },
-    toppingsCost: toppingsCost.value,
-    quantity: customizations.value.quantity
+const buyNow = async () => {
+  try {
+    const orderItem = {
+      productId: product.value.id,
+      quantity: customizations.value.quantity,
+      sweetness: customizations.value.sweetness,
+      temperature: customizations.value.temperature,
+      toppings: customizations.value.toppings
+    }
+    // 立即购买通常也是先加入购物车或直接创建订单，这里根据业务逻辑跳转
+    // 如果后端有立即购买接口，则调用；否则存入临时状态
+    localStorage.setItem('checkoutItems', JSON.stringify([{
+      ...product.value,
+      customizations: { ...customizations.value },
+      toppingsCost: toppingsCost.value,
+      quantity: customizations.value.quantity
+    }]))
+    router.push('/order/checkout')
+  } catch (error) {
+    console.error('立即购买失败', error)
   }
-  localStorage.setItem('checkoutItems', JSON.stringify([orderItem]))
-  router.push('/order/checkout')
 }
 
 const fetchProductDetail = async (id) => {
   loading.value = true
   
-  // 优先从 localStorage 读取
-  const cachedTea = localStorage.getItem('current_tea')
-  if (cachedTea) {
-    try {
-      const tea = JSON.parse(cachedTea)
-      if (String(tea.id) === String(id)) {
-        product.value = {
-          ...product.value,
-          ...tea,
-          images: tea.images || [tea.image].filter(Boolean)
-        }
-        console.log('从本地存储读取商品信息成功')
-      }
-    } catch (e) {
-      console.error('解析本地存储商品信息失败:', e)
-    }
-  }
-
   try {
     const [detailRes, customRes] = await Promise.all([
       productApi.getProductDetail(id),
@@ -460,15 +454,12 @@ const fetchProductDetail = async (id) => {
     ])
     
     const res = detailRes.data || detailRes
-    // 严格保护缓存数据：如果本地已有名称或图片，则不被后端返回的数据覆盖
-    const cachedName = product.value.name
-    const cachedImages = product.value.images
 
     product.value = {
       ...res,
       id: res.id,
-      name: cachedName || res.name,
-      images: (cachedImages && cachedImages.length > 0) ? cachedImages : (res.images || [res.imageUrl].filter(Boolean)),
+      name: res.name,
+      images: res.images || [res.imageUrl].filter(Boolean),
       price: res.price || product.value.price,
       originalPrice: res.originalPrice || res.price,
       description: res.description,

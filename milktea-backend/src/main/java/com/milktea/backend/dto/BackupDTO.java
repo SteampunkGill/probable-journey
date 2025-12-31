@@ -8,7 +8,7 @@ public class BackupDTO {
     private String id;
     private String fileName;
     private Long fileSize;
-    private String status; // COMPLETED, FAILED, IN_PROGRESS
+    private String status;
     private String downloadUrl;
     private LocalDateTime createdAt;
 }

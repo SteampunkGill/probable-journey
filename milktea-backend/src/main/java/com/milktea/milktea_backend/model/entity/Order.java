@@ -39,7 +39,7 @@ public class Order {
     private List<OrderItem> orderItems; // 订单项
 
     @Column(name = "status", nullable = false, length = 20)
-    private String status; // PAID, MAKING, READY, DELIVERED, REFUNDING...
+    private String status;
 
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private java.math.BigDecimal totalAmount;
@@ -57,7 +57,7 @@ public class Order {
     private java.math.BigDecimal deliveryFee;
 
     @Column(name = "pay_method", length = 20)
-    private String payMethod; // ALIPAY, WECHAT
+    private String payMethod;
 
     @Column(name = "transaction_id", length = 64)
     private String transactionId;
@@ -69,7 +69,7 @@ public class Order {
     private LocalDateTime payTime;
 
     @Column(name = "delivery_type", nullable = false, length = 20)
-    private String deliveryType; // PICKUP, DELIVERY
+    private String deliveryType;
 
     @Column(name = "address_json", columnDefinition = "json")
     private String addressJson;
